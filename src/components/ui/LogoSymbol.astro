@@ -1,0 +1,31 @@
+---
+/** Símbolo oficial (setas com S). Cor via `color` do CSS. Decorativo: o nome acessível fica no link. */
+import { brandSymbol } from './brand-assets';
+
+interface Props {
+  /** Altura em qualquer unidade CSS. A largura segue a proporção do símbolo. */
+  height?: string;
+  class?: string;
+}
+
+const { height = '1.875rem', class: className } = Astro.props;
+---
+
+<svg
+  class:list={['brand-symbol', className]}
+  viewBox={brandSymbol.viewBox}
+  style={`--brand-h:${height};--brand-ratio:${brandSymbol.width / brandSymbol.height}`}
+  fill="currentColor"
+  aria-hidden="true"
+  focusable="false"
+>
+  <use href={`#${brandSymbol.id}`}></use>
+</svg>
+
+<style>
+  .brand-symbol {
+    flex-shrink: 0;
+    width: calc(var(--brand-h) * var(--brand-ratio));
+    height: var(--brand-h);
+  }
+</style>

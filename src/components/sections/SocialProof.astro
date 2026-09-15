@@ -1,0 +1,158 @@
+---
+/**
+ * Prova social. Só é renderizada quando existe conteúdo real em src/data/proof.ts.
+ * Nada aqui pode ser inventado: depoimentos, logos e números precisam existir de verdade.
+ */
+import { Image } from 'astro:assets';
+import Section from '@/components/ui/Section.astro';
+import SectionHeader from '@/components/ui/SectionHeader.astro';
+import { clientLogos, stats, testimonials } from '@/data/proof';
+
+const hasContent = testimonials.length > 0 || clientLogos.length > 0 || stats.length > 0;
+---
+
+{
+  hasContent && (
+    <Section id="clientes" labelledby="clientes-title">
+      <div class="container proof">
+        <SectionHeader titleId="clientes-title" eyebrow="Clientes" align="center">
+          Empresas que já transformaram suas operações com a Tivexy.
+        </SectionHeader>
+
+        {clientLogos.length > 0 && (
+          <ul class="proof__logos" role="list">
+            {clientLogos.map((client) => (
+              <li>
+                <Image src={client.logo} alt={client.name} height={40} />
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {stats.length > 0 && (
+          <dl class="proof__stats">
+            {stats.map((stat) => (
+              <div>
+                <dt>{stat.label}</dt>
+                <dd>{stat.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+
+        {testimonials.length > 0 && (
+          <ul class="proof__testimonials" role="list">
+            {testimonials.map((testimonial) => (
+              <li>
+                <figure class="testimonial" data-reveal>
+                  <blockquote>
+                    <p>{testimonial.quote}</p>
+                  </blockquote>
+                  <figcaption>
+                    {testimonial.photo && (
+                      <Image src={testimonial.photo} alt="" width={48} height={48} class="testimonial__photo" />
+                    )}
+                    <span>
+                      <b>{testimonial.author}</b>
+                      {testimonial.role}, {testimonial.company}
+                    </span>
+                  </figcaption>
+                </figure>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Section>
+  )
+}
+
+<style>
+  .proof {
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  .proof__logos {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-4) var(--space-6);
+  }
+
+  .proof__logos :global(img) {
+    width: auto;
+    height: 2.5rem;
+    filter: grayscale(1);
+    opacity: 0.7;
+  }
+
+  .proof__stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: var(--space-3);
+  }
+
+  .proof__stats div {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: var(--space-0-5);
+    padding-top: var(--space-2);
+    border-top: var(--border-width) solid var(--border-default);
+  }
+
+  .proof__stats dt {
+    color: var(--text-muted);
+  }
+
+  .proof__stats dd {
+    margin: 0;
+    color: var(--text-strong);
+    font-family: var(--font-display);
+    font-size: var(--text-h2);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-heading);
+  }
+
+  .proof__testimonials {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: var(--space-3);
+  }
+
+  .testimonial {
+    display: grid;
+    gap: var(--space-3);
+    height: 100%;
+    margin: 0;
+    padding: var(--space-4);
+    border: var(--border-width) solid var(--border-subtle);
+    border-radius: var(--radius-xl);
+    background: var(--surface-card);
+  }
+
+  .testimonial blockquote {
+    margin: 0;
+    color: var(--text-strong);
+    font-size: var(--text-lead);
+    line-height: var(--leading-normal);
+  }
+
+  .testimonial figcaption {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1-5);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .testimonial figcaption b {
+    display: block;
+    color: var(--text-strong);
+  }
+
+  .testimonial :global(.testimonial__photo) {
+    border-radius: var(--radius-full);
+  }
+</style>

@@ -1,0 +1,240 @@
+---
+import Icon from '@/components/ui/Icon.astro';
+import Section from '@/components/ui/Section.astro';
+import SectionHeader from '@/components/ui/SectionHeader.astro';
+import { services } from '@/data/services';
+---
+
+<Section id="solucoes" tone="muted" labelledby="solucoes-title">
+  <div class="container services">
+    <SectionHeader titleId="solucoes-title" eyebrow="Soluções" layout="split">
+      Nossas soluções
+      <Fragment slot="lead">
+        Quatro caminhos para tirar a operação do improviso. Se você não souber qual é o seu, a
+        Tivexy ajuda a descobrir.
+      </Fragment>
+    </SectionHeader>
+
+    <ul class="services__grid" role="list">
+      {
+        services.map((service, index) => (
+          <li class="service" data-reveal data-spotlight style={`--reveal-order:${index}`}>
+            <span class="service__icon">
+              <Icon name={service.icon} size="1.5rem" />
+            </span>
+            <h3 class="service__title">
+              <a class="service__link" href={`/solucoes/${service.slug}`}>
+                {service.title}
+              </a>
+            </h3>
+            <p class="service__summary">{service.summary}</p>
+            <ul class="service__examples" role="list">
+              {service.examples.map((example) => (
+                <li>{example}</li>
+              ))}
+            </ul>
+            <span class="service__more" aria-hidden="true">
+              Saiba mais
+              <Icon name="arrow-right" size="1.125rem" />
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</Section>
+
+<script>
+  import '@/scripts/spotlight';
+</script>
+
+<style>
+  .services {
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  .services__grid {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .service {
+    --mx: 50%;
+    --my: 0%;
+
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1-5);
+    padding: var(--space-4) var(--space-3) var(--space-3);
+    overflow: hidden;
+    border: var(--border-width) solid var(--border-subtle);
+    border-radius: var(--radius-xl);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-sm);
+    transition:
+      border-color var(--duration-base) var(--ease-standard),
+      box-shadow var(--duration-slow) var(--ease-out),
+      translate var(--duration-slow) var(--ease-out);
+  }
+
+  /* Luz sutil que acompanha o cursor (ver src/scripts/spotlight.ts) */
+  .service::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      28rem circle at var(--mx) var(--my),
+      var(--color-blue-50),
+      transparent 60%
+    );
+    opacity: 0;
+    transition: opacity var(--duration-slow) var(--ease-standard);
+    pointer-events: none;
+  }
+
+  .service > * {
+    position: relative;
+  }
+
+  .service__icon {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: var(--space-1-5);
+    border-radius: var(--radius-md);
+    background: var(--surface-accent-soft);
+    color: var(--color-blue-600);
+    transition:
+      background-color var(--duration-base) var(--ease-standard),
+      color var(--duration-base) var(--ease-standard);
+  }
+
+  .service__title {
+    font-size: var(--text-h3);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-heading);
+  }
+
+  .service__link {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* O cartão inteiro é clicável; o link continua sendo o título (nome acessível claro). */
+  .service__link::after {
+    content: '';
+    position: absolute;
+    inset: -100rem;
+    z-index: 1;
+  }
+
+  .service__link:focus-visible {
+    outline: none;
+  }
+
+  .service:has(.service__link:focus-visible) {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  .service__summary {
+    max-width: 34rem;
+    color: var(--text-muted);
+    line-height: var(--leading-normal);
+  }
+
+  .service__examples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-0-5) var(--space-1);
+    margin-top: var(--space-0-5);
+    color: var(--text-default);
+    font-size: var(--text-xs);
+  }
+
+  .service__examples li {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-0-5) var(--space-1);
+    border: var(--border-width) solid var(--border-subtle);
+    border-radius: var(--radius-full);
+    background: var(--surface-subtle);
+  }
+
+  .service__more {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-top: auto;
+    padding-top: var(--space-2);
+    color: var(--text-accent);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+
+  .service__more :global(.icon) {
+    transition: translate var(--duration-base) var(--ease-out);
+  }
+
+  @media (--hover) {
+    .service:hover {
+      border-color: var(--border-accent);
+      box-shadow: var(--shadow-lg);
+      translate: 0 -0.1875rem;
+    }
+
+    .service:hover::before {
+      opacity: 1;
+    }
+
+    .service:hover .service__icon {
+      background: var(--brand-blue);
+      color: var(--color-white);
+    }
+
+    .service:hover .service__more :global(.icon) {
+      translate: 0.25rem 0;
+    }
+  }
+
+  .service:active {
+    translate: 0 0;
+    box-shadow: var(--shadow-md);
+  }
+
+  @media (--md) {
+    .services__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--space-3);
+    }
+
+    .service {
+      min-height: 21rem;
+      padding: var(--space-5) var(--space-5) var(--space-4);
+    }
+  }
+
+  @media (--lg) {
+    .services {
+      gap: var(--space-8);
+    }
+
+    .service {
+      min-height: 19rem;
+    }
+  }
+
+  @media (--reduced-motion) {
+    .service,
+    .service:hover {
+      translate: none;
+    }
+
+    .service:hover .service__more :global(.icon) {
+      translate: none;
+    }
+  }
+</style>

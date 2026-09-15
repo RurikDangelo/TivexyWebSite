@@ -1,0 +1,65 @@
+---
+import '@/styles/global.css';
+import { Font } from 'astro:assets';
+import Footer from '@/components/layout/Footer.astro';
+import Header from '@/components/layout/Header.astro';
+import Seo from '@/components/layout/Seo.astro';
+import BrandSprite from '@/components/ui/BrandSprite.astro';
+import { brand } from '@/config/brand';
+import { organizationSchema, websiteSchema } from '@/config/schema';
+import { site } from '@/config/site';
+
+interface Props {
+  title?: string;
+  description?: string;
+  noindex?: boolean;
+  jsonLd?: Record<string, unknown>[];
+}
+
+const { title = site.title, description = site.description, noindex, jsonLd = [] } = Astro.props;
+const siteUrl = Astro.site ?? new URL(Astro.url.origin);
+const schemas = [organizationSchema(siteUrl), websiteSchema(siteUrl), ...jsonLd];
+---
+
+<!doctype html>
+<html lang={site.lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script is:inline>
+      document.documentElement.classList.add('js');
+      // Se os scripts não carregarem, nenhum conteúdo fica escondido pelas animações.
+      setTimeout(function () {
+        if (!window.__tivexyReady) document.documentElement.classList.remove('js');
+      }, 4000);
+    </script>
+    <Font cssVariable="--font-manrope" preload={[{ weight: '700' }]} />
+    <Font cssVariable="--font-inter" preload={[{ weight: '400' }]} />
+    <Font cssVariable="--font-geist-mono" preload />
+    <Seo title={title} description={description} noindex={noindex} jsonLd={schemas} />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content={brand.white} />
+    <meta name="format-detection" content="telephone=no" />
+  </head>
+  <body>
+    <BrandSprite />
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+    <Header />
+    <main id="conteudo" tabindex="-1">
+      <slot />
+    </main>
+    <Footer />
+    <script>
+      import '@/scripts/reveal';
+    </script>
+  </body>
+</html>
+
+<style>
+  main:focus {
+    outline: none;
+  }
+</style>

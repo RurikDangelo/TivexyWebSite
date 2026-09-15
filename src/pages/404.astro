@@ -1,0 +1,73 @@
+---
+import Button from '@/components/ui/Button.astro';
+import { sectionHref } from '@/config/site';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Página não encontrada — Tivexy"
+  description="O endereço que você tentou acessar não existe ou mudou de lugar."
+  noindex
+>
+  <section class="not-found" aria-labelledby="nao-encontrada-titulo">
+    <div class="container not-found__inner">
+      <p class="not-found__code">Erro 404</p>
+      <h1 id="nao-encontrada-titulo" class="not-found__title">Esta página não existe.</h1>
+      <p class="not-found__text">
+        O endereço pode ter mudado ou ter sido digitado errado. Volte para o início ou conte para a
+        Tivexy o que você procura.
+      </p>
+      <div class="not-found__actions">
+        <Button href="/" size="lg" icon="arrow-right">Voltar para o início</Button>
+        <Button href={sectionHref('contato')} size="lg" variant="secondary">Falar com a Tivexy</Button>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .not-found {
+    display: grid;
+    align-items: center;
+    min-height: 100svh;
+    padding-block: calc(var(--header-h) + var(--space-8)) var(--space-10);
+    background:
+      linear-gradient(var(--scene-grid-line) 1px, transparent 1px) 0 0 / 2.5rem 2.5rem,
+      linear-gradient(90deg, var(--scene-grid-line) 1px, transparent 1px) 0 0 / 2.5rem 2.5rem,
+      var(--surface-subtle);
+  }
+
+  .not-found__inner {
+    display: grid;
+    justify-items: start;
+    gap: var(--space-2-5);
+  }
+
+  .not-found__code {
+    color: var(--text-accent);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+  }
+
+  .not-found__title {
+    font-size: var(--text-display);
+    letter-spacing: var(--tracking-display);
+    line-height: var(--leading-tight);
+  }
+
+  .not-found__text {
+    max-width: 36rem;
+    color: var(--text-muted);
+    font-size: var(--text-lead);
+    line-height: var(--leading-normal);
+  }
+
+  .not-found__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1-5);
+    margin-top: var(--space-2);
+  }
+</style>

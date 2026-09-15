@@ -1,0 +1,31 @@
+---
+/** Wordmark oficial "TIVEXY". Cor via `color` do CSS. Decorativo: o nome acessível fica no link. */
+import { brandWordmark } from './brand-assets';
+
+interface Props {
+  /** Altura das letras em qualquer unidade CSS. A largura segue a proporção do wordmark. */
+  height?: string;
+  class?: string;
+}
+
+const { height = '0.9375rem', class: className } = Astro.props;
+---
+
+<svg
+  class:list={['brand-wordmark', className]}
+  viewBox={brandWordmark.viewBox}
+  style={`--brand-h:${height};--brand-ratio:${brandWordmark.width / brandWordmark.height}`}
+  fill="currentColor"
+  aria-hidden="true"
+  focusable="false"
+>
+  <use href={`#${brandWordmark.id}`}></use>
+</svg>
+
+<style>
+  .brand-wordmark {
+    flex-shrink: 0;
+    width: calc(var(--brand-h) * var(--brand-ratio));
+    height: var(--brand-h);
+  }
+</style>

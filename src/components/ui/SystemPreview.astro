@@ -1,0 +1,438 @@
+---
+/**
+ * Telas ilustrativas dos sistemas base (seção "Cases e projetos"). Decorativas: quem usa este
+ * componente coloca aria-hidden no contêiner. Nomes e valores são fictícios.
+ *
+ * Escala: tudo aqui dentro é medido em em, e 1em = 1/40 da largura do quadro (16px num quadro de
+ * 640px). A tela escala como uma imagem e mantém a composição em qualquer largura.
+ * Em quadros com menos de 28rem, cada tela passa para uma versão compacta, com menos colunas e
+ * 1em = 1/24 da largura, para o texto continuar legível no celular.
+ *
+ * CSS: aqui fica só o tamanho das telas (CSS crítico). A aparência está em system-preview.css,
+ * carregado por JavaScript quando as telas se aproximam da área visível
+ * (src/scripts/system-preview-styles.ts), para não pesar no carregamento inicial.
+ * Sem JavaScript as janelas ficam vazias; quem usa o componente decide se as esconde.
+ */
+import type { SystemId } from '@/data/systems';
+import Icon from './Icon.astro';
+import type { IconName } from './icons';
+import LogoSymbol from './LogoSymbol.astro';
+import stylesheet from './system-preview.css?url';
+
+interface Props {
+  kind: SystemId;
+}
+
+const { kind } = Astro.props;
+
+const cafeItems = [
+  { name: 'Espresso', price: '6,50' },
+  { name: 'Cappuccino', price: '9,00', qty: 2 },
+  { name: 'Latte', price: '9,50' },
+  { name: 'Pão de queijo', price: '8,00', qty: 1 },
+  { name: 'Croissant', price: '9,50' },
+  { name: 'Bolo do dia', price: '11,00' },
+];
+const cafeTables = [
+  { number: 1, state: 'busy' },
+  { number: 2, state: 'free' },
+  { number: 3, state: 'busy' },
+  { number: 4, state: 'current' },
+  { number: 5, state: 'free' },
+  { number: 6, state: 'busy' },
+  { number: 7, state: 'free' },
+  { number: 8, state: 'free' },
+];
+
+const saleItems = [
+  { name: 'Arroz tipo 1 · 5 kg', qty: '1', total: '27,90' },
+  { name: 'Feijão carioca · 1 kg', qty: '2', total: '17,98' },
+  { name: 'Café torrado · 500 g', qty: '1', total: '19,90' },
+  { name: 'Leite integral · 1 L', qty: '6', total: '35,94' },
+  { name: 'Óleo de soja · 900 ml', qty: '2', total: '15,98' },
+];
+const stockLevels = [
+  { name: 'Arroz 5 kg', level: 72, low: false },
+  { name: 'Café 500 g', level: 14, low: true },
+  { name: 'Leite 1 L', level: 58, low: false },
+  { name: 'Óleo de soja', level: 20, low: true },
+  { name: 'Açúcar 1 kg', level: 64, low: false },
+];
+
+const erpNav: { label: string; icon: IconName; active?: boolean }[] = [
+  { label: 'Início', icon: 'grid', active: true },
+  { label: 'Financeiro', icon: 'wallet' },
+  { label: 'Estoque', icon: 'box' },
+  { label: 'Compras', icon: 'cart' },
+  { label: 'Relatórios', icon: 'chart' },
+];
+const cashflow = [
+  { month: 'Abr', entries: 62, exits: 48 },
+  { month: 'Mai', entries: 70, exits: 52 },
+  { month: 'Jun', entries: 58, exits: 50 },
+  { month: 'Jul', entries: 76, exits: 55 },
+  { month: 'Ago', entries: 82, exits: 57 },
+  { month: 'Set', entries: 92, exits: 60 },
+];
+const dues = [
+  { name: 'Aluguel', date: '05/10', value: '4.800' },
+  { name: 'Fornecedores', date: '08/10', value: '3.200' },
+  { name: 'Salários', date: '10/10', value: '9.450' },
+  { name: 'Energia', date: '12/10', value: '1.380' },
+];
+
+const crmColumns: {
+  title: string;
+  won?: boolean;
+  deals: { name: string; value: string; note: string; icon: IconName; active?: boolean }[];
+}[] = [
+  {
+    title: 'Novo contato',
+    deals: [
+      { name: 'Distribuidora', value: '4.500', note: 'Via WhatsApp', icon: 'whatsapp' },
+      { name: 'Transportadora', value: '3.200', note: 'Ligar amanhã', icon: 'clock' },
+      { name: 'Pet shop', value: '1.900', note: 'Via WhatsApp', icon: 'whatsapp' },
+    ],
+  },
+  {
+    title: 'Proposta',
+    deals: [
+      { name: 'Clínica', value: '9.800', note: 'Enviada hoje', icon: 'file', active: true },
+      { name: 'Academia', value: '2.700', note: 'Retornar hoje', icon: 'bell' },
+      { name: 'Escola', value: '5.350', note: 'Enviada ontem', icon: 'file' },
+    ],
+  },
+  {
+    title: 'Negociação',
+    deals: [
+      { name: 'Rede de lojas', value: '12.400', note: 'Ajustar prazo', icon: 'chat' },
+      { name: 'Construtora', value: '6.100', note: 'Revisar valores', icon: 'file' },
+    ],
+  },
+  {
+    title: 'Fechado',
+    won: true,
+    deals: [{ name: 'Contabilidade', value: '6.000', note: 'Assinado', icon: 'check' }],
+  },
+];
+---
+
+<div class="sp-frame" data-stylesheet={stylesheet}>
+  <div class="sp">
+    {kind === 'cafeteria' && (
+      <div class="sp-window sp-cafe">
+        <div class="sp-bar">
+          <LogoSymbol height="1.125em" />
+          <p class="sp-bar__title">
+            Cafeteria <span>· Balcão</span>
+          </p>
+          <p class="sp-bar__meta">
+            <span class="sp-status">Caixa aberto</span>
+            <span>14:32</span>
+          </p>
+        </div>
+
+        <div class="sp-cafe__body">
+          <div class="sp-cafe__menu">
+            <div class="sp-chips">
+              <span class="is-active">Todos</span>
+              <span>Cafés</span>
+              <span>Salgados</span>
+              <span>Doces</span>
+            </div>
+
+            <div class="sp-cafe__items">
+              {cafeItems.map((item) => (
+                <div class:list={['sp-cafe__item', { 'is-selected': item.qty }]}>
+                  <span class="sp-cafe__item-text">
+                    <b>{item.name}</b>
+                    <span>R$ {item.price}</span>
+                  </span>
+                  {item.qty ? (
+                    <span class="sp-cafe__qty">{item.qty}</span>
+                  ) : (
+                    <span class="sp-cafe__add">
+                      <Icon name="plus" size="0.875em" strokeWidth={2.25} />
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div class="sp-cafe__tables">
+              <span class="sp-label">Mesas</span>
+              {cafeTables.map((table) => (
+                <span class:list={['sp-cafe__table', `is-${table.state}`]}>{table.number}</span>
+              ))}
+            </div>
+          </div>
+
+          <div class="sp-cafe__ticket">
+            <div class="sp-cafe__ticket-head">
+              <b>Mesa 4</b>
+              <span>Comanda #0182</span>
+            </div>
+            <div class="sp-cafe__lines">
+              <div class="sp-cafe__line">
+                <span>2×</span>
+                <span>
+                  Cappuccino
+                  <small>+ canela</small>
+                </span>
+                <span>18,00</span>
+              </div>
+              <div class="sp-cafe__line">
+                <span>1×</span>
+                <span>Pão de queijo</span>
+                <span>8,00</span>
+              </div>
+            </div>
+            <p class="sp-cafe__total">
+              <span>Total</span>
+              <b>R$ 26,00</b>
+            </p>
+            <span class="sp-button">
+              Enviar ao preparo
+              <Icon name="arrow-right" size="1.125em" strokeWidth={2} />
+            </span>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {kind === 'mercado' && (
+      <div class="sp-window sp-market">
+        <div class="sp-bar">
+          <LogoSymbol height="1.125em" />
+          <p class="sp-bar__title">
+            Mercado <span>· Caixa 02</span>
+          </p>
+          <p class="sp-bar__meta">
+            <span class="sp-status">Estoque sincronizado</span>
+            <span>14:32</span>
+          </p>
+        </div>
+
+        <div class="sp-market__body">
+          <div class="sp-market__sale">
+            <div class="sp-field">
+              <Icon name="search" size="1.125em" />
+              <span>Código de barras ou nome do produto</span>
+              <kbd>F2</kbd>
+            </div>
+
+            <div class="sp-market__table">
+              <div class="sp-market__row sp-market__row--head">
+                <span>Produto</span>
+                <span>Qtd</span>
+                <span>Total</span>
+              </div>
+              {saleItems.map((item, index) => (
+                <div class:list={['sp-market__row', { 'is-new': index === saleItems.length - 1 }]}>
+                  <span>{item.name}</span>
+                  <span>{item.qty}</span>
+                  <span>{item.total}</span>
+                </div>
+              ))}
+            </div>
+
+            <div class="sp-market__checkout">
+              <p class="sp-market__total">
+                <span>5 itens · Total</span>
+                <b>R$ 117,70</b>
+              </p>
+              <span class="sp-button">Finalizar venda</span>
+            </div>
+          </div>
+
+          <div class="sp-market__stock">
+            <div class="sp-market__stock-head">
+              <b>Estoque</b>
+              <span class="sp-pill">2 para repor</span>
+            </div>
+            {stockLevels.map((item) => (
+              <div
+                class:list={['sp-market__level', { 'is-low': item.low }]}
+                style={`--level:${item.level}%`}
+              >
+                <span>{item.name}</span>
+                <em>{item.low ? 'Repor' : 'OK'}</em>
+                <i />
+              </div>
+            ))}
+            <span class="sp-button sp-button--outline">Gerar pedido de compra</span>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {kind === 'erp' && (
+      <div class="sp-window sp-erp">
+        <div class="sp-erp__side">
+          <div class="sp-erp__brand">
+            <LogoSymbol height="1.125em" />
+            <span>Gestão</span>
+          </div>
+          {erpNav.map((item) => (
+            <span class:list={['sp-erp__nav', { 'is-active': item.active }]}>
+              <Icon name={item.icon} size="1.25em" />
+              <span>{item.label}</span>
+            </span>
+          ))}
+        </div>
+
+        <div class="sp-erp__main">
+          <div class="sp-bar">
+            <p class="sp-bar__title">
+              Visão geral <span>· Setembro</span>
+            </p>
+            <p class="sp-bar__meta">
+              <span class="sp-status">Atualizado agora</span>
+            </p>
+          </div>
+
+          <div class="sp-erp__content">
+            <div class="sp-erp__kpis">
+              <p class="sp-erp__kpi">
+                <span>A receber</span>
+                <b>R$ 48.200</b>
+                <small>12 títulos</small>
+              </p>
+              <p class="sp-erp__kpi">
+                <span>A pagar</span>
+                <b>R$ 21.750</b>
+                <small>8 títulos</small>
+              </p>
+              <p class="sp-erp__kpi is-brand">
+                <span>Saldo previsto</span>
+                <b>R$ 26.450</b>
+                <small>Fim do mês</small>
+              </p>
+            </div>
+
+            <div class="sp-erp__panels">
+              <div class="sp-card sp-erp__chart">
+                <div class="sp-card__head">
+                  <b>Fluxo de caixa</b>
+                  <span class="sp-legend">
+                    <i />
+                    Entradas
+                    <i class="is-exit" />
+                    Saídas
+                  </span>
+                </div>
+                <div class="sp-erp__bars">
+                  {cashflow.map((item) => (
+                    <span class="sp-erp__month">
+                      <span class="sp-erp__pair">
+                        <i style={`--h:${item.entries}%`} />
+                        <i class="is-exit" style={`--h:${item.exits}%`} />
+                      </span>
+                      <small>{item.month}</small>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div class="sp-card sp-erp__due">
+                <div class="sp-card__head">
+                  <b>Próximos vencimentos</b>
+                </div>
+                {dues.map((item) => (
+                  <p class="sp-erp__due-row">
+                    <span>
+                      {item.name}
+                      <small>Vence {item.date}</small>
+                    </span>
+                    <b>R$ {item.value}</b>
+                  </p>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {kind === 'crm' && (
+      <div class="sp-window sp-crm">
+        <div class="sp-bar">
+          <LogoSymbol height="1.125em" />
+          <p class="sp-bar__title">
+            Funil de vendas <span>· Setembro</span>
+          </p>
+          <p class="sp-bar__meta">
+            <span class="sp-field">
+              <Icon name="search" size="1.125em" />
+              Buscar cliente
+            </span>
+            <span class="sp-pill">R$ 45.950 em aberto</span>
+          </p>
+        </div>
+
+        <div class="sp-crm__board">
+          {crmColumns.map((column) => (
+            <div class="sp-crm__column">
+              <p class="sp-crm__column-head">
+                <b>{column.title}</b>
+                <span>{column.deals.length}</span>
+              </p>
+              {column.deals.map((deal) => (
+                <div
+                  class:list={['sp-crm__deal', { 'is-active': deal.active, 'is-won': column.won }]}
+                >
+                  <b>{deal.name}</b>
+                  <span class="sp-crm__value">R$ {deal.value}</span>
+                  <span class="sp-crm__note">
+                    <Icon name={deal.icon} size="1.2em" />
+                    {deal.note}
+                  </span>
+                </div>
+              ))}
+              {column.won && <span class="sp-crm__drop">Arraste para fechar</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+</div>
+
+<script>
+  import '@/scripts/system-preview-styles';
+</script>
+
+<style is:global>
+  /* Tamanho das telas. Fica no CSS crítico para nada mudar de lugar quando a aparência carregar. */
+  .sp-frame {
+    container: system-preview / inline-size;
+    width: 100%;
+  }
+
+  .sp {
+    font-size: calc(100cqw / 40);
+  }
+
+  /* Longe da tela, o conteúdo da janela não passa por estilo e layout. */
+  .sp-window {
+    height: 25em;
+    overflow: hidden;
+    content-visibility: auto;
+  }
+
+  /* Invisível até system-preview.css chegar; ele devolve a opacidade. */
+  .sp-window > * {
+    opacity: 0;
+    transition: opacity var(--duration-base) var(--ease-out);
+  }
+
+  @container system-preview (width < 28rem) {
+    .sp {
+      font-size: calc(100cqw / 24);
+    }
+
+    .sp-window {
+      height: 22em;
+    }
+  }
+</style>

@@ -1,0 +1,42 @@
+---
+/** Logo horizontal da Tivexy: símbolo + wordmark oficiais (a tagline fica só na versão vertical). */
+import LogoSymbol from './LogoSymbol.astro';
+import Wordmark from './Wordmark.astro';
+
+interface Props {
+  inverse?: boolean;
+  class?: string;
+}
+
+const { inverse = false, class: className } = Astro.props;
+---
+
+<span class:list={['logo', { 'logo--inverse': inverse }, className]}>
+  <LogoSymbol height="var(--logo-symbol-h)" />
+  <Wordmark height="var(--logo-wordmark-h)" />
+</span>
+
+<style>
+  .logo {
+    --logo-symbol-h: 1.625rem;
+    --logo-wordmark-h: 0.8125rem;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    color: var(--brand-blue);
+  }
+
+  .logo--inverse {
+    color: var(--brand-on-blue);
+  }
+
+  @media (--sm) {
+    .logo {
+      --logo-symbol-h: 1.875rem;
+      --logo-wordmark-h: 0.9375rem;
+
+      gap: 0.75rem;
+    }
+  }
+</style>

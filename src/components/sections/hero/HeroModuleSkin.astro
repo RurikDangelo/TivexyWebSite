@@ -1,0 +1,125 @@
+---
+import Icon from '@/components/ui/Icon.astro';
+import type { ActorDef } from './timeline';
+
+interface Props {
+  actor: ActorDef;
+}
+
+const { actor } = Astro.props;
+
+const kpis = {
+  orders: { label: 'Pedidos em andamento', value: 128, note: 'atualizado agora' },
+  stock: { label: 'Itens abaixo do mínimo', value: 3, note: 'reposição solicitada' },
+  approvals: { label: 'Aprovações pendentes', value: 6, note: '2 vencem hoje' },
+} as const;
+
+const kpi = actor.id in kpis ? kpis[actor.id as keyof typeof kpis] : undefined;
+
+const flowSteps = ['Pedido recebido', 'Estoque reservado', 'Nota fiscal emitida', 'Cliente avisado'];
+
+const activity = [
+  { text: 'NF enviada ao cliente', time: '09:42' },
+  { text: 'Estoque reservado', time: '09:41' },
+  { text: 'Pedido #4821 recebido', time: '09:40' },
+  { text: 'Relatório diário gerado', time: '08:00' },
+];
+
+const orders = [
+  { id: '#4821', client: 'Distribuidora Aurora', status: 'Nota emitida', tone: 'blue', value: 'R$ 3.240,00' },
+  { id: '#4820', client: 'Mercado Central', status: 'Em separação', tone: 'gray', value: 'R$ 1.187,50' },
+  { id: '#4819', client: 'Clínica Vida Plena', status: 'Aguardando aprovação', tone: 'ice', value: 'R$ 860,00' },
+  { id: '#4818', client: 'Construtora Base', status: 'Entregue', tone: 'outline', value: 'R$ 12.400,00' },
+];
+---
+
+<div class:list={['hs-skin', 'hs-skin--module', 'hs-module', `hs-module--${actor.module}`]}>
+  {
+    actor.module === 'kpi' && kpi && (
+      <>
+        <p class="hs-kpi__label">{kpi.label}</p>
+        <p class="hs-kpi__value" data-count={kpi.value}>
+          {kpi.value}
+        </p>
+        <p class="hs-kpi__note">{kpi.note}</p>
+        {actor.id === 'orders' && (
+          <svg class="hs-kpi__spark" viewBox="0 0 80 28" preserveAspectRatio="none">
+            <path d="M1 23 C8 22 12 19 19 20 S30 14 38 15 S50 9 58 10 S71 5 79 3" />
+          </svg>
+        )}
+      </>
+    )
+  }
+  {
+    actor.module === 'flow' && (
+      <>
+        <div class="hs-module__head">
+          <p class="hs-module__title">Fluxo · Novo pedido</p>
+          <span class="hs-pill hs-pill--blue">Automático</span>
+        </div>
+        <div class="hs-flow__body">
+          <span class="hs-flow__track">
+            <span class="hs-flow__fill" />
+          </span>
+          <ol class="hs-flow__steps">
+            {flowSteps.map((label, index) => (
+              <li class="hs-flow__step" data-flow-step={index}>
+                <span class="hs-flow__dot">
+                  <Icon name="check" strokeWidth={2.5} />
+                </span>
+                <span class="hs-flow__label">{label}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </>
+    )
+  }
+  {
+    actor.module === 'activity' && (
+      <>
+        <div class="hs-module__head">
+          <p class="hs-module__title">Atividade</p>
+          <span class="hs-module__link">Tudo</span>
+        </div>
+        <ul class="hs-activity">
+          {activity.map((item) => (
+            <li class="hs-activity__item">
+              <span class="hs-activity__dot" />
+              <span class="hs-activity__text">{item.text}</span>
+              <span class="hs-activity__time">{item.time}</span>
+            </li>
+          ))}
+        </ul>
+      </>
+    )
+  }
+  {
+    actor.module === 'table' && (
+      <>
+        <div class="hs-module__head">
+          <p class="hs-module__title">Pedidos recentes</p>
+          <span class="hs-module__link">Ver todos</span>
+        </div>
+        <div class="hs-table">
+          <div class="hs-table__row hs-table__row--head">
+            <span>Pedido</span>
+            <span>Cliente</span>
+            <span>Status</span>
+            <span class="hs-table__value">Valor</span>
+          </div>
+          {orders.map((order) => (
+            <div class="hs-table__row">
+              <span class="hs-table__id">{order.id}</span>
+              <span>{order.client}</span>
+              <span>
+                <span class:list={['hs-pill', `hs-pill--${order.tone}`]}>{order.status}</span>
+              </span>
+              <span class="hs-table__value">{order.value}</span>
+            </div>
+          ))}
+        </div>
+      </>
+    )
+  }
+</div>

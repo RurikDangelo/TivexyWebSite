@@ -1,0 +1,53 @@
+---
+/**
+ * Ícone de app da Tivexy: símbolo oficial em branco sobre azulejo no azul da marca
+ * (adaptação da versão negativa da logo). Usado no hub do hero e nas miniaturas de produto.
+ */
+import { brandSymbol } from './brand-assets';
+
+interface Props {
+  size?: number | string;
+  class?: string;
+}
+
+const { size = 28, class: className } = Astro.props;
+
+const TILE = 64;
+const glyphWidth = TILE * 0.72;
+const glyphHeight = (glyphWidth * brandSymbol.height) / brandSymbol.width;
+---
+
+<svg
+  class:list={['mark', className]}
+  width={size}
+  height={size}
+  viewBox={`0 0 ${TILE} ${TILE}`}
+  aria-hidden="true"
+  focusable="false"
+>
+  <rect class="mark__tile" width={TILE} height={TILE} rx="15"></rect>
+  <svg
+    class="mark__glyph"
+    x={(TILE - glyphWidth) / 2}
+    y={(TILE - glyphHeight) / 2}
+    width={glyphWidth}
+    height={glyphHeight}
+    viewBox={brandSymbol.viewBox}
+  >
+    <use href={`#${brandSymbol.id}`}></use>
+  </svg>
+</svg>
+
+<style>
+  .mark {
+    flex-shrink: 0;
+  }
+
+  .mark__tile {
+    fill: var(--mark-tile, var(--brand-blue));
+  }
+
+  .mark__glyph {
+    fill: var(--mark-glyph, var(--brand-on-blue));
+  }
+</style>

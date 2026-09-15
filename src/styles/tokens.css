@@ -1,0 +1,233 @@
+/*
+ * Tivexy — design tokens
+ * Regra: nenhum valor de cor, sombra ou duração fora deste arquivo.
+ *
+ * Azul da marca: #1648a6, extraído da logo oficial. Toda a escala azul usa a mesma matiz (219°).
+ *   blue-600 (marca) = superfícies sólidas com texto ou ícone: botões, logo, azulejos
+ *   blue-500 (sinal) = linhas, pontos, progresso e foco: o que está "conectado" e vivo
+ *
+ * Semântica de cor da narrativa:
+ *   cinza = como a operação funciona hoje (manual, desconectada)
+ *   azul  = o que a Tivexy conecta (automático, integrado)
+ */
+
+@property --u {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 1px;
+}
+
+:root {
+  /* ── Paleta base: azul, branco, gelo, cinza ───────────────────────── */
+  --color-white: #ffffff;
+  --color-ice-50: #f6f9fc;
+  --color-ice-100: #edf2f8;
+  --color-ice-200: #dfe7f1;
+  --color-mist-300: #c5d1df;
+  --color-gray-400: #8e9bb0;
+  --color-gray-450: #76849a;
+  --color-gray-500: #5d6b81;
+  --color-gray-600: #475569;
+  --color-ink-700: #2a3446;
+  --color-ink-900: #0b1424;
+
+  --color-blue-50: #eff4fc;
+  --color-blue-100: #dde7f9;
+  --color-blue-200: #bdd0f2;
+  --color-blue-300: #8eb0ec;
+  --color-blue-500: #2360d4;
+  --color-blue-600: #1648a6; /* azul da logo */
+  --color-blue-700: #103b8a;
+  --color-blue-800: #0c2e6e;
+  --color-on-brand-muted: #d6e2f7; /* 6,4:1 sobre o azul da marca */
+
+  --color-navy-800: #12224a;
+  --color-navy-900: #0a1633;
+  --color-navy-950: #060e24;
+  --color-on-dark-muted: #a7b6d2;
+  --color-on-dark-dim: #5d6e92; /* 3,5:1 sobre navy-900: mínimo para texto grande */
+
+  /* Funcional (fora da paleta da marca): só para erros de formulário. */
+  --color-danger-50: #fdf2f1;
+  --color-danger-600: #c2352b;
+
+  /* ── Superfícies ─────────────────────────────────────────────────── */
+  --surface-page: var(--color-white);
+  --surface-subtle: var(--color-ice-50);
+  --surface-muted: var(--color-ice-100);
+  --surface-card: var(--color-white);
+  --surface-accent-soft: var(--color-blue-50);
+  --surface-inverse: var(--color-navy-900);
+  --surface-inverse-raised: var(--color-navy-800);
+  --surface-inverse-deep: var(--color-navy-950);
+  --surface-brand: var(--color-blue-600);
+
+  /* ── Marca ───────────────────────────────────────────────────────── */
+  --brand-blue: var(--color-blue-600);
+  --brand-on-blue: var(--color-white);
+
+  /* ── Texto ───────────────────────────────────────────────────────── */
+  --text-strong: var(--color-ink-900);
+  --text-default: var(--color-ink-700);
+  --text-muted: var(--color-gray-500);
+  --text-accent: var(--color-blue-600);
+  --text-on-accent: var(--color-white);
+  --text-on-inverse: var(--color-white);
+  --text-on-inverse-muted: var(--color-on-dark-muted);
+  --text-accent-on-inverse: var(--color-blue-300);
+  --text-on-brand-muted: var(--color-on-brand-muted);
+
+  /* ── Estados da narrativa ────────────────────────────────────────── */
+  --state-idle: var(--color-gray-400);
+  --state-idle-soft: var(--color-ice-200);
+  --state-connected: var(--color-blue-500);
+  --state-connected-soft: var(--color-blue-100);
+  --state-connected-soft-on-inverse: rgb(142 176 236 / 0.18);
+
+  /* ── Sobreposições ───────────────────────────────────────────────── */
+  --overlay-header: rgb(255 255 255 / 0.9);
+  --overlay-header-solid: rgb(255 255 255 / 0.97);
+  --overlay-on-inverse-hover: rgb(255 255 255 / 0.06);
+  --overlay-on-inverse-active: rgb(255 255 255 / 0.1);
+
+  /* ── Cena do hero ────────────────────────────────────────────────── */
+  --scene-grid-line: rgb(11 20 36 / 0.055);
+  --scene-glow: rgb(35 96 212 / 0.12);
+  --scene-tape: rgb(197 209 223 / 0.78);
+  --scene-pulse-halo: rgb(35 96 212 / 0.22);
+  --scene-hub-ring: rgb(22 72 166 / 0.1);
+  --scene-chip-glow: rgb(35 96 212 / 0.12);
+  --brand-panel-glow-light: rgb(35 96 212 / 0.9);
+  --brand-panel-glow-deep: rgb(12 46 110 / 0.85);
+  --brand-panel-line: rgb(255 255 255 / 0.2);
+  --shadow-ink-5: rgb(11 20 36 / 0.05);
+  --shadow-ink-6: rgb(11 20 36 / 0.06);
+  --shadow-ink-8: rgb(11 20 36 / 0.08);
+  --shadow-navy-10: rgb(19 38 88 / 0.1);
+  --shadow-navy-16: rgb(19 38 88 / 0.16);
+  --shadow-navy-20: rgb(19 38 88 / 0.2);
+
+  /* ── Bordas ──────────────────────────────────────────────────────── */
+  --border-width: 1px;
+  --border-subtle: rgb(11 20 36 / 0.07);
+  --border-default: rgb(11 20 36 / 0.12);
+  --border-strong: var(--color-mist-300);
+  --border-field: var(--color-gray-450);
+  --border-accent: rgb(22 72 166 / 0.35);
+  --border-on-inverse: rgb(255 255 255 / 0.12);
+  --border-on-inverse-strong: rgb(255 255 255 / 0.22);
+
+  /* ── Foco ────────────────────────────────────────────────────────── */
+  --focus-ring-color: var(--color-blue-500);
+  --focus-ring-color-on-inverse: var(--color-blue-300);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 3px;
+
+  /* ── Tipografia ──────────────────────────────────────────────────── */
+  --font-display: var(--font-manrope), sans-serif;
+  --font-body: var(--font-inter), sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --text-hero-min: 2.25rem;
+  --text-hero-max: 4.5rem;
+  --text-display: clamp(2.25rem, 1.2rem + 4.2vw, 4.5rem);
+  --text-h2: clamp(2rem, 1.35rem + 2.6vw, 3.5rem);
+  --text-h3: clamp(1.25rem, 1.12rem + 0.45vw, 1.5rem);
+  --text-h4: 1.125rem;
+  --text-lead: clamp(1.125rem, 1.06rem + 0.3vw, 1.3125rem);
+  --text-body: clamp(1rem, 0.98rem + 0.1vw, 1.0625rem);
+  --text-sm: 0.9375rem;
+  --text-xs: 0.8125rem;
+  --text-2xs: 0.75rem;
+
+  --leading-none: 1;
+  --leading-tight: 1.04;
+  --leading-heading: 1.1;
+  --leading-snug: 1.3;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+
+  --tracking-display: -0.042em;
+  --tracking-heading: -0.03em;
+  --tracking-tight: -0.014em;
+  --tracking-normal: 0;
+  --tracking-label: 0.08em;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+
+  /* ── Espaço: grade de 8px ────────────────────────────────────────── */
+  --space-0-5: 0.25rem; /*   4 */
+  --space-1: 0.5rem; /*      8 */
+  --space-1-5: 0.75rem; /*  12 */
+  --space-2: 1rem; /*       16 */
+  --space-2-5: 1.25rem; /*  20 */
+  --space-3: 1.5rem; /*     24 */
+  --space-4: 2rem; /*       32 */
+  --space-5: 2.5rem; /*     40 */
+  --space-6: 3rem; /*       48 */
+  --space-8: 4rem; /*       64 */
+  --space-10: 5rem; /*      80 */
+  --space-12: 6rem; /*      96 */
+  --space-16: 8rem; /*     128 */
+
+  --space-section: clamp(5rem, 3.4rem + 6.5vw, 9rem);
+  --space-section-tight: clamp(4rem, 3rem + 4vw, 6.5rem);
+  --space-gutter: clamp(1.25rem, 0.55rem + 3vw, 2.5rem);
+
+  /* ── Layout ──────────────────────────────────────────────────────── */
+  --container-max: 76rem; /*   1216 */
+  --container-wide: 86rem; /*  1376 */
+  --container-narrow: 46rem; /* 736 */
+  --measure: 38rem; /* comprimento de linha confortável */
+
+  --header-h: 4.5rem; /*         72 */
+  --header-h-compact: 3.75rem; /* 60 */
+
+  /* ── Raios ───────────────────────────────────────────────────────── */
+  --radius-xs: 0.375rem; /*  6 */
+  --radius-sm: 0.5rem; /*    8 */
+  --radius-md: 0.75rem; /*  12 */
+  --radius-lg: 1rem; /*     16 */
+  --radius-xl: 1.5rem; /*   24 */
+  --radius-2xl: 2rem; /*    32 */
+  --radius-full: 999px;
+
+  /* ── Sombras (tinta azulada, nunca preto puro) ───────────────────── */
+  --shadow-xs: 0 1px 2px rgb(11 20 36 / 0.06);
+  --shadow-sm: 0 1px 2px rgb(11 20 36 / 0.05), 0 2px 8px rgb(11 20 36 / 0.05);
+  --shadow-md: 0 2px 4px rgb(11 20 36 / 0.04), 0 10px 24px -4px rgb(11 20 36 / 0.08);
+  --shadow-lg: 0 4px 8px rgb(11 20 36 / 0.04), 0 24px 48px -12px rgb(19 38 88 / 0.16);
+  --shadow-float:
+    0 1px 1px rgb(11 20 36 / 0.04), 0 12px 28px -8px rgb(19 38 88 / 0.14),
+    0 40px 80px -24px rgb(19 38 88 / 0.18);
+  --shadow-accent: 0 1px 1px rgb(12 46 110 / 0.3), 0 8px 20px -6px rgb(22 72 166 / 0.45);
+  --shadow-inset-field: inset 0 1px 2px rgb(11 20 36 / 0.04);
+
+  /* ── Movimento ───────────────────────────────────────────────────── */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  --duration-instant: 100ms;
+  --duration-fast: 160ms;
+  --duration-base: 240ms;
+  --duration-slow: 480ms;
+  --duration-reveal: 760ms;
+  --duration-draw: 1400ms;
+  --duration-ambient: 18s;
+
+  --reveal-distance: 1.25rem;
+  --reveal-stagger: 90ms;
+
+  /* ── Camadas ─────────────────────────────────────────────────────── */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-sticky: 50;
+  --z-header: 100;
+  --z-overlay: 200;
+  --z-skip-link: 400;
+}

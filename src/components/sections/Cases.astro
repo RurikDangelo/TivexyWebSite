@@ -1,0 +1,586 @@
+---
+import { Image } from 'astro:assets';
+import Button from '@/components/ui/Button.astro';
+import Icon from '@/components/ui/Icon.astro';
+import Section from '@/components/ui/Section.astro';
+import SectionHeader from '@/components/ui/SectionHeader.astro';
+import SystemPreview from '@/components/ui/SystemPreview.astro';
+import { cases } from '@/data/proof';
+import { systems } from '@/data/systems';
+
+const hasCases = cases.length > 0;
+---
+
+<Section id="projetos" tone="muted" labelledby="projetos-title">
+  <div class="container projects">
+    <SectionHeader titleId="projetos-title" eyebrow="Projetos" layout="split">
+      Cases e projetos
+      <Fragment slot="lead">
+        {hasCases
+          ? 'Projetos entregues e sistemas base que a Tivexy adapta aos processos de cada negócio.'
+          : 'Sistemas que a Tivexy desenvolve para nichos específicos e para a gestão de qualquer empresa, sempre adaptados aos processos do seu negócio.'}
+      </Fragment>
+    </SectionHeader>
+
+    {hasCases && (
+      <ul class="cases" role="list">
+        {cases.map((item, index) => (
+          <li class="case" data-reveal style={`--reveal-order:${index}`}>
+            <div class="case__media">
+              {item.image && (
+                <Image
+                  src={item.image.src}
+                  alt={item.image.alt}
+                  widths={[480, 800]}
+                  sizes="(width >= 64em) 33vw, 100vw"
+                />
+              )}
+            </div>
+            <div class="case__body">
+              <p class="case__segment">{item.segment}</p>
+              <h3 class="case__name">{item.name}</h3>
+              <dl class="case__fields">
+                <div>
+                  <dt>Problema</dt>
+                  <dd>{item.problem}</dd>
+                </div>
+                <div>
+                  <dt>Solução</dt>
+                  <dd>{item.solution}</dd>
+                </div>
+                <div>
+                  <dt>Resultado</dt>
+                  <dd>{item.result}</dd>
+                </div>
+              </dl>
+            </div>
+          </li>
+        ))}
+      </ul>
+    )}
+
+    <div class="systems" data-tabs data-reveal>
+      <div class="systems__tabs" role="tablist" aria-label="Sistemas desenvolvidos pela Tivexy">
+        {systems.map((system, index) => (
+          <button
+            class="systems__tab"
+            type="button"
+            role="tab"
+            id={`sistema-${system.id}-aba`}
+            aria-controls={`sistema-${system.id}`}
+            aria-selected={index === 0 ? 'true' : 'false'}
+            tabindex={index === 0 ? undefined : -1}
+          >
+            <span class="systems__tab-icon">
+              <Icon name={system.icon} size="1.25rem" />
+            </span>
+            <span class="systems__tab-text">
+              <span class="systems__tab-name">{system.tab}</span>
+              <span class="systems__tab-hint" aria-hidden="true">
+                {system.tabHint}
+              </span>
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div class="systems__panels">
+        {systems.map((system, index) => (
+          <div
+            class="systems__panel"
+            role="tabpanel"
+            id={`sistema-${system.id}`}
+            aria-labelledby={`sistema-${system.id}-aba`}
+            data-inactive={index === 0 ? undefined : ''}
+          >
+            <div class="systems__copy">
+              <p class="systems__segment">{system.segment}</p>
+              <h3 class="systems__name">{system.name}</h3>
+              <p class="systems__description">{system.description}</p>
+              <ul class="systems__features" role="list">
+                {system.features.map((feature) => (
+                  <li>{feature}</li>
+                ))}
+              </ul>
+              <Button
+                href="#contato"
+                icon="arrow-right"
+                data-interest="sistemas-sob-medida"
+                data-message={`Tenho interesse no ${system.name}.`}
+              >
+                Quero um sistema assim<span class="visually-hidden">: {system.name}</span>
+              </Button>
+            </div>
+
+            <div class="systems__stage" aria-hidden="true">
+              <SystemPreview kind={system.id} />
+              <span class="systems__caption">Tela ilustrativa</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <div class="projects__cta" data-reveal>
+      <p>
+        Seu segmento não está na lista?
+        <span class="projects__cta-text">
+          A Tivexy desenvolve o sistema a partir da rotina da sua empresa.
+        </span>
+      </p>
+      <Button
+        href="#contato"
+        variant="secondary"
+        icon="arrow-right"
+        data-interest="sistemas-sob-medida"
+      >
+        Contar meu desafio
+      </Button>
+    </div>
+  </div>
+</Section>
+
+<script>
+  import '@/scripts/tabs';
+</script>
+
+<style>
+  .projects {
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  /* ── Cases reais (aparecem quando src/data/proof.ts tiver itens) ──── */
+  .cases {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .case {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: var(--border-width) solid var(--border-subtle);
+    border-radius: var(--radius-xl);
+    background: var(--surface-card);
+  }
+
+  .case__media {
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    border-bottom: var(--border-width) solid var(--border-subtle);
+    background: var(--surface-subtle);
+  }
+
+  .case__media :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .case__body {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+
+  .case__name {
+    font-size: var(--text-h4);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tight);
+  }
+
+  .case__segment {
+    color: var(--text-accent);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+  }
+
+  .case__fields {
+    display: grid;
+    gap: var(--space-1-5);
+  }
+
+  .case__fields div {
+    display: grid;
+    gap: 0.375rem;
+  }
+
+  .case__fields dt {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+  }
+
+  .case__fields dd {
+    margin: 0;
+    color: var(--text-default);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+  }
+
+  /* ── Sistemas: abas ──────────────────────────────────────────────── */
+  .systems {
+    display: grid;
+    gap: var(--space-1-5);
+  }
+
+  .systems__tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1);
+  }
+
+  .systems__tab {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1-5);
+    min-width: 0;
+    min-height: 3.5rem;
+    padding: var(--space-1) var(--space-1-5);
+    border: var(--border-width) solid var(--border-default);
+    border-radius: var(--radius-lg);
+    color: var(--text-default);
+    text-align: left;
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard),
+      box-shadow var(--duration-base) var(--ease-standard),
+      color var(--duration-fast) var(--ease-standard);
+  }
+
+  .systems__tab-icon {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: var(--border-width) solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--surface-card);
+    color: var(--text-muted);
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      color var(--duration-fast) var(--ease-standard);
+  }
+
+  .systems__tab-text {
+    display: grid;
+    min-width: 0;
+  }
+
+  .systems__tab-name {
+    font-family: var(--font-display);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-tight);
+    line-height: var(--leading-snug);
+  }
+
+  .systems__tab-hint {
+    display: none;
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    line-height: var(--leading-snug);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .systems__tab[aria-selected='true'] {
+    border-color: transparent;
+    background: var(--surface-card);
+    box-shadow: var(--shadow-md);
+    color: var(--text-strong);
+  }
+
+  .systems__tab[aria-selected='true'] .systems__tab-icon {
+    border-color: transparent;
+    background: var(--brand-blue);
+    color: var(--brand-on-blue);
+  }
+
+  @media (--hover) {
+    .systems__tab:hover:not([aria-selected='true']) {
+      border-color: var(--border-strong);
+      background: var(--surface-subtle);
+      color: var(--text-strong);
+    }
+
+    .systems__tab:hover:not([aria-selected='true']) .systems__tab-icon {
+      color: var(--brand-blue);
+    }
+  }
+
+  /* ── Sistemas: painéis ───────────────────────────────────────────── */
+
+  /* Todos os painéis ocupam a mesma célula: trocar de aba não muda a altura da seção. */
+  .systems__panels {
+    display: grid;
+  }
+
+  .systems__panel {
+    display: grid;
+    grid-area: 1 / 1;
+    align-content: start;
+    overflow: hidden;
+    border: var(--border-width) solid var(--border-subtle);
+    border-radius: var(--radius-xl);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-sm);
+  }
+
+  :global(.js) .systems__panel[data-inactive] {
+    visibility: hidden;
+  }
+
+  /* A tela de uma aba fechada só é renderizada quando a aba abre. */
+  :global(.js) .systems__panel[data-inactive] :global(.sp-window) {
+    content-visibility: hidden;
+  }
+
+  /* Sem JavaScript não há abas nem telas ilustrativas: os sistemas aparecem um embaixo do outro. */
+  :global(html:not(.js)) .systems__tabs,
+  :global(html:not(.js)) .systems__stage {
+    display: none;
+  }
+
+  :global(html:not(.js)) .systems__panels {
+    gap: var(--space-2);
+  }
+
+  :global(html:not(.js)) .systems__panel {
+    grid-area: auto;
+  }
+
+  .systems__copy,
+  .systems__stage > :global(*) {
+    transition:
+      opacity var(--duration-slow) var(--ease-out),
+      translate var(--duration-slow) var(--ease-out);
+  }
+
+  .systems__copy {
+    transition-delay: 60ms;
+  }
+
+  :global(.js) .systems__panel[data-inactive] .systems__copy,
+  :global(.js) .systems__panel[data-inactive] .systems__stage > :global(*) {
+    opacity: 0;
+    translate: 0 0.5rem;
+    transition: none;
+  }
+
+  .systems__copy {
+    display: grid;
+    align-content: start;
+    justify-items: start;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-3) var(--space-4);
+  }
+
+  .systems__segment {
+    color: var(--text-accent);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    font-weight: var(--weight-medium);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+  }
+
+  .systems__name {
+    margin-top: calc(-1 * var(--space-1));
+    font-size: var(--text-h3);
+    letter-spacing: var(--tracking-heading);
+  }
+
+  .systems__description {
+    max-width: 34rem;
+    color: var(--text-muted);
+    line-height: var(--leading-normal);
+  }
+
+  .systems__features {
+    display: grid;
+    gap: var(--space-1);
+    width: 100%;
+    padding-bottom: var(--space-1);
+  }
+
+  .systems__features li {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-1);
+    color: var(--text-default);
+    font-size: var(--text-sm);
+    line-height: var(--leading-snug);
+  }
+
+  /* Mesmo desenho do ícone "check", como máscara: um SVG no CSS em vez de dezesseis no HTML. */
+  .systems__features li::before {
+    content: '';
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    margin-top: 0.125rem;
+    background: var(--state-connected);
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+  }
+
+  .systems__stage {
+    display: grid;
+    order: -1;
+    align-content: center;
+    justify-items: end;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-2) var(--space-1-5);
+    border-bottom: var(--border-width) solid var(--border-subtle);
+    background:
+      radial-gradient(70% 60% at 50% 45%, var(--scene-glow), transparent 70%),
+      linear-gradient(var(--scene-grid-line) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem,
+      linear-gradient(90deg, var(--scene-grid-line) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem,
+      var(--surface-subtle);
+  }
+
+  .systems__caption {
+    padding: 0.125rem 0.375rem;
+    border-radius: var(--radius-xs);
+    background: var(--surface-subtle);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+  }
+
+  /* ── Convite final ───────────────────────────────────────────────── */
+  .projects__cta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-4);
+    padding: var(--space-3);
+    border: var(--border-width) dashed var(--border-strong);
+    border-radius: var(--radius-xl);
+  }
+
+  .projects__cta p {
+    display: grid;
+    gap: var(--space-0-5);
+    color: var(--text-strong);
+    font-family: var(--font-display);
+    font-size: var(--text-h4);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tight);
+  }
+
+  .projects__cta-text {
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-regular);
+    letter-spacing: var(--tracking-normal);
+  }
+
+  @media (--md) {
+    .cases {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-3);
+    }
+
+    .systems__tabs {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .systems__copy {
+      padding: var(--space-4) var(--space-5) var(--space-5);
+    }
+
+    .systems__features {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: var(--space-3);
+    }
+
+    .systems__stage {
+      padding: var(--space-5) var(--space-6) var(--space-2);
+    }
+
+    .projects__cta {
+      padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+    }
+  }
+
+  @media (--lg) {
+    .projects {
+      gap: var(--space-8);
+    }
+
+    .systems {
+      gap: var(--space-2);
+    }
+
+    .systems__tab {
+      min-height: 4.25rem;
+      padding: var(--space-1-5) var(--space-2);
+    }
+
+    .systems__tab-icon {
+      width: 2.5rem;
+      height: 2.5rem;
+    }
+
+    .systems__tab-hint {
+      display: block;
+    }
+
+    /* A tela fica com a maior parte da largura para o texto dentro dela continuar legível. */
+    .systems__panel {
+      grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+      align-content: stretch;
+    }
+
+    .systems__copy {
+      align-content: center;
+      padding: var(--space-5) var(--space-4);
+    }
+
+    .systems__features {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .systems__stage {
+      order: 0;
+      padding: var(--space-5) var(--space-4) var(--space-2);
+      border-bottom: 0;
+      border-left: var(--border-width) solid var(--border-subtle);
+    }
+  }
+
+  @media (--xl) {
+    .systems__panel {
+      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    }
+
+    .systems__copy {
+      padding: var(--space-6) var(--space-5);
+    }
+
+    .systems__stage {
+      padding: var(--space-6) var(--space-5) var(--space-2);
+    }
+  }
+
+  @media (--reduced-motion) {
+    :global(.js) .systems__panel[data-inactive] .systems__copy,
+    :global(.js) .systems__panel[data-inactive] .systems__stage > :global(*) {
+      translate: none;
+    }
+
+    .systems__copy {
+      transition-delay: 0s;
+    }
+  }
+</style>

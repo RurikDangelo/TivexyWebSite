@@ -1,0 +1,28 @@
+---
+import Cases from '@/components/sections/Cases.astro';
+import Contact from '@/components/sections/contact/Contact.astro';
+import FinalCta from '@/components/sections/FinalCta.astro';
+import Hero from '@/components/sections/hero/Hero.astro';
+import Manifesto from '@/components/sections/Manifesto.astro';
+import Problem from '@/components/sections/Problem.astro';
+import Process from '@/components/sections/Process.astro';
+import Products from '@/components/sections/Products.astro';
+import Services from '@/components/sections/Services.astro';
+import SocialProof from '@/components/sections/SocialProof.astro';
+import Technology from '@/components/sections/Technology.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+---
+
+<BaseLayout>
+  <Hero />
+  <Problem />
+  <Services />
+  <Manifesto />
+  <Process />
+  <Products />
+  <Technology />
+  <Cases />
+  <SocialProof />
+  <FinalCta onHome />
+  <Contact />
+</BaseLayout>
