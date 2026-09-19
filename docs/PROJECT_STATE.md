@@ -60,6 +60,8 @@ provisionamento. Mais RLS em todas elas e o catálogo da plataforma
 - Nenhuma tabela sem RLS; nenhuma tabela sem política; `search_path` fixo em
   toda função `SECURITY DEFINER`
 - Auditoria append-only; convite pendente sem acesso; `has_permission` por papel
+- `current_viewer()`: o contexto de acesso da requisição, com teste de vazamento
+  em cada corte — estranho não descobre nem que o tenant existe
 - Provisionamento ponta a ponta: idempotência, falha no meio, retomada sem
   repetir etapa concluída, dados de compensação
 
@@ -77,8 +79,9 @@ Existe e é consumido por `apps/web`:
 
 - Contratos do catálogo (módulos, permissões, papéis, planos) e os estados de
   tenant, vínculo e provisionamento, tipados
-- `decideAccess()` e `matchRule()`: a decisão de acesso da aplicação, espelhando
-  as regras do RLS — 27 testes, incluindo a ordem em que nega e o padrão fechado
+- `decideAccess()`, `matchRule()` e `parseViewer()`: a decisão de acesso da
+  aplicação, espelhando as regras do RLS — 34 testes, incluindo a ordem em que
+  nega, o padrão fechado e o contexto malformado virando menos acesso
 - 11 testes conferem os contratos contra o catálogo SQL nos dois sentidos: a
   duplicação entre TypeScript e banco não passa despercebida
 

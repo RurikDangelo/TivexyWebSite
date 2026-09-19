@@ -71,7 +71,7 @@ sem implementação atrás vira ficção.
 | `AUTOMATIONS.md`                       | `09-AUTOMATIONS/`  | ⬜ com o motor                   |
 | `API.md`                               | `02-ARCHITECTURE/` | ⬜ com as primeiras rotas        |
 | `SECURITY.md`                          | `12-SECURITY/`     | ⬜ com o Core                    |
-| `TESTING.md`                           | `00-SYSTEM/`       | ⬜ com a suíte de testes         |
+| `TESTING.md`                           | `00-SYSTEM/`       | ✅ escrito                       |
 | `DEPLOYMENT.md`                        | `15-OPERATIONS/`   | ⬜ com o primeiro deploy do SaaS |
 | `TROUBLESHOOTING.md`                   | `15-OPERATIONS/`   | ⬜ com a operação                |
 | `CHANGELOG.md`                         | `18-RELEASES/`     | ⬜ com a primeira release        |
