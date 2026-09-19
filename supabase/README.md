@@ -8,10 +8,12 @@ mora na raiz do monorepo, no diretório que o Supabase CLI espera.
 
 ## Estado
 
-As migrations **não foram aplicadas em nenhum projeto Supabase** — ele ainda não
-existe (ver `docs/PROJECT_STATE.md` §6). O que já existe é mais forte do que
-"escrito": elas rodam contra um Postgres 18 de verdade e passam em 89 testes,
-incluindo os de isolamento entre tenants.
+O projeto Supabase **existe**: `tivexy-core`, ref `lddpqizqjvtimxmorxux`,
+região `sa-east-1`. As migrations ainda **não foram aplicadas nele** — ver
+"Aplicar no projeto" abaixo.
+
+O que já existe é mais forte do que "escrito": elas rodam contra um Postgres 18
+de verdade e passam em 89 testes, incluindo os de isolamento entre tenants.
 
 O que ainda não foi exercido: `auth.uid()` real vindo de um JWT, e o
 comportamento sob concorrência real. O harness simula `auth.uid()` com uma
@@ -21,6 +23,7 @@ configuração de sessão, que é fiel ao contrato mas não ao transporte.
 
 ```
 supabase/
+├── config.toml                gerado por `supabase init` — ver nota abaixo
 ├── migrations/
 │   ├── 20260919020000_core_foundation.sql        tipos e trigger de updated_at
 │   ├── 20260919020100_core_tenancy.sql           planos, módulos, tenants
@@ -144,13 +147,51 @@ execuções vivas no mesmo tenant. Regra que depende de a aplicação lembrar n�
 são dados de referência: o sistema não funciona sem eles, nem em produção. Dado
 fictício de tenant demo é outra coisa e vai para `seed.sql`.
 
-## Quando o projeto Supabase existir
+## Aplicar no projeto
 
-1. `supabase link --project-ref <ref>`
-2. `supabase db push` — aplica as migrations
-3. Conferir os avisos de segurança e performance no painel
-4. Gerar os tipos: `supabase gen types typescript` → `packages/types`
-5. Rodar o teste de isolamento **contra o projeto real**, não só no PGlite
+O CLI do Supabase está no monorepo como devDependency — não precisa de
+instalação global, nem de Docker (Docker só é exigido por `supabase start`,
+que não usamos).
 
-Enquanto isso, `npm run test:db` é a rede de segurança. Toda mudança de esquema
-entra junto com o teste que a prova.
+```bash
+npx supabase login    # abre o navegador; a credencial fica na sua máquina
+npm run db:link       # vincula ao ref lddpqizqjvtimxmorxux
+npm run db:push       # aplica as 9 migrations, na ordem dos nomes
+npm run db:types      # gera apps/web/src/lib/database.types.ts
+```
+
+`db:link` pede a senha do banco. Ela é sua: não passa pelo chat, não entra em
+arquivo do repositório, não vira variável de ambiente aqui.
+
+Depois do push:
+
+1. Conferir os avisos de segurança e performance no painel
+2. Rodar o teste de isolamento **contra o projeto real**, não só no PGlite
+3. Confirmar a versão do Postgres do projeto — os testes rodam em 18, e nada
+   do esquema depende de recurso exclusivo dele, mas divergência silenciosa
+   entre o que se testa e o que roda é como bug de produção começa
+
+### Por que `config.toml` tem 400 linhas que não usamos
+
+`supabase init` gera o arquivo inteiro, com os padrões do stack local. O `link`
+e o `push` exigem que ele exista. Podar à mão criaria divergência a cada
+atualização do CLI e ganharia pouco: o arquivo é gerado, não escrito.
+
+Só duas coisas ali são decisão nossa: `project_id = "tivexy"` (prefixo dos
+contêineres locais) e `[db] major_version`. O resto vale para `supabase start`,
+que este projeto não usa.
+
+A configuração de **auth do projeto remoto** mora no painel, não aqui. O que
+está em `[auth]` neste arquivo só afeta o stack local.
+
+### Onde vão os tipos gerados
+
+`apps/web/src/lib/database.types.ts` — não em `packages/`. Hoje há um único
+consumidor, e a regra do monorepo é clara: package só quando houver
+compartilhamento real, não para deixar organizado. Quando um segundo consumidor
+aparecer (um serviço, um worker), aí o arquivo sobe para um package.
+
+---
+
+Até o push acontecer, `npm run test:db` é a rede de segurança. Toda mudança de
+esquema entra junto com o teste que a prova.

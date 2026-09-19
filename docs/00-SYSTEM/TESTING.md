@@ -49,8 +49,9 @@ Ser honesto sobre o limite importa tanto quanto o teste:
 - Comportamento sob concorrência real.
 - Qualquer coisa específica da infraestrutura do Supabase.
 
-Quando o projeto Supabase existir, o teste de isolamento roda **também** contra
-ele. Até lá, `npm run test:db` é a rede — não a garantia final.
+Assim que as migrations forem aplicadas no projeto (`tivexy-core`), o teste de
+isolamento roda **também** contra ele. Até lá, `npm run test:db` é a rede — não
+a garantia final.
 
 ## Os testes que não podem faltar
 

@@ -30,7 +30,7 @@
 | Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
 | Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
 | Contratos (`packages/core`)  | ✅     | `npm run validate` — 133 testes; contratos conferidos contra o SQL |
-| CI (GitHub Actions)          | 🟡     | Workflow escrito; só roda depois do push                           |
+| CI (GitHub Actions)          | 🟡     | Push feito; execução não conferida — `gh` sem autenticação aqui    |
 | Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado       |
 
 ## 2. Estado por módulo
@@ -69,7 +69,8 @@ provisionamento. Mais RLS em todas elas e o catálogo da plataforma
 concorrência. Os testes rodam em PGlite (Postgres em WASM) com `auth.uid()`
 simulado por configuração de sessão — fiel ao contrato, não ao transporte.
 
-**Bloqueado:** aplicar as migrations depende do projeto Supabase 🔒.
+**Bloqueado:** o projeto `tivexy-core` existe; aplicar as migrations nele
+depende de autorizar o conector ou rodar `npm run db:push` com o CLI 🔒.
 
 ### Tivexy Core — camada de aplicação (`packages/core`)
 
@@ -195,8 +196,10 @@ o teste de escalada teria passado por engano.
 ## 4. O que está em desenvolvimento
 
 Nada em andamento. O que dava para avançar sem credencial foi entregue:
-`packages/core` com os contratos e a decisão de acesso, e o CI. A autenticação,
-próximo passo de verdade, depende do projeto Supabase existir (🔒 externo).
+`packages/core` com os contratos e a decisão de acesso, o CI, e o CLI do
+Supabase configurado no monorepo (`npm run db:link` / `db:push` / `db:types`).
+A autenticação, próximo passo de verdade, depende das migrations estarem
+aplicadas em `tivexy-core` (🔒 externo).
 
 ## 5. Decisões tomadas
 
@@ -211,18 +214,28 @@ próximo passo de verdade, depende do projeto Supabase existir (🔒 externo).
 
 Ordenadas por urgência:
 
-| #   | Tarefa                                          | Bloqueia                | Urgência    |
-| --- | ----------------------------------------------- | ----------------------- | ----------- |
-| 1   | **`git push` da branch `monorepo-tivexy-core`** | Tudo sair desta máquina | 🔴 Imediata |
-| 2   | Criar projeto Supabase da Tivexy                | Todo o SaaS             | 🔴 Alta     |
-| 3   | Conferir o destino do formulário de contato     | Leads da landing        | 🟠 Alta     |
-| 4   | Conta/organização Vercel própria da Tivexy      | Deploy do SaaS          | 🟠 Média    |
-| 5   | Domínio `tivexy.com.br` + DNS                   | SEO, e-mail             | 🟠 Média    |
-| 6   | E-mail corporativo + SPF/DKIM/DMARC             | Convites do SaaS        | 🟠 Média    |
-| 7   | Credenciais OpenAI                              | AI Engine               | 🟡 Depois   |
-| 8   | Meta Business + WhatsApp Business API           | Atendimento             | 🟡 Depois   |
-| 9   | Provedor fiscal + certificado digital           | Fiscal                  | 🟡 Depois   |
-| 10  | CNPJ, contador, conta PJ, contratos             | Venda formal            | 🟡 Paralelo |
+| #   | Tarefa                                       | Bloqueia              | Urgência    |
+| --- | -------------------------------------------- | --------------------- | ----------- |
+| 1   | **Autorizar o conector Supabase no projeto** | Aplicar as migrations | 🔴 Imediata |
+| 2   | Conferir o destino do formulário de contato  | Leads da landing      | 🟠 Alta     |
+| 3   | Conta/organização Vercel própria da Tivexy   | Deploy do SaaS        | 🟠 Média    |
+| 4   | Domínio `tivexy.com.br` + DNS                | SEO, e-mail           | 🟠 Média    |
+| 5   | E-mail corporativo + SPF/DKIM/DMARC          | Convites do SaaS      | 🟠 Média    |
+| 6   | Credenciais OpenAI                           | AI Engine             | 🟡 Depois   |
+| 7   | Meta Business + WhatsApp Business API        | Atendimento           | 🟡 Depois   |
+| 8   | Provedor fiscal + certificado digital        | Fiscal                | 🟡 Depois   |
+| 9   | CNPJ, contador, conta PJ, contratos          | Venda formal          | 🟡 Paralelo |
+
+**Resolvido em 19/09/2026 (madrugada):** o `git push` aconteceu — a branch
+`monorepo-tivexy-core` está no remoto, no mesmo commit do local. Deixou de
+existir trabalho que só vive nesta máquina.
+
+**Resolvido em 19/09/2026:** o projeto Supabase existe — `tivexy-core`, ref
+`lddpqizqjvtimxmorxux`, `sa-east-1`. O que restou é menor e está no topo desta
+tabela: o conector Supabase desta sessão foi autorizado antes do projeto
+existir, e responde `You do not have permission` nele. Sem isso, as migrations
+só entram pelo CLI — que já está configurado (`npm run db:link && npm run
+db:push`).
 
 **Resolvido em 19/09/2026:** Root Directory da landing na Vercel → `apps/site`,
 verificado por deploy de preview real (build READY, home servida corretamente).
@@ -242,18 +255,20 @@ Apagar segredo sem contexto é irreversível — vale revisar.
 
 | #   | Risco                                          | Impacto                      |
 | --- | ---------------------------------------------- | ---------------------------- |
-| 1   | Trabalho existir só nesta máquina, sem push    | 🔴 Alto, imediato            |
-| 2   | Construir ERP/CRM antes de um Core confiável   | 🔴 Alto                      |
-| 3   | Blueprint Engine virar abstração prematura     | 🔴 Alto                      |
-| 4   | Duplicar auth/permissões dentro dos módulos    | 🟠 Alto                      |
-| 5   | Mock apresentado como funcionalidade real      | 🔴 Crítico (legal/comercial) |
-| 6   | Código, docs, Trello e este arquivo divergirem | 🟡 Médio                     |
+| 1   | Construir ERP/CRM antes de um Core confiável   | 🔴 Alto                      |
+| 2   | Blueprint Engine virar abstração prematura     | 🔴 Alto                      |
+| 3   | Duplicar auth/permissões dentro dos módulos    | 🟠 Alto                      |
+| 4   | Mock apresentado como funcionalidade real      | 🔴 Crítico (legal/comercial) |
+| 5   | Código, docs, Trello e este arquivo divergirem | 🟡 Médio                     |
+
+**Saiu da lista em 19/09/2026:** "trabalho existir só nesta máquina" — o push
+aconteceu.
 
 Detalhe em [[PROJECT_AUDIT#17. Riscos]].
 
 ## 8. Retomada — nesta ordem
 
-Os três primeiros são seus e bloqueiam o resto.
+Os dois primeiros são seus e bloqueiam o resto.
 
 ### 1. 🔴 Revogar o token da Vercel
 
@@ -264,40 +279,47 @@ publicar um preview; nada além disso.
 Na mesma passada, vale revogar o _deployment protection bypass token_ que a CLI
 gerou sozinha para conseguir ler o preview protegido.
 
-### 2. 🔴 `git push` da branch `monorepo-tivexy-core`
+### 2. 🔴 Aplicar as migrations no projeto
+
+O projeto existe (`tivexy-core`, ref `lddpqizqjvtimxmorxux`). Aplicar destrava
+autenticação, provisionamento, Admin, CRM e ERP — tudo depende disto. Há dois
+caminhos, e o segundo é o que fica.
+
+**Pelo CLI** — já configurado, não depende de conector:
 
 ```bash
-git push -u origin monorepo-tivexy-core
+npx supabase login
+npm run db:link
+npm run db:push
+npm run db:types
 ```
 
-O push trava nesta máquina: o `credential.helper` é o Git Credential Manager,
-que abre janela de autenticação e fica esperando. `gh auth login` destrava de
-vez.
+**Pelo conector** — precisa de reautorização: Configurações → Conectores →
+Supabase → reconectar, incluindo o projeto novo no escopo. O conector desta
+sessão foi autorizado antes de `tivexy-core` existir e responde
+`You do not have permission` nele.
 
-**São 22 commits que existem só neste disco.** É o único risco real em aberto.
-Depois do push, abrir PR — o CI roda sozinho e valida tudo.
-
-### 3. 🔴 Criar o projeto Supabase
-
-Destrava autenticação, provisionamento, Admin, CRM e ERP — tudo depende disto.
-Passos em `supabase/README.md`, seção "Quando o projeto Supabase existir".
-
-Ao aplicar as migrations, **rodar o teste de isolamento contra o projeto real**.
-Os 133 testes rodam em Postgres WASM: fiéis ao contrato, não ao transporte.
+Depois de aplicar, **rodar o teste de isolamento contra o projeto real**. Os
+133 testes rodam em Postgres WASM: fiéis ao contrato, não ao transporte.
 
 ### Depois, na ordem do ADR-002
 
-4. **Autenticação** — Supabase Auth: login, convite, recuperação, sessão. A
+3. **Autenticação** — Supabase Auth: login, convite, recuperação, sessão. A
    decisão de acesso já existe e está testada; falta a camada de sessão que
    chama `current_viewer()` e alimenta `parseViewer()`.
-5. **Middleware** — ligar `matchRule` + `decideAccess` + `redirectFor` às rotas.
+4. **Middleware** — ligar `matchRule` + `decideAccess` + `redirectFor` às rotas.
    As três peças existem e têm teste; falta o fio que as conecta à requisição.
-6. **Provisionamento** — o esquema sustenta e há um modelo do fluxo provado em
+5. **Provisionamento** — o esquema sustenta e há um modelo do fluxo provado em
    teste. Falta a implementação no backend, com `service_role`.
-7. **Painel Super Admin**, e só então CRM e ERP.
+6. **Painel Super Admin**, e só então CRM e ERP.
 
 ### O que dá para fazer sem esperar nada
 
+- Abrir o PR da branch `monorepo-tivexy-core` (o push já aconteceu; o `gh` nesta
+  máquina não está autenticado, então é pela interface do GitHub ou depois de um
+  `gh auth login`)
+- Fechar a lacuna de teste da **compensação** do provisionamento: os estados
+  `compensating` e `compensated` estão no esquema e documentados, sem cobertura
 - Conferir se o destino do formulário de contato da landing ainda responde
 - Revisar as variáveis de outro projeto no ambiente Vercel (`DATABASE_URL`,
   `AUTH_SECRET`, `STORE_TIMEZONE` e outras) — a landing não usa nenhuma, mas

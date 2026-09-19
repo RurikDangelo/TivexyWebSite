@@ -12,7 +12,8 @@
     "packages/*"
   ],
   "allowScripts": {
-    "esbuild": true
+    "esbuild": true,
+    "supabase": true
   },
   "scripts": {
     "dev:site": "npm run dev --workspace @tivexy/site",
@@ -32,6 +33,10 @@
     "test:core": "node --test \"packages/core/src/*.test.ts\"",
     "test:web": "node --test \"apps/web/src/**/*.test.ts\"",
     "test:db": "node --test \"supabase/tests/*.test.mjs\"",
+    "db:link": "supabase link --project-ref lddpqizqjvtimxmorxux",
+    "db:push": "supabase db push",
+    "db:diff": "supabase db diff --linked",
+    "db:types": "supabase gen types typescript --linked --schema public > apps/web/src/lib/database.types.ts",
     "docs:matrix": "node scripts/permission-matrix.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -40,6 +45,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "prettier": "^3.9.6",
-    "prettier-plugin-astro": "^1.0.0"
+    "prettier-plugin-astro": "^1.0.0",
+    "supabase": "^2.117.0"
   }
 }

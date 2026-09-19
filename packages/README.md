@@ -12,9 +12,14 @@ Código compartilhado **de verdade** entre as aplicações do monorepo.
 
 | Package  | Responsabilidade                                    | Quando                                    |
 | -------- | --------------------------------------------------- | ----------------------------------------- |
-| `types`  | Tipos gerados do banco (`supabase gen types`)       | Quando o projeto Supabase existir         |
+| `types`  | Tipos gerados do banco (`supabase gen types`)       | Quando houver um segundo consumidor       |
 | `ui`     | Componentes compartilhados                          | Quando houver um segundo consumidor React |
 | `config` | Configuração compartilhada (tokens, lint, tsconfig) | Quando houver um segundo consumidor       |
+
+Os tipos gerados do banco nascem em `apps/web/src/lib/database.types.ts`, não
+aqui: hoje há um único consumidor, e package só se justifica com
+compartilhamento real. Sobem para `packages/types` quando um serviço ou worker
+passar a lê-los também.
 
 `apps/site` é Astro e não consome nenhum deles: compartilhar componente entre
 Astro e React acoplaria dois projetos que devem publicar independentes. O que

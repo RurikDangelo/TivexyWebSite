@@ -4,7 +4,8 @@
 > sobre esta base. Migrations e testes em `supabase/` — ver [[../../supabase/README|supabase/README]].
 >
 > **Estado:** migrations escritas e verificadas contra Postgres 18 (89 testes
-> passando). Ainda **não aplicadas** em projeto Supabase — ele não existe.
+> passando). O projeto Supabase já existe (`tivexy-core`); as migrations ainda
+> **não foram aplicadas nele**.
 
 ## ERD
 
