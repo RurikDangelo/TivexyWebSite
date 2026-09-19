@@ -159,6 +159,19 @@ O acesso a um módulo depende de **duas** coisas:
 Um colaborador com `fiscal.documents.read` num tenant sem o módulo fiscal não
 acessa nada. A verdade sobre módulo habilitado é `tenant_modules`, não o plano.
 
+## Privilégio de coluna
+
+RLS não restringe coluna. Uma política de `UPDATE` aprova a linha e, com ela,
+qualquer coluna dentro dela.
+
+Em `public.users`, o papel `authenticated` só pode atualizar `full_name`,
+`avatar_url` e `last_seen_at`. `is_super_admin` e `email` estão fora por
+privilégio de coluna, não por política — foi assim que uma escalada de
+privilégio real foi fechada. Ver [[MULTI_TENANCY#O que o RLS **não** cobre]].
+
+**Promover alguém a Super Admin é operação de backend**, com `service_role` e
+auditoria. É a ação mais privilegiada da plataforma: não passa pelo cliente.
+
 ## Regras para código novo
 
 - Toda rota protegida verifica permissão **no servidor**
@@ -166,3 +179,5 @@ acessa nada. A verdade sobre módulo habilitado é `tenant_modules`, não o plan
 - Permissão nova entra no catálogo em migration, com os vínculos de papel
 - Depois de mudar o catálogo, rode `npm run docs:matrix` e atualize este documento
 - Teste de autorização chama a API direto, sem passar pela interface
+- Coluna que concede privilégio, muda cobrança ou define identidade sai do
+  `GRANT UPDATE` do papel `authenticated`

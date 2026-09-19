@@ -79,6 +79,58 @@ registro para outro tenant.
 `auth.uid()` vai sempre dentro de um subselect — `(select auth.uid())` — para
 o Postgres avaliar uma vez por statement em vez de uma vez por linha.
 
+## O que o RLS **não** cobre
+
+Esta seção existe porque três brechas reais passaram pela primeira rodada de
+testes. Todas tinham a mesma causa:
+
+> **RLS decide quais LINHAS alguém enxerga.** Ele não verifica quais COLUNAS
+> foram escritas, nem se os valores dentro da linha fazem sentido juntos.
+
+### Coluna: RLS não restringe
+
+Uma política de `UPDATE` com `with check (id = auth.uid())` aprova a linha —
+e aprova qualquer coluna dentro dela. Foi assim que `users_update_self` deixou
+qualquer pessoa autenticada escrever `is_super_admin = true` na própria linha e
+virar plataforma.
+
+O primitivo certo é **privilégio de coluna**, que falha fechado: o que não foi
+concedido não existe.
+
+```sql
+revoke update on public.users from authenticated;
+grant update (full_name, avatar_url, last_seen_at) on public.users to authenticated;
+```
+
+**Regra:** toda tabela com coluna sensível — que concede privilégio, muda
+cobrança ou define identidade — restringe `UPDATE` por coluna. Não confie na
+política.
+
+### Coerência entre colunas: constraint, não política
+
+A política olha o `tenant_id` da linha. Ela não sabe que o `role_id` ao lado
+pertence a outro tenant.
+
+Dois casos reais: um vínculo da Aurora carregando um papel próprio da Base (as
+permissões desse papel valeriam na Aurora), e uma equipe da Base recebendo um
+membro da Aurora.
+
+Chave estrangeira composta não resolve quando um dos lados é opcional — papel de
+sistema tem `tenant_id` nulo, e `MATCH SIMPLE` nunca casaria com ele. Nesses
+casos, gatilho `BEFORE INSERT OR UPDATE`.
+
+**Regra:** toda referência cruzada entre duas tabelas com `tenant_id` verifica
+que os dois lados são do mesmo tenant.
+
+### E vale para o `service_role`
+
+O backend provisiona com `service_role`, que ignora RLS por definição. Um defeito
+no código de provisionamento grava a linha com o `tenant_id` certo e valores
+cruzados dentro — e nenhuma política é consultada. Só a constraint pega.
+
+Por isso os testes de integridade rodam **sem RLS**, como superusuário: é o
+cenário do backend.
+
 ## Regras para código novo
 
 Toda tabela de negócio nasce com:
@@ -116,7 +168,7 @@ Mais: não vaza usuário de outro tenant; não deixa forjar auditoria em nome de
 outro tenant; convite pendente não dá acesso; visitante não autenticado não lê
 nada; colaborador não altera o cadastro da empresa.
 
-**Estado atual:** 68 testes passando contra Postgres 18 em WASM.
+**Estado atual:** 81 testes passando contra Postgres 18 em WASM.
 
 **O que ainda não foi exercido:** `auth.uid()` real vindo de um JWT, e
 comportamento sob concorrência real. O harness simula `auth.uid()` com uma
@@ -132,3 +184,6 @@ Supabase existir, o teste de isolamento roda também contra ele.
   definição, e vazar essa chave expõe todos os tenants de uma vez
 - Dar `UPDATE` ou `DELETE` em `audit_logs`
 - Escrever `SECURITY DEFINER` sem `search_path` fixo
+- Deixar `UPDATE` de coluna sensível sem privilégio de coluna
+- Referenciar outra tabela com `tenant_id` sem verificar que os dois lados são
+  do mesmo tenant
