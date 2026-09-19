@@ -106,6 +106,20 @@ grant update (full_name, avatar_url, last_seen_at) on public.users to authentica
 cobrança ou define identidade — restringe `UPDATE` por coluna. Não confie na
 política.
 
+A mesma forma apareceu em `public.tenants`: a política aprova a linha de quem
+tem `core.tenant.write`, e liberava qualquer coluna. Um tenant **suspenso por
+inadimplência se reativava sozinho** escrevendo no próprio `status`; `plan_id`
+trocaria de plano sem passar pelo comercial; `slug` é o subdomínio e mudá-lo
+quebra todos os links.
+
+| Tabela    | `authenticated` atualiza                     | Fora de alcance                   |
+| --------- | -------------------------------------------- | --------------------------------- |
+| `users`   | `full_name`, `avatar_url`, `last_seen_at`    | `is_super_admin`, `email`, `id`   |
+| `tenants` | `name`, `legal_name`, `document`, `settings` | `status`, `plan_id`, `slug`, `id` |
+
+Um teste consulta `has_column_privilege` e falha se essa tabela mudar — cobre a
+superfície, não só os casos que ocorreram a alguém.
+
 ### Coerência entre colunas: constraint, não política
 
 A política olha o `tenant_id` da linha. Ela não sabe que o `role_id` ao lado

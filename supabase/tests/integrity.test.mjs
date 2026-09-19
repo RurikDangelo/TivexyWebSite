@@ -59,6 +59,66 @@ after(async () => {
 });
 
 /*
+ * Guarda de regressão para a classe de falha inteira.
+ *
+ * Três brechas desta noite tiveram a mesma forma: uma política aprova a LINHA e
+ * não olha a COLUNA. Os testes de comportamento cobrem os casos que ocorreram a
+ * alguém; este cobre a superfície.
+ *
+ * Se alguém adicionar `grant update on public.users to authenticated` — ou uma
+ * coluna sensível nova sem pensar no privilégio —, aqui falha.
+ */
+describe('colunas que o papel authenticated pode atualizar', () => {
+  async function colunasAtualizaveis(tabela) {
+    const { rows } = await db.query(
+      `select c.column_name
+       from information_schema.columns c
+       where c.table_schema = 'public' and c.table_name = $1
+         and has_column_privilege('authenticated', 'public.' || $1, c.column_name, 'UPDATE')
+       order by 1`,
+      [tabela],
+    );
+    return rows.map((r) => r.column_name);
+  }
+
+  it('em public.users, só o próprio perfil', async () => {
+    assert.deepEqual(await colunasAtualizaveis('users'), [
+      'avatar_url',
+      'full_name',
+      'last_seen_at',
+    ]);
+  });
+
+  it('em public.tenants, só o que a empresa administra sobre si', async () => {
+    assert.deepEqual(await colunasAtualizaveis('tenants'), [
+      'document',
+      'legal_name',
+      'name',
+      'settings',
+    ]);
+  });
+
+  it('nenhuma coluna que concede privilégio ou define cobrança é atualizável', async () => {
+    const proibidas = [
+      ['users', 'is_super_admin'],
+      ['users', 'email'],
+      ['users', 'id'],
+      ['tenants', 'status'],
+      ['tenants', 'plan_id'],
+      ['tenants', 'slug'],
+      ['tenants', 'id'],
+    ];
+    for (const [tabela, coluna] of proibidas) {
+      const { rows } = await db.query(
+        `select has_column_privilege('authenticated', 'public.' || $1, $2, 'UPDATE') as pode`,
+        [tabela, coluna],
+      );
+      assert.equal(rows[0].pode, false, `${tabela}.${coluna} não deveria ser atualizável`);
+    }
+  });
+});
+
+/*
  * Estes rodam SEM RLS, como superusuário — que é como o backend roda quando usa
  * `service_role` para provisionar. Se o esquema não impedir, um defeito no
  * código de provisionamento vira dado cruzado entre clientes, e o RLS não salva:
