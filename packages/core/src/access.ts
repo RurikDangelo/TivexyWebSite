@@ -76,7 +76,9 @@ export const ANONYMOUS: Viewer = {
 };
 
 export function isAuthenticated(viewer: Viewer): boolean {
-  return viewer.userId !== null;
+  // String vazia não é identidade. Sem esta checagem, um contexto malformado
+  // com `userId: ''` passaria por autenticado.
+  return viewer.userId !== null && viewer.userId.length > 0;
 }
 
 /** O módulo a que uma permissão pertence, lido do próprio código. */
@@ -152,7 +154,7 @@ export function parseViewer(raw: unknown): Viewer {
   if (raw === null || typeof raw !== 'object') return ANONYMOUS;
 
   const data = raw as Record<string, unknown>;
-  if (typeof data.userId !== 'string') return ANONYMOUS;
+  if (typeof data.userId !== 'string' || data.userId.length === 0) return ANONYMOUS;
 
   const tenantRaw = data.tenant;
   let tenant: Viewer['tenant'] = null;
@@ -200,12 +202,20 @@ export const DEFAULT_RULE: RouteRule = { kind: 'member' };
  * O casamento respeita a fronteira de segmento: `/crm` **não** casa com
  * `/crmed`. Sem isso, uma rota nova com nome parecido herdaria por acidente a
  * permissão de outra.
+ *
+ * E ignora a caixa, de propósito. `/ADMIN` casaria com nada e cairia no padrão
+ * `member` — uma regra **mais fraca** que a de `/admin`. Hoje o roteador do
+ * Next é sensível a caixa e `/ADMIN` daria 404, mas depender disso é depender
+ * de uma propriedade de outra camada. Como todas as rotas deste app são
+ * minúsculas, ignorar a caixa só pode tornar o casamento mais restritivo.
  */
 export function matchRule(rules: readonly RouteMatcher[], pathname: string): RouteRule {
+  const caminho = pathname.toLowerCase();
   let melhor: RouteMatcher | null = null;
 
   for (const candidato of rules) {
-    const casa = pathname === candidato.prefix || pathname.startsWith(`${candidato.prefix}/`);
+    const prefixo = candidato.prefix.toLowerCase();
+    const casa = caminho === prefixo || caminho.startsWith(`${prefixo}/`);
     if (!casa) continue;
     if (melhor === null || candidato.prefix.length > melhor.prefix.length) {
       melhor = candidato;

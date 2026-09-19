@@ -254,6 +254,14 @@ describe('parseViewer', () => {
     assert.equal(v.permissions.size, 2);
   });
 
+  it('userId vazio não é identidade', () => {
+    // Sem esta checagem, um contexto malformado com userId '' passaria por
+    // autenticado e entraria nas rotas de saída do limbo.
+    const v = parseViewer({ ...doBanco, userId: '' });
+    assert.deepEqual(v, ANONYMOUS);
+    assert.equal(decideAccess({ kind: 'authenticated' }, v).allowed, false);
+  });
+
   it('ignora entrada não textual dentro das listas', () => {
     const v = parseViewer({ ...doBanco, permissions: ['crm.leads.read', 42, null, {}] });
     assert.deepEqual([...v.permissions], ['crm.leads.read']);
@@ -302,6 +310,19 @@ describe('casamento de rota', () => {
 
   it('a raiz não é pública por acidente', () => {
     assert.deepEqual(matchRule(rules, '/'), DEFAULT_RULE);
+  });
+
+  it('caixa alta não escapa da regra mais restritiva', () => {
+    // /ADMIN casando com nada cairia no padrão `member` — uma regra MAIS FRACA
+    // que a de /admin. O roteador do Next é sensível a caixa e daria 404, mas
+    // depender disso é depender de uma propriedade de outra camada.
+    assert.equal(matchRule(rules, '/ADMIN').kind, 'superAdmin');
+    assert.equal(matchRule(rules, '/Admin/Tenants').kind, 'superAdmin');
+    assert.equal(matchRule(rules, '/CRM/Leads').kind, 'permission');
+  });
+
+  it('barra final não muda a regra', () => {
+    assert.equal(matchRule(rules, '/admin/').kind, 'superAdmin');
   });
 });
 
