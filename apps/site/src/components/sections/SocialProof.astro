@@ -11,61 +11,65 @@ import { clientLogos, stats, testimonials } from '@/data/proof';
 const hasContent = testimonials.length > 0 || clientLogos.length > 0 || stats.length > 0;
 ---
 
-{
-  hasContent && (
-    <Section id="clientes" labelledby="clientes-title">
-      <div class="container proof">
-        <SectionHeader titleId="clientes-title" eyebrow="Clientes" align="center">
-          Empresas que já transformaram suas operações com a Tivexy.
-        </SectionHeader>
+{hasContent && (
+  <Section id="clientes" labelledby="clientes-title">
+    <div class="container proof">
+      <SectionHeader titleId="clientes-title" eyebrow="Clientes" align="center">
+        Empresas que já transformaram suas operações com a Tivexy.
+      </SectionHeader>
 
-        {clientLogos.length > 0 && (
-          <ul class="proof__logos" role="list">
-            {clientLogos.map((client) => (
-              <li>
-                <Image src={client.logo} alt={client.name} height={40} />
-              </li>
-            ))}
-          </ul>
-        )}
+      {clientLogos.length > 0 && (
+        <ul class="proof__logos" role="list">
+          {clientLogos.map((client) => (
+            <li>
+              <Image src={client.logo} alt={client.name} height={40} />
+            </li>
+          ))}
+        </ul>
+      )}
 
-        {stats.length > 0 && (
-          <dl class="proof__stats">
-            {stats.map((stat) => (
-              <div>
-                <dt>{stat.label}</dt>
-                <dd>{stat.value}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
+      {stats.length > 0 && (
+        <dl class="proof__stats">
+          {stats.map((stat) => (
+            <div>
+              <dt>{stat.label}</dt>
+              <dd>{stat.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
 
-        {testimonials.length > 0 && (
-          <ul class="proof__testimonials" role="list">
-            {testimonials.map((testimonial) => (
-              <li>
-                <figure class="testimonial" data-reveal>
-                  <blockquote>
-                    <p>{testimonial.quote}</p>
-                  </blockquote>
-                  <figcaption>
-                    {testimonial.photo && (
-                      <Image src={testimonial.photo} alt="" width={48} height={48} class="testimonial__photo" />
-                    )}
-                    <span>
-                      <b>{testimonial.author}</b>
-                      {testimonial.role}, {testimonial.company}
-                    </span>
-                  </figcaption>
-                </figure>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </Section>
-  )
-}
+      {testimonials.length > 0 && (
+        <ul class="proof__testimonials" role="list">
+          {testimonials.map((testimonial) => (
+            <li>
+              <figure class="testimonial" data-reveal>
+                <blockquote>
+                  <p>{testimonial.quote}</p>
+                </blockquote>
+                <figcaption>
+                  {testimonial.photo && (
+                    <Image
+                      src={testimonial.photo}
+                      alt=""
+                      width={48}
+                      height={48}
+                      class="testimonial__photo"
+                    />
+                  )}
+                  <span>
+                    <b>{testimonial.author}</b>
+                    {testimonial.role}, {testimonial.company}
+                  </span>
+                </figcaption>
+              </figure>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </Section>
+)}
 
 <style>
   .proof {

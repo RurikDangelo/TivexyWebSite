@@ -21,90 +21,82 @@ const crmColumns = [
 ];
 ---
 
-{
-  kind === 'os' && (
-    <div class="mini-os">
-      <div class="mini-os__side">
-        <LogoMark size="1.25rem" />
-        <i class="is-active" />
-        <i />
+{kind === 'os' && (
+  <div class="mini-os">
+    <div class="mini-os__side">
+      <LogoMark size="1.25rem" />
+      <i class="is-active" />
+      <i />
+      <i />
+      <i />
+      <i />
+    </div>
+    <div class="mini-os__main">
+      <div class="mini-os__kpis">
+        <span>
+          <b>128</b>Pedidos
+        </span>
+        <span>
+          <b>6</b>Aprovações
+        </span>
+        <span>
+          <b>24</b>Automações
+        </span>
+      </div>
+      <svg class="mini-os__chart" viewBox="0 0 300 80" preserveAspectRatio="none">
+        <path class="mini-os__area" d={`${chartLine} L300 80 L0 80 Z`} />
+        <path class="mini-os__line" d={chartLine} />
+      </svg>
+      <div class="mini-os__rows">
         <i />
         <i />
         <i />
       </div>
-      <div class="mini-os__main">
-        <div class="mini-os__kpis">
-          <span>
-            <b>128</b>Pedidos
+    </div>
+  </div>
+)}
+{kind === 'crm' && (
+  <div class="mini-crm">
+    {crmColumns.map((column) => (
+      <div class="mini-crm__col">
+        <p>{column.title}</p>
+        {Array.from({ length: column.cards }).map((_, index) => (
+          <span class:list={['mini-crm__card', { 'is-active': column.active && index === 0 }]}>
+            <i />
+            <i />
           </span>
-          <span>
-            <b>6</b>Aprovações
-          </span>
-          <span>
-            <b>24</b>Automações
-          </span>
-        </div>
-        <svg class="mini-os__chart" viewBox="0 0 300 80" preserveAspectRatio="none">
-          <path class="mini-os__area" d={`${chartLine} L300 80 L0 80 Z`} />
-          <path class="mini-os__line" d={chartLine} />
-        </svg>
-        <div class="mini-os__rows">
-          <i />
-          <i />
-          <i />
-        </div>
+        ))}
       </div>
-    </div>
-  )
-}
-{
-  kind === 'crm' && (
-    <div class="mini-crm">
-      {crmColumns.map((column) => (
-        <div class="mini-crm__col">
-          <p>{column.title}</p>
-          {Array.from({ length: column.cards }).map((_, index) => (
-            <span class:list={['mini-crm__card', { 'is-active': column.active && index === 0 }]}>
-              <i />
-              <i />
-            </span>
-          ))}
-        </div>
-      ))}
-    </div>
-  )
-}
-{
-  kind === 'flow' && (
-    <div class="mini-flow">
-      <span class="mini-flow__node">
-        <Icon name="cart" size="0.875rem" />
-        Novo pedido
-      </span>
-      <span class="mini-flow__edge" />
-      <span class="mini-flow__node">
-        <Icon name="box" size="0.875rem" />
-        Reservar estoque
-      </span>
-      <span class="mini-flow__edge" />
-      <span class="mini-flow__node is-active">
-        <Icon name="file" size="0.875rem" />
-        Emitir nota
-      </span>
-    </div>
-  )
-}
-{
-  kind === 'ai' && (
-    <div class="mini-ai">
-      <p class="mini-ai__bubble mini-ai__bubble--user">Quais pedidos precisam de atenção hoje?</p>
-      <p class="mini-ai__bubble mini-ai__bubble--ai">
-        <Icon name="spark" size="1rem" />
-        Três pedidos estão com a entrega em risco. Quer que eu avise os clientes?
-      </p>
-    </div>
-  )
-}
+    ))}
+  </div>
+)}
+{kind === 'flow' && (
+  <div class="mini-flow">
+    <span class="mini-flow__node">
+      <Icon name="cart" size="0.875rem" />
+      Novo pedido
+    </span>
+    <span class="mini-flow__edge" />
+    <span class="mini-flow__node">
+      <Icon name="box" size="0.875rem" />
+      Reservar estoque
+    </span>
+    <span class="mini-flow__edge" />
+    <span class="mini-flow__node is-active">
+      <Icon name="file" size="0.875rem" />
+      Emitir nota
+    </span>
+  </div>
+)}
+{kind === 'ai' && (
+  <div class="mini-ai">
+    <p class="mini-ai__bubble mini-ai__bubble--user">Quais pedidos precisam de atenção hoje?</p>
+    <p class="mini-ai__bubble mini-ai__bubble--ai">
+      <Icon name="spark" size="1rem" />
+      Três pedidos estão com a entrega em risco. Quer que eu avise os clientes?
+    </p>
+  </div>
+)}
 
 <style>
   .mini-os {

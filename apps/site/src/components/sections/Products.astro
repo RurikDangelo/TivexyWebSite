@@ -22,23 +22,25 @@ import { products } from '@/data/products';
     </div>
 
     <ul class="products" role="list">
-      {
-        products.map((product, index) => (
-          <li class:list={['product', `product--${product.id}`]} data-reveal style={`--reveal-order:${index}`}>
-            <div class="product__preview" aria-hidden="true">
-              <MiniPreview kind={product.id} />
-            </div>
+      {products.map((product, index) => (
+        <li
+          class:list={['product', `product--${product.id}`]}
+          data-reveal
+          style={`--reveal-order:${index}`}
+        >
+          <div class="product__preview" aria-hidden="true">
+            <MiniPreview kind={product.id} />
+          </div>
 
-            <div class="product__body">
-              <div class="product__meta">
-                <h3 class="product__name">{product.name}</h3>
-                <span class="product__status">{product.status}</span>
-              </div>
-              <p class="product__description">{product.description}</p>
+          <div class="product__body">
+            <div class="product__meta">
+              <h3 class="product__name">{product.name}</h3>
+              <span class="product__status">{product.status}</span>
             </div>
-          </li>
-        ))
-      }
+            <p class="product__description">{product.description}</p>
+          </div>
+        </li>
+      ))}
     </ul>
   </div>
 </Section>

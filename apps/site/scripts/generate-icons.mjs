@@ -33,20 +33,27 @@ function placeSymbol(box, scale, fill) {
   return `<svg x="${(box - width) / 2}" y="${(box - height) / 2}" width="${width}" height="${height}" viewBox="${symbol.viewBox}" fill="${fill}">${symbol.inner}</svg>`;
 }
 
-const svg = (box, body) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${box} ${box}">${body}</svg>`;
+const svg = (box, body) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${box} ${box}">${body}</svg>`;
 
 // Símbolo solto: azul da marca, azul claro quando a interface do navegador está escura.
 const faviconSvg = svg(
   64,
   `<style>.s{fill:${BLUE}}@media (prefers-color-scheme:dark){.s{fill:${BLUE_LIGHT}}}</style>${placeSymbol(64, 0.94, BLUE).replace(`fill="${BLUE}"`, 'class="s"')}`,
 );
-const tileSvg = (scale) => svg(64, `<rect width="64" height="64" rx="15" fill="${BLUE}"/>${placeSymbol(64, scale, WHITE)}`);
-const fullBleedSvg = (scale) => svg(64, `<rect width="64" height="64" fill="${BLUE}"/>${placeSymbol(64, scale, WHITE)}`);
+const tileSvg = (scale) =>
+  svg(64, `<rect width="64" height="64" rx="15" fill="${BLUE}"/>${placeSymbol(64, scale, WHITE)}`);
+const fullBleedSvg = (scale) =>
+  svg(64, `<rect width="64" height="64" fill="${BLUE}"/>${placeSymbol(64, scale, WHITE)}`);
 
 async function png(source, width, height = width, viewWidth = 64) {
   const density = Math.min(2400, Math.ceil((72 * width * 2) / viewWidth));
   return sharp(Buffer.from(source), { density })
-    .resize(width, height, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 }, kernel: 'lanczos3' })
+    .resize(width, height, {
+      fit: 'contain',
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+      kernel: 'lanczos3',
+    })
     .png({ compressionLevel: 9 })
     .toBuffer();
 }
@@ -105,10 +112,14 @@ const manifest = {
 await Promise.all([
   writeFile(`${publicDir}favicon.svg`, faviconSvg),
   writeFile(`${publicDir}favicon.ico`, ico(icoImages)),
-  png(fullBleedSvg(0.6), 180).then((buffer) => writeFile(`${publicDir}apple-touch-icon.png`, buffer)),
+  png(fullBleedSvg(0.6), 180).then((buffer) =>
+    writeFile(`${publicDir}apple-touch-icon.png`, buffer),
+  ),
   png(tileSvg(0.72), 192).then((buffer) => writeFile(`${publicDir}icon-192.png`, buffer)),
   png(tileSvg(0.72), 512).then((buffer) => writeFile(`${publicDir}icon-512.png`, buffer)),
-  png(fullBleedSvg(0.5), 512).then((buffer) => writeFile(`${publicDir}icon-maskable-512.png`, buffer)),
+  png(fullBleedSvg(0.5), 512).then((buffer) =>
+    writeFile(`${publicDir}icon-maskable-512.png`, buffer),
+  ),
   png(logoSvg, logoCanvas.width, logoCanvas.height, logoCanvas.width).then((buffer) =>
     writeFile(`${publicDir}logo.png`, buffer),
   ),

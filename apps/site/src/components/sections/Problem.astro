@@ -16,25 +16,24 @@ import { problems } from '@/data/problems';
       </header>
 
       <ul class="problem__list" role="list">
-        {
-          problems.map((problem, index) => (
-            <li class="problem__item" data-reveal style={`--reveal-order:${index % 2}`}>
-              <span class="problem__icon">
-                <Icon name={problem.icon} size="1.375rem" />
-              </span>
-              <div class="problem__copy">
-                <h3 class="problem__name">{problem.title}</h3>
-                <p class="problem__detail">{problem.detail}</p>
-              </div>
-            </li>
-          ))
-        }
+        {problems.map((problem, index) => (
+          <li class="problem__item" data-reveal style={`--reveal-order:${index % 2}`}>
+            <span class="problem__icon">
+              <Icon name={problem.icon} size="1.375rem" />
+            </span>
+            <div class="problem__copy">
+              <h3 class="problem__name">{problem.title}</h3>
+              <p class="problem__detail">{problem.detail}</p>
+            </div>
+          </li>
+        ))}
       </ul>
     </div>
 
     <div class="problem__closing" data-reveal>
       <p class="problem__statement">
-        A Tivexy transforma esses gargalos em <span class="problem__accent">soluções digitais.</span>
+        A Tivexy transforma esses gargalos em{' '}
+        <span class="problem__accent">soluções digitais.</span>
       </p>
       <a class="problem__link" href="#solucoes">
         Ver as soluções

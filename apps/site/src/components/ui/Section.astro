@@ -7,13 +7,7 @@ interface Props {
   class?: string;
 }
 
-const {
-  id,
-  tone = 'default',
-  spacing = 'default',
-  labelledby,
-  class: className,
-} = Astro.props;
+const { id, tone = 'default', spacing = 'default', labelledby, class: className } = Astro.props;
 ---
 
 <section

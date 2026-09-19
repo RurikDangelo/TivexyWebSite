@@ -21,62 +21,62 @@ const year = new Date().getFullYear();
       <div class="site-footer__group">
         <h2 class="site-footer__heading">Soluções</h2>
         <ul role="list">
-          {
-            services.map((service) => (
-              <li>
-                <a href={`/solucoes/${service.slug}`}>{service.title}</a>
-              </li>
-            ))
-          }
+          {services.map((service) => (
+            <li>
+              <a href={`/solucoes/${service.slug}`}>{service.title}</a>
+            </li>
+          ))}
         </ul>
       </div>
 
       <div class="site-footer__group">
         <h2 class="site-footer__heading">Produtos</h2>
         <ul role="list">
-          {
-            products.map((product) => (
-              <li>
-                <a href={sectionHref('saas')}>{product.name}</a>
-              </li>
-            ))
-          }
+          {products.map((product) => (
+            <li>
+              <a href={sectionHref('saas')}>{product.name}</a>
+            </li>
+          ))}
         </ul>
       </div>
 
       <div class="site-footer__group">
         <h2 class="site-footer__heading">Empresa</h2>
         <ul role="list">
-          <li><a href={sectionHref('como-funciona')}>Como funciona</a></li>
-          <li><a href={sectionHref('sobre')}>Sobre</a></li>
-          <li><a href={sectionHref('contato')}>Contato</a></li>
-          <li><a href="/privacidade">Privacidade</a></li>
+          <li>
+            <a href={sectionHref('como-funciona')}>Como funciona</a>
+          </li>
+          <li>
+            <a href={sectionHref('sobre')}>Sobre</a>
+          </li>
+          <li>
+            <a href={sectionHref('contato')}>Contato</a>
+          </li>
+          <li>
+            <a href="/privacidade">Privacidade</a>
+          </li>
         </ul>
       </div>
 
       <div class="site-footer__group">
         <h2 class="site-footer__heading">Fale com a Tivexy</h2>
         <ul role="list">
-          {
-            hasWhatsapp && (
-              <li>
-                <a href={whatsappUrl()} target="_blank" rel="noopener" class="site-footer__channel">
-                  <Icon name="whatsapp" size="1.125rem" />
-                  WhatsApp
-                </a>
-              </li>
-            )
-          }
-          {
-            hasEmail && (
-              <li>
-                <a href={`mailto:${contact.email}`} class="site-footer__channel">
-                  <Icon name="mail" size="1.125rem" />
-                  {contact.email}
-                </a>
-              </li>
-            )
-          }
+          {hasWhatsapp && (
+            <li>
+              <a href={whatsappUrl()} target="_blank" rel="noopener" class="site-footer__channel">
+                <Icon name="whatsapp" size="1.125rem" />
+                WhatsApp
+              </a>
+            </li>
+          )}
+          {hasEmail && (
+            <li>
+              <a href={`mailto:${contact.email}`} class="site-footer__channel">
+                <Icon name="mail" size="1.125rem" />
+                {contact.email}
+              </a>
+            </li>
+          )}
           <li>
             <a href={sectionHref('contato')} class="site-footer__channel">
               <Icon name="arrow-right" size="1.125rem" />

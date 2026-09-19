@@ -128,10 +128,12 @@ function initHero(hero: HTMLElement) {
       chaos: $<HTMLElement>('.hs-skin--chaos', element)!,
       island: $<HTMLElement>('.hs-skin--island', element)!,
       module: $<HTMLElement>('.hs-skin--module', element)!,
-      counters: Array.from(element.querySelectorAll<HTMLElement>('[data-count]')).map((counter) => ({
-        element: counter,
-        target: Number(counter.dataset.count),
-      })),
+      counters: Array.from(element.querySelectorAll<HTMLElement>('[data-count]')).map(
+        (counter) => ({
+          element: counter,
+          target: Number(counter.dataset.count),
+        }),
+      ),
       flowFill: $<HTMLElement>('.hs-flow__fill', element),
       flowSteps: Array.from(element.querySelectorAll<HTMLElement>('[data-flow-step]')),
     };
@@ -208,7 +210,11 @@ function initHero(hero: HTMLElement) {
     for (const link of links[layout]) {
       const stagger = link.actor.order * ACTOR_STAGGER;
       const draw = smooth(p, timing.links[0] + stagger, timing.links[1] + stagger);
-      setStyle(link.route, 'opacity', fixed(smooth(p, timing.hub[0] + stagger, timing.links[0] + stagger)));
+      setStyle(
+        link.route,
+        'opacity',
+        fixed(smooth(p, timing.hub[0] + stagger, timing.links[0] + stagger)),
+      );
       setStyle(link.line, 'stroke-dashoffset', fixed(1 - draw));
       setStyle(link.line, 'opacity', fixed(Math.min(1, draw * 24)));
 
@@ -248,7 +254,11 @@ function initHero(hero: HTMLElement) {
         fixed(lerp(lerp(geometry.chaos.s, geometry.islandScale, toIsland), 1, toModule)),
       );
 
-      setStyle(runtime.chaos, 'opacity', fixed(1 - range(p, islandStart, islandStart + islandSpan * 0.5)));
+      setStyle(
+        runtime.chaos,
+        'opacity',
+        fixed(1 - range(p, islandStart, islandStart + islandSpan * 0.5)),
+      );
       setStyle(runtime.chaos, 'scale', fixed(1 - 0.42 * toIsland));
 
       const islandIn = range(p, islandStart + islandSpan * 0.34, islandStart + islandSpan * 0.84);
@@ -279,7 +289,10 @@ function initHero(hero: HTMLElement) {
   }
 
   function renderChrome(p: number) {
-    const stepIndex = journeySteps.reduce((current, step, index) => (p >= step.at ? index : current), 0);
+    const stepIndex = journeySteps.reduce(
+      (current, step, index) => (p >= step.at ? index : current),
+      0,
+    );
 
     if (hero.dataset.step !== String(stepIndex)) {
       hero.dataset.step = String(stepIndex);
@@ -291,7 +304,8 @@ function initHero(hero: HTMLElement) {
     }
 
     const railValue = reduced ? journeySteps[stepIndex].at : p;
-    if (railFill) setStyle(railFill, 'clip-path', `inset(0 ${((1 - railValue) * 100).toFixed(2)}% 0 0)`);
+    if (railFill)
+      setStyle(railFill, 'clip-path', `inset(0 ${((1 - railValue) * 100).toFixed(2)}% 0 0)`);
     if (hint) setStyle(hint, 'opacity', fixed(1 - range(p, ...timing.hint)));
 
     if (splitQuery.matches) return;

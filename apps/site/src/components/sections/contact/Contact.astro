@@ -17,7 +17,9 @@ const nextSteps = [
   <div class="container contact">
     <div class="contact__intro">
       <Eyebrow>Contato</Eyebrow>
-      <h2 id="contato-title" class="contact__title">Conte o que sua empresa precisa.</h2>
+      <h2 id="contato-title" class="contact__title">
+        Conte o que sua empresa precisa.
+      </h2>
       <p class="contact__lead">
         Quanto mais contexto, melhor a primeira conversa. Preencher leva poucos minutos.
       </p>
@@ -25,51 +27,49 @@ const nextSteps = [
       <div class="contact__next">
         <h3 class="contact__next-title">O que acontece depois</h3>
         <ol class="contact__steps" role="list">
-          {
-            nextSteps.map((step, index) => (
-              <li>
-                <span class="contact__step-number" aria-hidden="true">
-                  {index + 1}
-                </span>
-                <span>{step}</span>
-              </li>
-            ))
-          }
+          {nextSteps.map((step, index) => (
+            <li>
+              <span class="contact__step-number" aria-hidden="true">
+                {index + 1}
+              </span>
+              <span>{step}</span>
+            </li>
+          ))}
         </ol>
       </div>
 
-      {
-        (hasWhatsapp || hasEmail) && (
-          <div class="contact__channels">
-            <p class="contact__channels-title">Prefere falar direto?</p>
-            {hasWhatsapp && (
-              <Button
-                href={whatsappUrl()}
-                variant="secondary"
-                icon="whatsapp"
-                iconPosition="start"
-                target="_blank"
-                rel="noopener"
-              >
-                Conversar no WhatsApp
-              </Button>
-            )}
-            {hasEmail && (
-              <a class="contact__email" href={`mailto:${contact.email}`}>
-                <Icon name="mail" size="1.125rem" />
-                {contact.email}
-              </a>
-            )}
-          </div>
-        )
-      }
+      {(hasWhatsapp || hasEmail) && (
+        <div class="contact__channels">
+          <p class="contact__channels-title">Prefere falar direto?</p>
+          {hasWhatsapp && (
+            <Button
+              href={whatsappUrl()}
+              variant="secondary"
+              icon="whatsapp"
+              iconPosition="start"
+              target="_blank"
+              rel="noopener"
+            >
+              Conversar no WhatsApp
+            </Button>
+          )}
+          {hasEmail && (
+            <a class="contact__email" href={`mailto:${contact.email}`}>
+              <Icon name="mail" size="1.125rem" />
+              {contact.email}
+            </a>
+          )}
+        </div>
+      )}
     </div>
 
     <div class="contact__card">
       <form class="form" novalidate data-contact-form>
         <div class="form__grid">
           <div class="field">
-            <label class="field__label" for="contato-nome">Nome</label>
+            <label class="field__label" for="contato-nome">
+              Nome
+            </label>
             <input
               class="field__control"
               id="contato-nome"
@@ -84,7 +84,9 @@ const nextSteps = [
           </div>
 
           <div class="field">
-            <label class="field__label" for="contato-empresa">Empresa</label>
+            <label class="field__label" for="contato-empresa">
+              Empresa
+            </label>
             <input
               class="field__control"
               id="contato-empresa"
@@ -99,7 +101,9 @@ const nextSteps = [
           </div>
 
           <div class="field">
-            <label class="field__label" for="contato-email">E-mail</label>
+            <label class="field__label" for="contato-email">
+              E-mail
+            </label>
             <input
               class="field__control"
               id="contato-email"
@@ -116,7 +120,9 @@ const nextSteps = [
           </div>
 
           <div class="field">
-            <label class="field__label" for="contato-whatsapp">WhatsApp</label>
+            <label class="field__label" for="contato-whatsapp">
+              WhatsApp
+            </label>
             <input
               class="field__control"
               id="contato-whatsapp"
@@ -140,7 +146,9 @@ const nextSteps = [
             <div class="field__select">
               <select class="field__control" id="contato-segmento" name="segmento">
                 <option value="">Selecione o segmento da empresa</option>
-                {segments.map((segment) => <option value={segment}>{segment}</option>)}
+                {segments.map((segment) => (
+                  <option value={segment}>{segment}</option>
+                ))}
               </select>
               <Icon name="chevron-down" size="1.125rem" class="field__select-icon" />
             </div>
@@ -151,28 +159,28 @@ const nextSteps = [
               Tipo de solução <span class="field__optional">(opcional)</span>
             </legend>
             <div class="choices__list">
-              {
-                solutionTypes.map((option) => (
-                  <label class="choice">
-                    <input
-                      class="choice__input"
-                      type="radio"
-                      name="tipoSolucao"
-                      value={option.label}
-                      data-interest-value={option.value}
-                    />
-                    <span class="choice__label">
-                      <Icon name="check" size="0.875rem" strokeWidth={2.25} class="choice__check" />
-                      {option.label}
-                    </span>
-                  </label>
-                ))
-              }
+              {solutionTypes.map((option) => (
+                <label class="choice">
+                  <input
+                    class="choice__input"
+                    type="radio"
+                    name="tipoSolucao"
+                    value={option.label}
+                    data-interest-value={option.value}
+                  />
+                  <span class="choice__label">
+                    <Icon name="check" size="0.875rem" strokeWidth={2.25} class="choice__check" />
+                    {option.label}
+                  </span>
+                </label>
+              ))}
             </div>
           </fieldset>
 
           <div class="field field--full">
-            <label class="field__label" for="contato-necessidade">O que sua empresa precisa?</label>
+            <label class="field__label" for="contato-necessidade">
+              O que sua empresa precisa?
+            </label>
             <textarea
               class="field__control field__control--textarea"
               id="contato-necessidade"
@@ -180,7 +188,8 @@ const nextSteps = [
               rows="5"
               required
               minlength="10"
-              aria-describedby="contato-necessidade-dica contato-necessidade-erro"></textarea>
+              aria-describedby="contato-necessidade-dica contato-necessidade-erro"
+            ></textarea>
             <p class="field__hint" id="contato-necessidade-dica">
               Ex.: controlamos os pedidos em planilhas e queremos um sistema com aprovação e emissão
               de nota.
@@ -190,8 +199,7 @@ const nextSteps = [
               id="contato-necessidade-erro"
               data-error-for="necessidade"
               hidden
-            >
-            </p>
+            ></p>
           </div>
         </div>
 
@@ -220,12 +228,16 @@ const nextSteps = [
         <span class="form-result__icon">
           <Icon name="check" size="1.75rem" strokeWidth={2.25} />
         </span>
-        <h3 class="form-result__title" data-result-title>Projeto enviado.</h3>
+        <h3 class="form-result__title" data-result-title>
+          Projeto enviado.
+        </h3>
         <p class="form-result__text" data-result-text>
           Recebemos suas informações. A Tivexy vai responder pelo e-mail ou WhatsApp que você
           informou.
         </p>
-        <button class="form-result__reset" type="button" data-form-reset>Enviar outro projeto</button>
+        <button class="form-result__reset" type="button" data-form-reset>
+          Enviar outro projeto
+        </button>
       </div>
     </div>
   </div>

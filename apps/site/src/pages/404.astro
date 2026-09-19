@@ -12,14 +12,20 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
   <section class="not-found" aria-labelledby="nao-encontrada-titulo">
     <div class="container not-found__inner">
       <p class="not-found__code">Erro 404</p>
-      <h1 id="nao-encontrada-titulo" class="not-found__title">Esta página não existe.</h1>
+      <h1 id="nao-encontrada-titulo" class="not-found__title">
+        Esta página não existe.
+      </h1>
       <p class="not-found__text">
         O endereço pode ter mudado ou ter sido digitado errado. Volte para o início ou conte para a
         Tivexy o que você procura.
       </p>
       <div class="not-found__actions">
-        <Button href="/" size="lg" icon="arrow-right">Voltar para o início</Button>
-        <Button href={sectionHref('contato')} size="lg" variant="secondary">Falar com a Tivexy</Button>
+        <Button href="/" size="lg" icon="arrow-right">
+          Voltar para o início
+        </Button>
+        <Button href={sectionHref('contato')} size="lg" variant="secondary">
+          Falar com a Tivexy
+        </Button>
       </div>
     </div>
   </section>

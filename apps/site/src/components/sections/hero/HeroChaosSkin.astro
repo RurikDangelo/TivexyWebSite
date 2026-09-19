@@ -21,110 +21,98 @@ const reportBars = [0.45, 0.72, 0.38, 0.86, 0.6];
 ---
 
 <div class:list={['hs-skin', 'hs-skin--chaos', `hs-${kind}`]} style={`--w:${w};--h:${h}`}>
-  {
-    kind === 'email' && (
-      <>
-        <div class="hs-email__head">
-          <span class="hs-email__from">
-            <span class="hs-email__avatar">R</span>
-            Roberto · Comercial
-          </span>
-          <span class="hs-email__time">09:41</span>
+  {kind === 'email' && (
+    <>
+      <div class="hs-email__head">
+        <span class="hs-email__from">
+          <span class="hs-email__avatar">R</span>
+          Roberto · Comercial
+        </span>
+        <span class="hs-email__time">09:41</span>
+      </div>
+      <p class="hs-email__subject">RE: RE: FW: status do pedido?</p>
+      <p class="hs-email__body">Alguém conseguiu ver se o pedido saiu? O cliente ligou de novo…</p>
+    </>
+  )}
+  {kind === 'sheet' && (
+    <>
+      <div class="hs-sheet__bar">
+        <span class="hs-sheet__file">estoque_FINAL_v3.xlsx</span>
+        <span class="hs-sheet__flag">somente leitura</span>
+      </div>
+      <div class="hs-sheet__grid">
+        {sheetRows.map((row, rowIndex) =>
+          row.map((cell, cellIndex) => (
+            <span
+              class:list={[
+                'hs-sheet__cell',
+                {
+                  'hs-sheet__cell--head': rowIndex === 0 || cellIndex === 0,
+                  'hs-sheet__cell--error': cell === '#REF!',
+                },
+              ]}
+            >
+              {cell}
+            </span>
+          )),
+        )}
+      </div>
+    </>
+  )}
+  {kind === 'note' && (
+    <>
+      <span class="hs-note__tape" />
+      <p class="hs-note__text">aprovar pagto do fornecedor até sexta!!</p>
+      <p class="hs-note__sub">(ver c/ financeiro)</p>
+    </>
+  )}
+  {kind === 'chat' && (
+    <>
+      <p class="hs-chat__msg">
+        Alguém tem a planilha atualizada?
+        <span class="hs-chat__time">10:02</span>
+      </p>
+      <p class="hs-chat__msg hs-chat__msg--reply">
+        a da pasta "novo" ou "novo 2"?
+        <span class="hs-chat__time">10:05</span>
+      </p>
+    </>
+  )}
+  {kind === 'legacy' && (
+    <>
+      <div class="hs-legacy__title">
+        <span>SisGestão 2009</span>
+        <span class="hs-legacy__controls">
+          <i />
+          <i />
+          <i />
+        </span>
+      </div>
+      <div class="hs-legacy__body">
+        <span class="hs-legacy__icon">!</span>
+        <p>Não foi possível sincronizar com o servidor. Tente novamente mais tarde.</p>
+      </div>
+      <div class="hs-legacy__foot">
+        <span class="hs-legacy__button">OK</span>
+      </div>
+    </>
+  )}
+  {kind === 'report' && (
+    <>
+      <p class="hs-report__file">relatorio_semanal (2).pdf</p>
+      <div class="hs-report__page">
+        <span class="hs-report__heading" />
+        <span class="hs-report__line" />
+        <span class="hs-report__line hs-report__line--short" />
+        <div class="hs-report__bars">
+          {reportBars.map((value) => (
+            <i style={`--v:${value}`} />
+          ))}
         </div>
-        <p class="hs-email__subject">RE: RE: FW: status do pedido?</p>
-        <p class="hs-email__body">Alguém conseguiu ver se o pedido saiu? O cliente ligou de novo…</p>
-      </>
-    )
-  }
-  {
-    kind === 'sheet' && (
-      <>
-        <div class="hs-sheet__bar">
-          <span class="hs-sheet__file">estoque_FINAL_v3.xlsx</span>
-          <span class="hs-sheet__flag">somente leitura</span>
-        </div>
-        <div class="hs-sheet__grid">
-          {sheetRows.map((row, rowIndex) =>
-            row.map((cell, cellIndex) => (
-              <span
-                class:list={[
-                  'hs-sheet__cell',
-                  {
-                    'hs-sheet__cell--head': rowIndex === 0 || cellIndex === 0,
-                    'hs-sheet__cell--error': cell === '#REF!',
-                  },
-                ]}
-              >
-                {cell}
-              </span>
-            )),
-          )}
-        </div>
-      </>
-    )
-  }
-  {
-    kind === 'note' && (
-      <>
-        <span class="hs-note__tape" />
-        <p class="hs-note__text">aprovar pagto do fornecedor até sexta!!</p>
-        <p class="hs-note__sub">(ver c/ financeiro)</p>
-      </>
-    )
-  }
-  {
-    kind === 'chat' && (
-      <>
-        <p class="hs-chat__msg">
-          Alguém tem a planilha atualizada?
-          <span class="hs-chat__time">10:02</span>
-        </p>
-        <p class="hs-chat__msg hs-chat__msg--reply">
-          a da pasta "novo" ou "novo 2"?
-          <span class="hs-chat__time">10:05</span>
-        </p>
-      </>
-    )
-  }
-  {
-    kind === 'legacy' && (
-      <>
-        <div class="hs-legacy__title">
-          <span>SisGestão 2009</span>
-          <span class="hs-legacy__controls">
-            <i />
-            <i />
-            <i />
-          </span>
-        </div>
-        <div class="hs-legacy__body">
-          <span class="hs-legacy__icon">!</span>
-          <p>Não foi possível sincronizar com o servidor. Tente novamente mais tarde.</p>
-        </div>
-        <div class="hs-legacy__foot">
-          <span class="hs-legacy__button">OK</span>
-        </div>
-      </>
-    )
-  }
-  {
-    kind === 'report' && (
-      <>
-        <p class="hs-report__file">relatorio_semanal (2).pdf</p>
-        <div class="hs-report__page">
-          <span class="hs-report__heading" />
-          <span class="hs-report__line" />
-          <span class="hs-report__line hs-report__line--short" />
-          <div class="hs-report__bars">
-            {reportBars.map((value) => (
-              <i style={`--v:${value}`} />
-            ))}
-          </div>
-          <span class="hs-report__line" />
-          <span class="hs-report__line hs-report__line--short" />
-          <span class="hs-report__mark" />
-        </div>
-      </>
-    )
-  }
+        <span class="hs-report__line" />
+        <span class="hs-report__line hs-report__line--short" />
+        <span class="hs-report__mark" />
+      </div>
+    </>
+  )}
 </div>

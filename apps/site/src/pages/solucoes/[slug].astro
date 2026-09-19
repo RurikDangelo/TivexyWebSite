@@ -46,17 +46,25 @@ const jsonLd = [
     <div class="container page-hero__inner">
       <nav class="breadcrumb" aria-label="Você está em">
         <ol role="list">
-          <li><a href="/">Início</a></li>
-          <li><a href={sectionHref('solucoes')}>Soluções</a></li>
+          <li>
+            <a href="/">Início</a>
+          </li>
+          <li>
+            <a href={sectionHref('solucoes')}>Soluções</a>
+          </li>
           <li aria-current="page">{service.title}</li>
         </ol>
       </nav>
 
       <p class="page-hero__kicker">
-        <span class="page-hero__icon"><Icon name={service.icon} size="1.25rem" /></span>
+        <span class="page-hero__icon">
+          <Icon name={service.icon} size="1.25rem" />
+        </span>
         {service.title}
       </p>
-      <h1 id="solucao-titulo" class="page-hero__title">{service.page.headline}</h1>
+      <h1 id="solucao-titulo" class="page-hero__title">
+        {service.page.headline}
+      </h1>
       <p class="page-hero__intro">{service.page.intro}</p>
 
       <div class="page-hero__actions">
@@ -67,7 +75,9 @@ const jsonLd = [
         >
           Falar sobre meu projeto
         </Button>
-        <Button href="#como-funciona" size="lg" variant="secondary">Ver como funciona</Button>
+        <Button href="#como-funciona" size="lg" variant="secondary">
+          Ver como funciona
+        </Button>
       </div>
 
       <div class="page-hero__preview" aria-hidden="true">
@@ -82,14 +92,12 @@ const jsonLd = [
         Sinais de que sua empresa precisa
       </SectionHeader>
       <ul class="signals__list" role="list">
-        {
-          service.page.signals.map((signal, index) => (
-            <li class="signals__item" data-reveal style={`--reveal-order:${index}`}>
-              <span class="signals__dot" aria-hidden="true" />
-              {signal}
-            </li>
-          ))
-        }
+        {service.page.signals.map((signal, index) => (
+          <li class="signals__item" data-reveal style={`--reveal-order:${index}`}>
+            <span class="signals__dot" aria-hidden="true" />
+            {signal}
+          </li>
+        ))}
       </ul>
     </div>
   </Section>
@@ -104,14 +112,12 @@ const jsonLd = [
         </Fragment>
       </SectionHeader>
       <ul class="deliverables__grid" role="list">
-        {
-          service.page.deliverables.map((item, index) => (
-            <li class="deliverable" data-reveal style={`--reveal-order:${index % 2}`}>
-              <h3 class="deliverable__title">{item.title}</h3>
-              <p class="deliverable__text">{item.text}</p>
-            </li>
-          ))
-        }
+        {service.page.deliverables.map((item, index) => (
+          <li class="deliverable" data-reveal style={`--reveal-order:${index % 2}`}>
+            <h3 class="deliverable__title">{item.title}</h3>
+            <p class="deliverable__text">{item.text}</p>
+          </li>
+        ))}
       </ul>
     </div>
   </Section>
@@ -124,43 +130,41 @@ const jsonLd = [
         Perguntas que costumam aparecer
       </SectionHeader>
       <div class="faq__list">
-        {
-          service.page.faq.map((item) => (
-            <details class="faq__item">
-              <summary class="faq__question">
-                <span>{item.question}</span>
-                <span class="faq__icon" aria-hidden="true">
-                  <Icon name="plus" size="1.25rem" />
-                </span>
-              </summary>
-              <p class="faq__answer">{item.answer}</p>
-            </details>
-          ))
-        }
+        {service.page.faq.map((item) => (
+          <details class="faq__item">
+            <summary class="faq__question">
+              <span>{item.question}</span>
+              <span class="faq__icon" aria-hidden="true">
+                <Icon name="plus" size="1.25rem" />
+              </span>
+            </summary>
+            <p class="faq__answer">{item.answer}</p>
+          </details>
+        ))}
       </div>
     </div>
   </Section>
 
   <Section labelledby="outras-titulo" spacing="tight">
     <div class="container others">
-      <h2 id="outras-titulo" class="others__title">Outras soluções</h2>
+      <h2 id="outras-titulo" class="others__title">
+        Outras soluções
+      </h2>
       <ul class="others__list" role="list">
-        {
-          others.map((other) => (
-            <li>
-              <a class="other" href={`/solucoes/${other.slug}`}>
-                <span class="other__icon">
-                  <Icon name={other.icon} size="1.25rem" />
-                </span>
-                <span class="other__text">
-                  <span class="other__name">{other.title}</span>
-                  <span class="other__summary">{other.summary}</span>
-                </span>
-                <Icon name="arrow-right" size="1.25rem" class="other__arrow" />
-              </a>
-            </li>
-          ))
-        }
+        {others.map((other) => (
+          <li>
+            <a class="other" href={`/solucoes/${other.slug}`}>
+              <span class="other__icon">
+                <Icon name={other.icon} size="1.25rem" />
+              </span>
+              <span class="other__text">
+                <span class="other__name">{other.title}</span>
+                <span class="other__summary">{other.summary}</span>
+              </span>
+              <Icon name="arrow-right" size="1.25rem" class="other__arrow" />
+            </a>
+          </li>
+        ))}
       </ul>
     </div>
   </Section>

@@ -43,7 +43,8 @@ function measureSections() {
   void document.body.offsetHeight;
 }
 
-const idle = window.requestIdleCallback ?? ((callback: () => void) => window.setTimeout(callback, 1200));
+const idle =
+  window.requestIdleCallback ?? ((callback: () => void) => window.setTimeout(callback, 1200));
 window.addEventListener('load', () => idle(measureSections, { timeout: 2500 }), { once: true });
 
 document.addEventListener(

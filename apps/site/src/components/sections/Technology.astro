@@ -15,15 +15,13 @@ import { capabilities } from '@/data/technology';
     </SectionHeader>
 
     <ul class="capabilities" role="list">
-      {
-        capabilities.map((capability, index) => (
-          <li class="capability" data-reveal style={`--reveal-order:${index % 3}`}>
-            <p class="capability__label">{capability.label}</p>
-            <h3 class="capability__title">{capability.title}</h3>
-            <p class="capability__text">{capability.text}</p>
-          </li>
-        ))
-      }
+      {capabilities.map((capability, index) => (
+        <li class="capability" data-reveal style={`--reveal-order:${index % 3}`}>
+          <p class="capability__label">{capability.label}</p>
+          <h3 class="capability__title">{capability.title}</h3>
+          <p class="capability__text">{capability.text}</p>
+        </li>
+      ))}
     </ul>
   </div>
 </Section>

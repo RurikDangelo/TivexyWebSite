@@ -16,30 +16,28 @@ import { services } from '@/data/services';
     </SectionHeader>
 
     <ul class="services__grid" role="list">
-      {
-        services.map((service, index) => (
-          <li class="service" data-reveal data-spotlight style={`--reveal-order:${index}`}>
-            <span class="service__icon">
-              <Icon name={service.icon} size="1.5rem" />
-            </span>
-            <h3 class="service__title">
-              <a class="service__link" href={`/solucoes/${service.slug}`}>
-                {service.title}
-              </a>
-            </h3>
-            <p class="service__summary">{service.summary}</p>
-            <ul class="service__examples" role="list">
-              {service.examples.map((example) => (
-                <li>{example}</li>
-              ))}
-            </ul>
-            <span class="service__more" aria-hidden="true">
-              Saiba mais
-              <Icon name="arrow-right" size="1.125rem" />
-            </span>
-          </li>
-        ))
-      }
+      {services.map((service, index) => (
+        <li class="service" data-reveal data-spotlight style={`--reveal-order:${index}`}>
+          <span class="service__icon">
+            <Icon name={service.icon} size="1.5rem" />
+          </span>
+          <h3 class="service__title">
+            <a class="service__link" href={`/solucoes/${service.slug}`}>
+              {service.title}
+            </a>
+          </h3>
+          <p class="service__summary">{service.summary}</p>
+          <ul class="service__examples" role="list">
+            {service.examples.map((example) => (
+              <li>{example}</li>
+            ))}
+          </ul>
+          <span class="service__more" aria-hidden="true">
+            Saiba mais
+            <Icon name="arrow-right" size="1.125rem" />
+          </span>
+        </li>
+      ))}
     </ul>
   </div>
 </Section>

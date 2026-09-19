@@ -18,10 +18,5 @@ export function Input({ className, ...props }: ComponentProps<'input'>) {
 }
 
 export function Label({ className, ...props }: ComponentProps<'label'>) {
-  return (
-    <label
-      className={cn('text-sm font-medium text-content-default', className)}
-      {...props}
-    />
-  );
+  return <label className={cn('text-sm font-medium text-content-default', className)} {...props} />;
 }

@@ -49,7 +49,9 @@ const Tag = href ? 'a' : 'button';
 
 <Tag class:list={classes} href={href} type={href ? undefined : type} {...attrs}>
   {icon && iconPosition === 'start' && <Icon name={icon} class="btn__icon" size="1.125rem" />}
-  <span class="btn__label"><slot /></span>
+  <span class="btn__label">
+    <slot />
+  </span>
   {icon && iconPosition === 'end' && <Icon name={icon} class="btn__icon" size="1.125rem" />}
 </Tag>
 

@@ -49,12 +49,10 @@ export default function PainelPage() {
       >
         <AlertTriangle className="mt-0.5 size-5 shrink-0 text-content-accent" aria-hidden />
         <div className="text-sm">
-          <p className="font-medium text-content">
-            Esta é a casca da aplicação, não o produto.
-          </p>
+          <p className="font-medium text-content">Esta é a casca da aplicação, não o produto.</p>
           <p className="mt-1 text-content-muted">
-            Não há banco de dados conectado, autenticação nem dado real. Nenhum número
-            nesta tela é métrica de negócio. O estado completo de cada módulo está em{' '}
+            Não há banco de dados conectado, autenticação nem dado real. Nenhum número nesta tela é
+            métrica de negócio. O estado completo de cada módulo está em{' '}
             <code className="rounded bg-surface-muted px-1 py-0.5 font-mono text-xs">
               docs/PROJECT_STATE.md
             </code>
@@ -152,8 +150,8 @@ export default function PainelPage() {
               ))}
             </ol>
             <p className="mt-4 text-sm text-content-muted">
-              Provisionamento é prioridade zero: é o que transforma a plataforma em operação
-              SaaS. Blueprint Engine e IA vêm depois de um módulo real funcionando.
+              Provisionamento é prioridade zero: é o que transforma a plataforma em operação SaaS.
+              Blueprint Engine e IA vêm depois de um módulo real funcionando.
             </p>
           </CardContent>
         </Card>

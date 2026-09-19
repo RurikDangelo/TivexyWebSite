@@ -14,15 +14,13 @@ const words = turn.split(' ');
     <h2 id="sobre-title" class="manifesto__title">
       <span class="manifesto__premise">Seu negócio não precisa se adaptar ao software.</span>
       <span class="manifesto__turn">
-        {
-          words.map((word, index) => (
-            <>
-              <span class="manifesto__word" style={`--i:${index}`}>
-                {word}
-              </span>{' '}
-            </>
-          ))
-        }
+        {words.map((word, index) => (
+          <>
+            <span class="manifesto__word" style={`--i:${index}`}>
+              {word}
+            </span>{' '}
+          </>
+        ))}
       </span>
     </h2>
 
@@ -64,11 +62,7 @@ const words = turn.split(' ');
     left: -20%;
     z-index: -1;
     height: 80%;
-    background: radial-gradient(
-      closest-side,
-      var(--color-navy-800),
-      transparent
-    );
+    background: radial-gradient(closest-side, var(--color-navy-800), transparent);
   }
 
   .manifesto__inner {

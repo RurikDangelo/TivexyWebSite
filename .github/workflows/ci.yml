@@ -59,10 +59,6 @@ jobs:
     name: Formatação
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # TODO: remover quando o card "[SITE] Normalizar formatação Prettier"
-    # estiver concluído. Hoje 90 arquivos da landing divergem — isso já era
-    # verdade antes do monorepo, e reformatá-los merece commit próprio.
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v5

@@ -20,7 +20,12 @@ import { journeySteps } from './timeline';
           <Button href="#contato" size="lg" icon="arrow-right" class="hero__cta">
             Quero transformar minha operação
           </Button>
-          <Button href="#solucoes" size="lg" variant="secondary" class="hero__cta hero__cta--secondary">
+          <Button
+            href="#solucoes"
+            size="lg"
+            variant="secondary"
+            class="hero__cta hero__cta--secondary"
+          >
             Conhecer nossas soluções
           </Button>
         </div>
@@ -36,20 +41,18 @@ import { journeySteps } from './timeline';
 
       <div class="hero__rail">
         <ol class="rail" role="list" aria-label="Etapas da transformação">
-          {
-            journeySteps.map((step, index) => (
-              <li
-                class="rail__step"
-                data-rail-step={index}
-                data-reached={index === 0 ? '' : undefined}
-                aria-current={index === 0 ? 'step' : undefined}
-              >
-                <span class="rail__node" aria-hidden="true" />
-                <span class="rail__label">{step.label}</span>
-                <span class="rail__caption">{step.caption}</span>
-              </li>
-            ))
-          }
+          {journeySteps.map((step, index) => (
+            <li
+              class="rail__step"
+              data-rail-step={index}
+              data-reached={index === 0 ? '' : undefined}
+              aria-current={index === 0 ? 'step' : undefined}
+            >
+              <span class="rail__node" aria-hidden="true" />
+              <span class="rail__label">{step.label}</span>
+              <span class="rail__caption">{step.caption}</span>
+            </li>
+          ))}
         </ol>
         <span class="rail__track" aria-hidden="true">
           <span class="rail__fill"></span>
@@ -63,7 +66,6 @@ import { journeySteps } from './timeline';
       </div>
     </div>
   </div>
-
 </section>
 
 <script>

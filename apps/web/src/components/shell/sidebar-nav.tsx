@@ -30,7 +30,10 @@ function Item({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) 
         {blocked ? (
           <Lock className="ml-auto size-3 shrink-0 opacity-60" aria-hidden />
         ) : (
-          <span className="ml-auto size-1.5 shrink-0 rounded-full bg-current opacity-40" aria-hidden />
+          <span
+            className="ml-auto size-1.5 shrink-0 rounded-full bg-current opacity-40"
+            aria-hidden
+          />
         )}
         <span className="sr-only">({statusLabel[item.status]})</span>
       </span>

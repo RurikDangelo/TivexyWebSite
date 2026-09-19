@@ -13,15 +13,17 @@ import { hasWhatsapp, primaryNav, sectionHref, site, whatsappUrl } from '@/confi
 
     <nav class="site-header__nav" aria-label="Principal">
       <ul role="list" class="site-header__links">
-        {
-          primaryNav.map((item) => (
-            <li>
-              <a class="site-header__link" href={sectionHref(item.section)} data-nav-link={item.section}>
-                {item.label}
-              </a>
-            </li>
-          ))
-        }
+        {primaryNav.map((item) => (
+          <li>
+            <a
+              class="site-header__link"
+              href={sectionHref(item.section)}
+              data-nav-link={item.section}
+            >
+              {item.label}
+            </a>
+          </li>
+        ))}
       </ul>
     </nav>
 
@@ -57,21 +59,19 @@ import { hasWhatsapp, primaryNav, sectionHref, site, whatsappUrl } from '@/confi
   <div class="mobile-menu__body container-wide">
     <nav aria-label="Principal no celular">
       <ul role="list" class="mobile-menu__links">
-        {
-          primaryNav.map((item) => (
-            <li>
-              <a
-                class="mobile-menu__link"
-                href={sectionHref(item.section)}
-                data-nav-link={item.section}
-                data-menu-link
-              >
-                <span>{item.label}</span>
-                <Icon name="arrow-right" size="1.25rem" />
-              </a>
-            </li>
-          ))
-        }
+        {primaryNav.map((item) => (
+          <li>
+            <a
+              class="mobile-menu__link"
+              href={sectionHref(item.section)}
+              data-nav-link={item.section}
+              data-menu-link
+            >
+              <span>{item.label}</span>
+              <Icon name="arrow-right" size="1.25rem" />
+            </a>
+          </li>
+        ))}
       </ul>
     </nav>
 
@@ -79,22 +79,20 @@ import { hasWhatsapp, primaryNav, sectionHref, site, whatsappUrl } from '@/confi
       <Button href={sectionHref('contato')} size="lg" block data-menu-link>
         Falar com especialista
       </Button>
-      {
-        hasWhatsapp && (
-          <Button
-            href={whatsappUrl()}
-            variant="secondary"
-            size="lg"
-            icon="whatsapp"
-            iconPosition="start"
-            block
-            target="_blank"
-            rel="noopener"
-          >
-            Conversar no WhatsApp
-          </Button>
-        )
-      }
+      {hasWhatsapp && (
+        <Button
+          href={whatsappUrl()}
+          variant="secondary"
+          size="lg"
+          icon="whatsapp"
+          iconPosition="start"
+          block
+          target="_blank"
+          rel="noopener"
+        >
+          Conversar no WhatsApp
+        </Button>
+      )}
       <p class="mobile-menu__note">{site.positioning}</p>
     </div>
   </div>

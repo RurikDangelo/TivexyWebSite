@@ -56,7 +56,8 @@ export function ThemeToggle() {
 
   /* Efeito só de DOM: aplica a classe e acompanha o sistema quando em "system". */
   useEffect(() => {
-    const apply = () => document.documentElement.classList.toggle('dark', resolve(theme) === 'dark');
+    const apply = () =>
+      document.documentElement.classList.toggle('dark', resolve(theme) === 'dark');
     apply();
     if (theme !== 'system') return;
     const query = window.matchMedia('(prefers-color-scheme: dark)');

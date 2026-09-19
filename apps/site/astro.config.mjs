@@ -18,7 +18,9 @@ const contactDestinationCheck = {
         );
       }
       if (!PUBLIC_SITE_URL) {
-        logger.warn('PUBLIC_SITE_URL não definido: usando https://tivexy.com.br em canonical, sitemap e Open Graph.');
+        logger.warn(
+          'PUBLIC_SITE_URL não definido: usando https://tivexy.com.br em canonical, sitemap e Open Graph.',
+        );
       }
     },
   },

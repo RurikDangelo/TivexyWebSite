@@ -21,28 +21,26 @@ const { tone = 'default' } = Astro.props;
     </SectionHeader>
 
     <ol class="timeline" role="list" data-reveal-group>
-      {
-        processSteps.map((step, index) => (
-          <li class="timeline__step" style={`--i:${index}`}>
-            <span class="timeline__node" aria-hidden="true" />
-            <span class="timeline__number" aria-hidden="true">
-              {step.number}
+      {processSteps.map((step, index) => (
+        <li class="timeline__step" style={`--i:${index}`}>
+          <span class="timeline__node" aria-hidden="true" />
+          <span class="timeline__number" aria-hidden="true">
+            {step.number}
+          </span>
+          <h3 class="timeline__title">
+            <span class="visually-hidden">Etapa {index + 1}: </span>
+            {step.title}
+          </h3>
+          <p class="timeline__text">{step.text}</p>
+          <p class="timeline__outcome">
+            <Icon name="check" size="1rem" strokeWidth={2} />
+            <span>
+              <span class="visually-hidden">Resultado: </span>
+              {step.outcome}
             </span>
-            <h3 class="timeline__title">
-              <span class="visually-hidden">Etapa {index + 1}: </span>
-              {step.title}
-            </h3>
-            <p class="timeline__text">{step.text}</p>
-            <p class="timeline__outcome">
-              <Icon name="check" size="1rem" strokeWidth={2} />
-              <span>
-                <span class="visually-hidden">Resultado: </span>
-                {step.outcome}
-              </span>
-            </p>
-          </li>
-        ))
-      }
+          </p>
+        </li>
+      ))}
     </ol>
   </div>
 </Section>

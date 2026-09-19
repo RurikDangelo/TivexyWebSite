@@ -28,25 +28,23 @@ const proposalHref = onHome ? '#contato' : sectionHref('contato', { interesse: '
           processos e ideias em soluções digitais.
         </p>
         <div class="final-cta__actions">
-          {
-            hasWhatsapp ? (
-              <Button
-                href={whatsappUrl()}
-                variant="inverse"
-                size="lg"
-                icon="whatsapp"
-                iconPosition="start"
-                target="_blank"
-                rel="noopener"
-              >
-                Falar com a Tivexy
-              </Button>
-            ) : (
-              <Button href={contactHref} variant="inverse" size="lg" icon="arrow-right">
-                Falar com a Tivexy
-              </Button>
-            )
-          }
+          {hasWhatsapp ? (
+            <Button
+              href={whatsappUrl()}
+              variant="inverse"
+              size="lg"
+              icon="whatsapp"
+              iconPosition="start"
+              target="_blank"
+              rel="noopener"
+            >
+              Falar com a Tivexy
+            </Button>
+          ) : (
+            <Button href={contactHref} variant="inverse" size="lg" icon="arrow-right">
+              Falar com a Tivexy
+            </Button>
+          )}
           <Button href={proposalHref} variant="inverse-ghost" size="lg" data-interest="proposta">
             Solicitar uma proposta
           </Button>

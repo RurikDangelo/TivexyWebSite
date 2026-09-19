@@ -40,21 +40,19 @@ const hasLead = Astro.slots.has('lead');
     className,
   ]}
 >
-  {
-    eyebrow && (
-      <Eyebrow tone={eyebrowTone} inverse={inverse}>
-        {eyebrow}
-      </Eyebrow>
-    )
-  }
-  <Heading id={titleId} class="section-header__title"><slot /></Heading>
-  {
-    hasLead && (
-      <p class="section-header__lead">
-        <slot name="lead" />
-      </p>
-    )
-  }
+  {eyebrow && (
+    <Eyebrow tone={eyebrowTone} inverse={inverse}>
+      {eyebrow}
+    </Eyebrow>
+  )}
+  <Heading id={titleId} class="section-header__title">
+    <slot />
+  </Heading>
+  {hasLead && (
+    <p class="section-header__lead">
+      <slot name="lead" />
+    </p>
+  )}
 </header>
 
 <style>

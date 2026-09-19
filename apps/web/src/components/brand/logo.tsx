@@ -52,7 +52,11 @@ export function BrandWordmark({ className, label }: MarkProps) {
 /** Logo horizontal: símbolo + wordmark, na cor do texto que a envolve. */
 export function Logo({ className, label = 'Tivexy' }: MarkProps) {
   return (
-    <span role="img" aria-label={label} className={cn('inline-flex items-center gap-2.5', className)}>
+    <span
+      role="img"
+      aria-label={label}
+      className={cn('inline-flex items-center gap-2.5', className)}
+    >
       <BrandSymbol className="h-6" />
       <BrandWordmark className="h-3" />
     </span>

@@ -44,7 +44,8 @@ function formatPhone(value: string): string {
   if (digits.length === 0) return '';
   if (digits.length <= 2) return `(${digits}`;
   if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  if (digits.length <= 10)
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
@@ -111,9 +112,13 @@ function initContactForm(form: HTMLFormElement) {
   const submitIcon = submit.querySelector<SVGElement>('.icon');
   const phone = form.querySelector<HTMLInputElement>('[data-phone]')!;
   const need = form.querySelector<HTMLTextAreaElement>('textarea[name="necessidade"]')!;
-  const interestInputs = Array.from(form.querySelectorAll<HTMLInputElement>('[data-interest-value]'));
+  const interestInputs = Array.from(
+    form.querySelectorAll<HTMLInputElement>('[data-interest-value]'),
+  );
   const validated = Array.from(
-    form.querySelectorAll<Control>('input[name="nome"], input[name="empresa"], input[name="email"], input[name="whatsapp"], textarea[name="necessidade"]'),
+    form.querySelectorAll<Control>(
+      'input[name="nome"], input[name="empresa"], input[name="email"], input[name="whatsapp"], textarea[name="necessidade"]',
+    ),
   );
 
   const originalLabel = submitLabel.textContent ?? 'Enviar projeto';
@@ -182,9 +187,17 @@ function initContactForm(form: HTMLFormElement) {
   const showAlert = () => {
     alert.replaceChildren('Não foi possível enviar agora. Verifique sua conexão e tente de novo.');
     if (hasWhatsapp) {
-      alert.append(' Se preferir, ', link(whatsappUrl(), 'fale com a Tivexy no WhatsApp', true), '.');
+      alert.append(
+        ' Se preferir, ',
+        link(whatsappUrl(), 'fale com a Tivexy no WhatsApp', true),
+        '.',
+      );
     } else if (hasEmail) {
-      alert.append(' Se preferir, escreva para ', link(`mailto:${contact.email}`, contact.email), '.');
+      alert.append(
+        ' Se preferir, escreva para ',
+        link(`mailto:${contact.email}`, contact.email),
+        '.',
+      );
     }
     alert.hidden = false;
   };

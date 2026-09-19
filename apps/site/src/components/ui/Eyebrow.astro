@@ -14,7 +14,9 @@ const { tone = 'connected', inverse = false, class: className } = Astro.props;
 
 <p class:list={['eyebrow', `eyebrow--${tone}`, { 'eyebrow--inverse': inverse }, className]}>
   <span class="eyebrow__dot" aria-hidden="true"></span>
-  <span><slot /></span>
+  <span>
+    <slot />
+  </span>
 </p>
 
 <style>
