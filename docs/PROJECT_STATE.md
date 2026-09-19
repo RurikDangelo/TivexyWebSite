@@ -26,7 +26,7 @@
 | Identidade de marca          | ✅     | 4 SVGs oficiais em `apps/site/src/assets/brand/`                   |
 | Monorepo (npm workspaces)    | ✅     | `npm install` + build dos dois apps na nova estrutura              |
 | Casca do SaaS (`apps/web`)   | ✅     | `npm run validate:web` — 0 erros; conferido no navegador           |
-| Esquema do Core              | 🟡     | `npm run test:db` — 51 testes em Postgres 18; **não aplicado**     |
+| Esquema do Core              | 🟡     | `npm run test:db` — 81 testes em Postgres 18; **não aplicado**     |
 | Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
 | Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
 | Contratos (`packages/core`)  | ✅     | `npm run validate` — 125 testes; contratos conferidos contra o SQL |
