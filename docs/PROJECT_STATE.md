@@ -251,16 +251,55 @@ Apagar segredo sem contexto é irreversível — vale revisar.
 
 Detalhe em [[PROJECT_AUDIT#17. Riscos]].
 
-## 8. Próximo passo
+## 8. Retomada — nesta ordem
 
-1. 🔒 **`git push` da branch `monorepo-tivexy-core`** — o push trava aqui porque
-   o Git Credential Manager pede autenticação em janela. É o único risco real
-   em aberto: sem isso o trabalho existe só nesta máquina.
-2. 🔒 Criar o projeto Supabase
-3. ✅ ~~Root Directory na Vercel~~ — corrigido e verificado em 19/09/2026
-4. ✅ ~~Scaffold de `apps/web`~~ — concluído em 18/09/2026
-5. ✅ ~~Modelagem do banco~~ — migrations escritas e testadas em 18/09/2026;
-   aplicar depende do item 2
-6. Auth + multi-tenancy com RLS — RLS já escrito e testado; falta a autenticação
-7. Provisionamento ponta a ponta + teste E2E — esquema pronto e provado; falta
-   a implementação na aplicação
+Os três primeiros são seus e bloqueiam o resto.
+
+### 1. 🔴 Revogar o token da Vercel
+
+Ele foi colado em texto puro no chat da sessão de 18–19/09. Vercel → Settings →
+Tokens → revogar e gerar outro. Foi usado para corrigir o Root Directory e
+publicar um preview; nada além disso.
+
+Na mesma passada, vale revogar o _deployment protection bypass token_ que a CLI
+gerou sozinha para conseguir ler o preview protegido.
+
+### 2. 🔴 `git push` da branch `monorepo-tivexy-core`
+
+```bash
+git push -u origin monorepo-tivexy-core
+```
+
+O push trava nesta máquina: o `credential.helper` é o Git Credential Manager,
+que abre janela de autenticação e fica esperando. `gh auth login` destrava de
+vez.
+
+**São 22 commits que existem só neste disco.** É o único risco real em aberto.
+Depois do push, abrir PR — o CI roda sozinho e valida tudo.
+
+### 3. 🔴 Criar o projeto Supabase
+
+Destrava autenticação, provisionamento, Admin, CRM e ERP — tudo depende disto.
+Passos em `supabase/README.md`, seção "Quando o projeto Supabase existir".
+
+Ao aplicar as migrations, **rodar o teste de isolamento contra o projeto real**.
+Os 133 testes rodam em Postgres WASM: fiéis ao contrato, não ao transporte.
+
+### Depois, na ordem do ADR-002
+
+4. **Autenticação** — Supabase Auth: login, convite, recuperação, sessão. A
+   decisão de acesso já existe e está testada; falta a camada de sessão que
+   chama `current_viewer()` e alimenta `parseViewer()`.
+5. **Middleware** — ligar `matchRule` + `decideAccess` + `redirectFor` às rotas.
+   As três peças existem e têm teste; falta o fio que as conecta à requisição.
+6. **Provisionamento** — o esquema sustenta e há um modelo do fluxo provado em
+   teste. Falta a implementação no backend, com `service_role`.
+7. **Painel Super Admin**, e só então CRM e ERP.
+
+### O que dá para fazer sem esperar nada
+
+- Conferir se o destino do formulário de contato da landing ainda responde
+- Revisar as variáveis de outro projeto no ambiente Vercel (`DATABASE_URL`,
+  `AUTH_SECRET`, `STORE_TIMEZONE` e outras) — a landing não usa nenhuma, mas
+  apagar segredo sem contexto é irreversível
+- Abrir `docs/` no Obsidian como cofre
