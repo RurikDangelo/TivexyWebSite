@@ -217,12 +217,88 @@ describe('administrador de um tenant não alcança o outro', () => {
     });
   });
 
+  it('não muda o status nem o plano do próprio tenant', async () => {
+    // Mesma forma da escalada em `users`: a política aprova a LINHA (tem
+    // core.tenant.write) e não olha a COLUNA. Se passasse, um tenant suspenso
+    // se reativaria sozinho, e qualquer um trocaria de plano sem passar pelo
+    // comercial.
+    for (const [coluna, sql] of [
+      ['status', `update public.tenants set status = 'active' where id = $1`],
+      [
+        'plan_id',
+        `update public.tenants set plan_id = (select id from public.plans where code = 'avancado') where id = $1`,
+      ],
+      ['slug', `update public.tenants set slug = 'outro-slug' where id = $1`],
+    ]) {
+      await asUser(db, fx.adminAurora, async () => {
+        await assert.rejects(
+          () => db.query(sql, [fx.aurora]),
+          /permission denied|privilege/i,
+          `coluna ${coluna} deveria ser decisão da plataforma`,
+        );
+      });
+    }
+  });
+
+  it('continua podendo editar nome e configurações do próprio tenant', async () => {
+    await asUser(db, fx.adminAurora, async () => {
+      const r = await db.query(`update public.tenants set name = $2 where id = $1`, [
+        fx.aurora,
+        'Aurora Ltda',
+      ]);
+      assert.equal(r.affectedRows ?? 0, 1);
+    });
+  });
+
+  it('não cria papel próprio marcado como de sistema', async () => {
+    // Papel de sistema vale para TODOS os tenants. Criar um seria promover a
+    // própria configuração a regra da plataforma.
+    await asUser(db, fx.adminAurora, async () => {
+      await assert.rejects(
+        () =>
+          db.query(
+            `insert into public.roles (tenant_id, code, name, is_system)
+             values ($1, 'falso_sistema', 'X', true)`,
+            [fx.aurora],
+          ),
+        /row-level security|roles_system_has_no_tenant/i,
+      );
+    });
+  });
+
   it('não altera papel de sistema, que vale para todos os tenants', async () => {
     await asUser(db, fx.adminBase, async () => {
       const r = await db.query(
         `update public.roles set name = 'Sequestrado' where tenant_id is null`,
       );
       assert.equal(r.affectedRows ?? 0, 0);
+    });
+  });
+
+  it('não lê papel próprio de outro tenant', async () => {
+    const achou = await asUser(db, fx.adminAurora, async () => {
+      const { rows } = await db.query('select code from public.roles where tenant_id = $1', [
+        fx.base,
+      ]);
+      return rows.length;
+    });
+    assert.equal(achou, 0);
+  });
+
+  it('não forja auditoria em nome de outra pessoa do próprio tenant', async () => {
+    // O with_check compara actor_user_id com auth.uid(). Sem isso, qualquer
+    // membro poderia atribuir uma ação a um colega — e auditoria que aceita
+    // autor forjado não serve para apurar nada.
+    await asUser(db, fx.adminAurora, async () => {
+      await assert.rejects(
+        () =>
+          db.query(
+            `insert into public.audit_logs (tenant_id, actor_user_id, action, resource_type)
+             values ($1, $2, 'tenant.update', 'tenant')`,
+            [fx.aurora, fx.colabAurora],
+          ),
+        /row-level security/i,
+      );
     });
   });
 
