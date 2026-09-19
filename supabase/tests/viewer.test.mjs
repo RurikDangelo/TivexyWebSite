@@ -12,7 +12,7 @@
  */
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
-import { decideAccess } from '../../packages/core/src/index.ts';
+import { decideAccess, parseViewer } from '../../packages/core/src/index.ts';
 import { addMember, asUser, createDatabase, createTenant, createUser } from './harness.mjs';
 
 let db;
@@ -60,18 +60,6 @@ async function viewerDe(userId, tenantId = null) {
     const { rows } = await db.query('select public.current_viewer($1) as v', [tenantId]);
     return rows[0].v;
   });
-}
-
-/** Converte o JSON do banco no Viewer que `decideAccess` espera. */
-function paraViewer(json) {
-  return {
-    userId: json.userId,
-    isSuperAdmin: json.isSuperAdmin,
-    tenant: json.tenant,
-    membershipStatus: json.membershipStatus,
-    permissions: new Set(json.permissions),
-    enabledModules: new Set(json.enabledModules),
-  };
 }
 
 describe('current_viewer — formato', () => {
@@ -157,7 +145,7 @@ describe('current_viewer — não vaza', () => {
 
 describe('current_viewer alimenta decideAccess sem adaptação', () => {
   it('administrador entra onde precisa de permissão', async () => {
-    const v = paraViewer(await viewerDe(fx.adminAurora, fx.aurora));
+    const v = parseViewer(await viewerDe(fx.adminAurora, fx.aurora));
     assert.equal(decideAccess({ kind: 'member' }, v).allowed, true);
     assert.equal(
       decideAccess({ kind: 'permission', permission: 'core.roles.write' }, v).allowed,
@@ -167,7 +155,7 @@ describe('current_viewer alimenta decideAccess sem adaptação', () => {
   });
 
   it('colaborador é barrado no que não tem', async () => {
-    const v = paraViewer(await viewerDe(fx.colabAurora, fx.aurora));
+    const v = parseViewer(await viewerDe(fx.colabAurora, fx.aurora));
     assert.equal(
       decideAccess({ kind: 'permission', permission: 'crm.leads.read' }, v).allowed,
       true,
@@ -178,7 +166,7 @@ describe('current_viewer alimenta decideAccess sem adaptação', () => {
   });
 
   it('convidado cai em membership-inactive e é mandado para o convite', async () => {
-    const v = paraViewer(await viewerDe(fx.convidado, fx.aurora));
+    const v = parseViewer(await viewerDe(fx.convidado, fx.aurora));
     const decisao = decideAccess({ kind: 'member' }, v);
     assert.equal(decisao.allowed, false);
     assert.equal(decisao.reason, 'membership-inactive');
@@ -187,14 +175,14 @@ describe('current_viewer alimenta decideAccess sem adaptação', () => {
   });
 
   it('estranho cai em no-tenant', async () => {
-    const v = paraViewer(await viewerDe(fx.estranho, fx.aurora));
+    const v = parseViewer(await viewerDe(fx.estranho, fx.aurora));
     const decisao = decideAccess({ kind: 'member' }, v);
     assert.equal(decisao.allowed, false);
     assert.equal(decisao.reason, 'no-tenant');
   });
 
   it('super admin passa em tudo', async () => {
-    const v = paraViewer(await viewerDe(fx.superAdmin, fx.base));
+    const v = parseViewer(await viewerDe(fx.superAdmin, fx.base));
     assert.equal(decideAccess({ kind: 'superAdmin' }, v).allowed, true);
     assert.equal(decideAccess({ kind: 'member' }, v).allowed, true);
     assert.equal(

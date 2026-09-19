@@ -34,6 +34,7 @@ export {
   decideAccess,
   isAuthenticated,
   matchRule,
+  parseViewer,
   redirectFor,
   type AccessDecision,
   type DenialReason,

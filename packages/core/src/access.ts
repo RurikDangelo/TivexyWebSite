@@ -129,6 +129,53 @@ export function can(viewer: Viewer, permission: PermissionCode): boolean {
   return decideAccess({ kind: 'permission', permission }, viewer).allowed;
 }
 
+/* ── Leitura do contexto vindo do banco ───────────────────────────────── */
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+}
+
+/**
+ * Converte o JSON de `public.current_viewer()` num `Viewer`.
+ *
+ * Tolerante de propósito: qualquer coisa que não seja o formato esperado vira
+ * `ANONYMOUS`. Um contexto malformado precisa resultar em **menos** acesso, não
+ * em exceção no meio do fluxo — e muito menos em acesso indevido.
+ *
+ * Códigos de permissão desconhecidos são mantidos, não descartados. Descartar
+ * silenciaria uma permissão recém-criada no banco e ainda não declarada aqui:
+ * a pessoa simplesmente não conseguiria fazer algo que deveria, sem erro
+ * nenhum. Divergência entre os dois lados é pega pelo teste de contratos, que é
+ * onde ela deve doer.
+ */
+export function parseViewer(raw: unknown): Viewer {
+  if (raw === null || typeof raw !== 'object') return ANONYMOUS;
+
+  const data = raw as Record<string, unknown>;
+  if (typeof data.userId !== 'string') return ANONYMOUS;
+
+  const tenantRaw = data.tenant;
+  let tenant: Viewer['tenant'] = null;
+  if (tenantRaw !== null && typeof tenantRaw === 'object') {
+    const t = tenantRaw as Record<string, unknown>;
+    if (typeof t.id === 'string' && typeof t.status === 'string') {
+      tenant = { id: t.id, status: t.status as TenantStatus };
+    }
+  }
+
+  return {
+    userId: data.userId,
+    isSuperAdmin: data.isSuperAdmin === true,
+    tenant,
+    membershipStatus:
+      typeof data.membershipStatus === 'string'
+        ? (data.membershipStatus as MembershipStatus)
+        : null,
+    permissions: new Set(asStringArray(data.permissions) as PermissionCode[]),
+    enabledModules: new Set(asStringArray(data.enabledModules) as ModuleCode[]),
+  };
+}
+
 /* ── Casamento de rota ────────────────────────────────────────────────── */
 
 export interface RouteMatcher {

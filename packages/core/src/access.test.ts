@@ -21,6 +21,7 @@ import {
   can,
   decideAccess,
   matchRule,
+  parseViewer,
   redirectFor,
 } from './access.ts';
 
@@ -192,6 +193,70 @@ describe('can()', () => {
     assert.equal(can(viewer(), 'crm.leads.read'), true);
     assert.equal(can(viewer(), 'crm.leads.write'), false);
     assert.equal(can(ANONYMOUS, 'crm.leads.read'), false);
+  });
+});
+
+describe('parseViewer', () => {
+  const doBanco = {
+    userId: 'u1',
+    isSuperAdmin: false,
+    tenant: { id: 't1', status: 'active' },
+    membershipStatus: 'active',
+    permissions: ['crm.leads.read', 'crm.leads.write'],
+    enabledModules: ['core', 'crm'],
+  };
+
+  it('lê o formato que current_viewer() devolve', () => {
+    const v = parseViewer(doBanco);
+    assert.equal(v.userId, 'u1');
+    assert.deepEqual(v.tenant, { id: 't1', status: 'active' });
+    assert.equal(v.membershipStatus, 'active');
+    assert.ok(v.permissions.has('crm.leads.write'));
+    assert.ok(v.enabledModules.has('crm'));
+    assert.equal(decideAccess(LEADS, v).allowed, true);
+  });
+
+  it('sem sessão vira anônimo', () => {
+    // current_viewer() devolve NULL quando não há auth.uid().
+    assert.deepEqual(parseViewer(null), ANONYMOUS);
+  });
+
+  it('contexto malformado resulta em MENOS acesso, não em exceção', () => {
+    // Um erro aqui no meio do fluxo seria pior que negar: a decisão de acesso
+    // roda em toda requisição, e lançar deixaria a aplicação inacessível.
+    const lixos = [undefined, 42, 'texto', [], {}, { userId: 123 }, { semUserId: true }];
+    for (const lixo of lixos) {
+      const v = parseViewer(lixo);
+      assert.deepEqual(v, ANONYMOUS, JSON.stringify(lixo));
+      assert.equal(decideAccess(MEMBER, v).allowed, false);
+    }
+  });
+
+  it('tenant malformado não vira tenant pela metade', () => {
+    const v = parseViewer({ ...doBanco, tenant: { id: 't1' } });
+    assert.equal(v.tenant, null, 'sem status, não dá para saber se opera');
+    assert.equal(reasonOf(MEMBER, v), 'no-tenant');
+  });
+
+  it('isSuperAdmin só com true de verdade', () => {
+    // Um valor truthy qualquer não pode promover ninguém a Super Admin.
+    for (const valor of ['true', 1, 'sim', {}]) {
+      assert.equal(parseViewer({ ...doBanco, isSuperAdmin: valor }).isSuperAdmin, false);
+    }
+    assert.equal(parseViewer({ ...doBanco, isSuperAdmin: true }).isSuperAdmin, true);
+  });
+
+  it('mantém permissão desconhecida em vez de descartar', () => {
+    // Descartar silenciaria uma permissão nova no banco e ainda não declarada
+    // aqui: a pessoa não conseguiria agir, sem erro nenhum. A divergência é
+    // pega pelo teste de contratos, que é onde ela deve doer.
+    const v = parseViewer({ ...doBanco, permissions: ['crm.leads.read', 'modulo.novo.acao'] });
+    assert.equal(v.permissions.size, 2);
+  });
+
+  it('ignora entrada não textual dentro das listas', () => {
+    const v = parseViewer({ ...doBanco, permissions: ['crm.leads.read', 42, null, {}] });
+    assert.deepEqual([...v.permissions], ['crm.leads.read']);
   });
 });
 
