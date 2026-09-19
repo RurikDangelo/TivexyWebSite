@@ -1,0 +1,71 @@
+name: CI
+
+# A regra do projeto é "verificado por execução, não por leitura". Isto é o que
+# faz a regra valer sozinha, em toda mudança, sem depender de alguém lembrar.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Um push novo cancela a execução anterior da mesma referência: revisar
+# resultado de código que já mudou não ajuda ninguém.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Tipos, lint, build e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          # Acompanha o engines do package.json e o que roda em desenvolvimento.
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Contratos do Core (tipos)
+        run: npm run check:core
+
+      - name: Landing — tipos, lint e build
+        run: npm run validate:site
+
+      - name: SaaS — tipos, lint e build
+        run: npm run validate:web
+
+      # Sobem um Postgres 18 em WASM (PGlite): sem Docker, sem serviço externo.
+      # Aqui mora o teste que não pode falhar em silêncio — o de isolamento
+      # entre tenants.
+      - name: Banco — esquema, RLS, isolamento e provisionamento
+        run: npm run test:db
+
+  # Roda em paralelo: uma falha de formatação não deve esconder uma falha de
+  # tipo, e vice-versa.
+  format:
+    name: Formatação
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # TODO: remover quando o card "[SITE] Normalizar formatação Prettier"
+    # estiver concluído. Hoje 90 arquivos da landing divergem — isso já era
+    # verdade antes do monorepo, e reformatá-los merece commit próprio.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run format:check
