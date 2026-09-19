@@ -23,3 +23,15 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# estado local do Obsidian (o cofre é docs/, mas o layout de janelas é por máquina)
+docs/.obsidian/workspace.json
+docs/.obsidian/workspace-mobile.json
+docs/.obsidian/cache
+
+# Next.js (apps/web)
+.next/
+next-env.d.ts
+/apps/*/out/
+.vercel
+*.tsbuildinfo

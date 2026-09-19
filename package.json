@@ -1,45 +1,42 @@
 {
-  "name": "tivexy",
+  "name": "tivexy-monorepo",
+  "private": true,
   "type": "module",
   "version": "0.0.1",
+  "description": "Monorepo do ecossistema Tivexy: landing page pública (apps/site) e plataforma SaaS Tivexy Core (apps/web).",
   "engines": {
     "node": ">=22.12.0"
   },
-  "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro",
-    "check": "astro check",
-    "lint": "eslint .",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "icons": "node scripts/generate-icons.mjs",
-    "validate": "npm run check && npm run lint && npm run build"
-  },
-  "dependencies": {
-    "@astrojs/sitemap": "^3.7.4",
-    "astro": "^7.3.2"
-  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "allowScripts": {
     "esbuild": true
   },
+  "scripts": {
+    "dev:site": "npm run dev --workspace @tivexy/site",
+    "build:site": "npm run build --workspace @tivexy/site",
+    "preview:site": "npm run preview --workspace @tivexy/site",
+    "check:site": "npm run check --workspace @tivexy/site",
+    "lint:site": "npm run lint --workspace @tivexy/site",
+    "validate:site": "npm run validate --workspace @tivexy/site",
+    "icons:site": "npm run icons --workspace @tivexy/site",
+    "dev:web": "npm run dev --workspace @tivexy/web",
+    "build:web": "npm run build --workspace @tivexy/web",
+    "start:web": "npm run start --workspace @tivexy/web",
+    "check:web": "npm run check --workspace @tivexy/web",
+    "lint:web": "npm run lint --workspace @tivexy/web",
+    "validate:web": "npm run validate --workspace @tivexy/web",
+    "test:db": "node --test \"supabase/tests/*.test.mjs\"",
+    "docs:matrix": "node scripts/permission-matrix.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "validate": "npm run validate:site && npm run validate:web && npm run test:db"
+  },
   "devDependencies": {
-    "@astrojs/check": "^0.9.10",
-    "@csstools/postcss-global-data": "^4.0.0",
-    "@eslint/js": "^10.0.1",
-    "@fontsource/inter": "^5.3.0",
-    "@fontsource/manrope": "^5.3.0",
-    "@resvg/resvg-js": "^2.6.2",
-    "eslint": "^10.10.0",
-    "eslint-plugin-astro": "^3.1.0",
-    "globals": "^17.12.0",
-    "postcss": "^8.5.28",
-    "postcss-custom-media": "^12.0.1",
+    "@electric-sql/pglite": "^0.5.8",
     "prettier": "^3.9.6",
-    "prettier-plugin-astro": "^1.0.0",
-    "satori": "^0.33.4",
-    "typescript": "~6.0.3",
-    "typescript-eslint": "^8.70.0"
+    "prettier-plugin-astro": "^1.0.0"
   }
 }

@@ -2,16 +2,22 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "tivexy-dev",
+      "name": "site-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "4380"],
+      "runtimeArgs": ["run", "dev", "--workspace", "@tivexy/site", "--", "--port", "4380"],
       "port": 4380
     },
     {
-      "name": "tivexy-preview",
+      "name": "site-preview",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "preview", "--", "--port", "4381"],
+      "runtimeArgs": ["run", "preview", "--workspace", "@tivexy/site", "--", "--port", "4381"],
       "port": 4381
+    },
+    {
+      "name": "web-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace", "@tivexy/web", "--", "--port", "4390"],
+      "port": 4390
     }
   ]
 }

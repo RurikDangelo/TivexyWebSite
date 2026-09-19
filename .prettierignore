@@ -1,0 +1,11 @@
+# build output
+dist/
+.astro/
+.next/
+
+# dependências e lockfile
+node_modules/
+package-lock.json
+
+# configuração gerenciada pelo próprio Obsidian
+docs/.obsidian/

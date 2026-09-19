@@ -2,7 +2,7 @@
  * Imagem de compartilhamento (Open Graph), gerada no build com a logo oficial, as fontes e as cores da marca.
  */
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Resvg } from '@resvg/resvg-js';
 import type { APIRoute } from 'astro';
 import satori from 'satori';
@@ -22,12 +22,19 @@ const h = (type: string, style: Style, children?: SatoriChild | SatoriChild[]): 
   props: { style, children },
 });
 
+/**
+ * Lê um arquivo de fonte pelo resolvedor do Node, não por caminho montado à mão:
+ * no monorepo as dependências são içadas para o `node_modules` da raiz.
+ */
 const font = (pkg: string, file: string) =>
-  readFile(join(process.cwd(), 'node_modules', '@fontsource', pkg, 'files', file));
+  readFile(fileURLToPath(import.meta.resolve(`@fontsource/${pkg}/files/${file}`)));
 
 /** SVG da marca (sem cor fixa) pintado com `fill`, como imagem com a proporção original. */
 function brandImage(raw: string, fill: string, height: number): SatoriNode {
-  const [, , viewWidth, viewHeight] = raw.match(/viewBox="([^"]+)"/)![1].split(/\s+/).map(Number);
+  const [, , viewWidth, viewHeight] = raw
+    .match(/viewBox="([^"]+)"/)![1]
+    .split(/\s+/)
+    .map(Number);
   const width = Math.round((height * viewWidth) / viewHeight);
   const colored = raw.replace('<svg ', `<svg fill="${fill}" `);
   const src = `data:image/svg+xml;base64,${Buffer.from(colored).toString('base64')}`;
