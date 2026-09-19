@@ -43,14 +43,20 @@ const SUPABASE_STUB = `
   create role service_role nologin bypassrls;
 
   grant usage on schema public, auth to anon, authenticated, service_role;
-`;
 
-/** Concede o que o Supabase concede por padrão. O RLS é que restringe. */
-const GRANTS = `
-  grant select, insert, update, delete on all tables in schema public
-    to authenticated, service_role;
-  grant select on all tables in schema public to anon;
-  grant execute on all functions in schema public to anon, authenticated, service_role;
+  -- O Supabase concede por PRIVILÉGIO PADRÃO: toda tabela nasce com estes
+  -- direitos, e o RLS é que restringe as linhas.
+  --
+  -- Conceder antes das migrations (e não depois) não é detalhe: é o que
+  -- permite a uma migration REVOGAR um privilégio e a revogação valer. Com o
+  -- grant depois, qualquer restrição de coluna seria desfeita — e o teste de
+  -- escalada de privilégio passaria por engano.
+  alter default privileges in schema public
+    grant select, insert, update, delete on tables to authenticated, service_role;
+  alter default privileges in schema public grant select on tables to anon;
+  alter default privileges in schema public
+    grant execute on functions to anon, authenticated, service_role;
+
   grant execute on all functions in schema auth to anon, authenticated, service_role;
 `;
 
@@ -76,7 +82,6 @@ export async function createDatabase() {
     }
   }
 
-  await db.exec(GRANTS);
   return db;
 }
 
