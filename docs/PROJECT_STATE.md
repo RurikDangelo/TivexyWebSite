@@ -17,20 +17,21 @@
 
 ## 1. O que existe e funciona
 
-| Item                        | Estado | Verificação                                                       |
-| --------------------------- | ------ | ----------------------------------------------------------------- |
-| Landing page (`apps/site`)  | ✅     | `npm run validate:site` — 0 erros de tipo, 0 de lint, 7 páginas   |
-| Imagem Open Graph           | ✅     | PNG 1200×630 gerado no build                                      |
-| Sitemap + robots.txt        | ✅     | Gerados no build                                                  |
-| Design system da landing    | ✅     | `apps/site/src/styles/tokens.css`                                 |
-| Identidade de marca         | ✅     | 4 SVGs oficiais em `apps/site/src/assets/brand/`                  |
-| Monorepo (npm workspaces)   | ✅     | `npm install` + build dos dois apps na nova estrutura             |
-| Casca do SaaS (`apps/web`)  | ✅     | `npm run validate:web` — 0 erros; conferido no navegador          |
-| Esquema do Core             | 🟡     | `npm run test:db` — 51 testes em Postgres 18; **não aplicado**    |
-| Knowledge base (`docs/`)    | ✅     | Cofre Obsidian versionado                                         |
-| Trello estruturado          | ✅     | Listas, labels por módulo e backlog inicial                       |
-| Contratos (`packages/core`) | ✅     | `npm run validate` — 71 testes; contratos conferidos contra o SQL |
-| CI (GitHub Actions)         | 🟡     | Workflow escrito; só roda depois do push                          |
+| Item                         | Estado | Verificação                                                       |
+| ---------------------------- | ------ | ----------------------------------------------------------------- |
+| Landing page (`apps/site`)   | ✅     | `npm run validate:site` — 0 erros de tipo, 0 de lint, 7 páginas   |
+| Imagem Open Graph            | ✅     | PNG 1200×630 gerado no build                                      |
+| Sitemap + robots.txt         | ✅     | Gerados no build                                                  |
+| Design system da landing     | ✅     | `apps/site/src/styles/tokens.css`                                 |
+| Identidade de marca          | ✅     | 4 SVGs oficiais em `apps/site/src/assets/brand/`                  |
+| Monorepo (npm workspaces)    | ✅     | `npm install` + build dos dois apps na nova estrutura             |
+| Casca do SaaS (`apps/web`)   | ✅     | `npm run validate:web` — 0 erros; conferido no navegador          |
+| Esquema do Core              | 🟡     | `npm run test:db` — 51 testes em Postgres 18; **não aplicado**    |
+| Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                         |
+| Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                       |
+| Contratos (`packages/core`)  | ✅     | `npm run validate` — 85 testes; contratos conferidos contra o SQL |
+| CI (GitHub Actions)          | 🟡     | Workflow escrito; só roda depois do push                          |
+| Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado      |
 
 ## 2. Estado por módulo
 
@@ -76,8 +77,8 @@ Existe e é consumido por `apps/web`:
 
 - Contratos do catálogo (módulos, permissões, papéis, planos) e os estados de
   tenant, vínculo e provisionamento, tipados
-- `decideAccess()`: a decisão de acesso da aplicação, espelhando as regras do
-  RLS — 20 testes, incluindo a ordem em que nega
+- `decideAccess()` e `matchRule()`: a decisão de acesso da aplicação, espelhando
+  as regras do RLS — 27 testes, incluindo a ordem em que nega e o padrão fechado
 - 11 testes conferem os contratos contra o catálogo SQL nos dois sentidos: a
   duplicação entre TypeScript e banco não passa despercebida
 
@@ -107,6 +108,9 @@ build sem erro; conferido no navegador em claro, escuro e 375px):
 - Primitivos: botão, card, badge, campo
 - `/painel` com o estado real da plataforma — **não é dashboard de produto**,
   não há dado de negócio
+- Estados de 404, erro e carregamento (esqueleto, não spinner)
+- Mapa de regras por rota em `src/config/routes.ts`, **fechado por padrão**, com
+  teste que cruza navegação e rotas
 
 **Não existe ainda:** autenticação, banco, rotas `(auth)` e `(admin)`, e qualquer
 módulo de negócio. A navegação declara essas rotas como `pending`/`blocked` e as
