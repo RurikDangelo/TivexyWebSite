@@ -36,8 +36,11 @@
 
 **Estado:** ✅ FUNCIONA · **Docs:** `apps/site/README.md` · **Trello:** label `SITE`
 
-Pendências: configurar `PUBLIC_SITE_URL` e o destino do formulário de contato
-(hoje o build avisa e os leads não têm para onde ir) — 🔒 EXTERNO.
+Deploy na Vercel apontando para `apps/site`, verificado em preview real.
+
+Pendência: conferir se o destino do formulário de contato ainda responde. As
+variáveis já estão cadastradas em produção; o aviso do build é local, por falta
+de `.env` na máquina.
 
 ### Tivexy Core — esquema do banco
 
@@ -154,12 +157,9 @@ Corrigido nesta sessão:
 
 ## 4. O que está em desenvolvimento
 
-Nada em andamento. A modelagem do banco foi concluída e testada; o próximo passo
-— autenticação — depende do projeto Supabase existir (🔒 externo).
-
-Enquanto isso, o que dá para avançar sem credencial: extrair `packages/core` com
-os contratos do esquema, e escrever a especificação do fluxo de provisionamento
-em `docs/06-ADMIN/PROVISIONING.md`.
+`packages/core`: os contratos do esquema em TypeScript, com teste que os confere
+contra o catálogo SQL. É o que dá para avançar sem credencial — a autenticação,
+próximo passo de verdade, depende do projeto Supabase existir (🔒 externo).
 
 ## 5. Decisões tomadas
 

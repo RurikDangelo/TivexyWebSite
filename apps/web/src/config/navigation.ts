@@ -1,3 +1,4 @@
+import type { ModuleCode } from '@tivexy/core';
 import type { LucideIcon } from 'lucide-react';
 import {
   Blocks,
@@ -36,18 +37,24 @@ export interface NavItem {
 export interface NavGroup {
   /** `null` para itens soltos no topo, sem cabeçalho de seção. */
   label: string | null;
+  /**
+   * Módulo a que o grupo pertence, no vocabulário do Core. Quando houver
+   * tenant, é por aqui que a casca esconde o que não está habilitado —
+   * `tenant_modules` é a verdade sobre acesso, não o plano.
+   */
+  module: ModuleCode;
   items: NavItem[];
 }
 
 export const navigation: NavGroup[] = [
   {
     label: null,
-    items: [
-      { label: 'Visão geral', href: '/painel', icon: LayoutDashboard, status: 'ready' },
-    ],
+    module: 'core',
+    items: [{ label: 'Visão geral', href: '/painel', icon: LayoutDashboard, status: 'ready' }],
   },
   {
     label: 'CRM',
+    module: 'crm',
     items: [
       { label: 'Leads', href: '/crm/leads', icon: Target, status: 'pending' },
       { label: 'Contatos', href: '/crm/contatos', icon: Contact, status: 'pending' },
@@ -58,6 +65,7 @@ export const navigation: NavGroup[] = [
   },
   {
     label: 'ERP',
+    module: 'erp',
     items: [
       { label: 'Produtos', href: '/erp/produtos', icon: Package, status: 'pending' },
       { label: 'Vendas', href: '/erp/vendas', icon: ShoppingCart, status: 'pending' },
@@ -67,6 +75,7 @@ export const navigation: NavGroup[] = [
   },
   {
     label: 'Plataforma',
+    module: 'integrations',
     items: [
       { label: 'Automações', href: '/automacoes', icon: Zap, status: 'pending' },
       {
@@ -82,6 +91,7 @@ export const navigation: NavGroup[] = [
   },
   {
     label: 'Administração',
+    module: 'core',
     items: [
       {
         label: 'Super Admin',

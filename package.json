@@ -28,11 +28,12 @@
     "check:web": "npm run check --workspace @tivexy/web",
     "lint:web": "npm run lint --workspace @tivexy/web",
     "validate:web": "npm run validate --workspace @tivexy/web",
+    "check:core": "npm run check --workspace @tivexy/core",
     "test:db": "node --test \"supabase/tests/*.test.mjs\"",
     "docs:matrix": "node scripts/permission-matrix.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "validate": "npm run validate:site && npm run validate:web && npm run test:db"
+    "validate": "npm run check:core && npm run validate:site && npm run validate:web && npm run test:db"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

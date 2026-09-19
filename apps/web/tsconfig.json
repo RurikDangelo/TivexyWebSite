@@ -10,6 +10,9 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
+    // @tivexy/core é TypeScript puro e importa com extensão .ts, porque o Node
+    // 24 executa esses arquivos direto nos testes e exige o caminho completo.
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
