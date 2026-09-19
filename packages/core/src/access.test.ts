@@ -14,10 +14,13 @@ import type { ModuleCode, PermissionCode } from './catalog.ts';
 import type { MembershipStatus, TenantStatus } from './tenancy.ts';
 import {
   ANONYMOUS,
+  DEFAULT_RULE,
+  type RouteMatcher,
   type RouteRule,
   type Viewer,
   can,
   decideAccess,
+  matchRule,
   redirectFor,
 } from './access.ts';
 
@@ -105,6 +108,30 @@ describe('pertencimento ao tenant', () => {
   });
 });
 
+describe('rota que só exige sessão', () => {
+  const AUTENTICADO: RouteRule = { kind: 'authenticated' };
+
+  it('nega visitante', () => {
+    assert.equal(reasonOf(AUTENTICADO, ANONYMOUS), 'unauthenticated');
+  });
+
+  it('não entra em laço com quem foi mandado para lá', () => {
+    // As telas de saída do limbo — convite, onboarding, "preparando" — recebem
+    // exatamente quem o `member` acabou de negar. Se exigissem vínculo ativo,
+    // negariam pelo mesmo motivo e a pessoa nunca sairia do lugar.
+    const casos: Array<[string, Viewer]> = [
+      ['convite pendente', viewer({ membershipStatus: 'invited' })],
+      ['sem tenant', viewer({ tenant: null, membershipStatus: null })],
+      ['tenant provisionando', viewer({ tenant: { id: 't1', status: 'provisioning' } })],
+    ];
+    for (const [rotulo, v] of casos) {
+      assert.equal(decideAccess(AUTENTICADO, v).allowed, true, rotulo);
+      // E cada um deles seria mesmo negado numa rota de membro:
+      assert.equal(decideAccess(MEMBER, v).allowed, false, rotulo);
+    }
+  });
+});
+
 describe('permissão', () => {
   it('permite quem tem a permissão e o módulo habilitado', () => {
     assert.equal(decideAccess(LEADS, viewer()).allowed, true);
@@ -165,6 +192,51 @@ describe('can()', () => {
     assert.equal(can(viewer(), 'crm.leads.read'), true);
     assert.equal(can(viewer(), 'crm.leads.write'), false);
     assert.equal(can(ANONYMOUS, 'crm.leads.read'), false);
+  });
+});
+
+describe('casamento de rota', () => {
+  const rules: RouteMatcher[] = [
+    { prefix: '/entrar', rule: { kind: 'public' } },
+    { prefix: '/admin', rule: { kind: 'superAdmin' } },
+    { prefix: '/crm', rule: { kind: 'member' } },
+    { prefix: '/crm/leads', rule: { kind: 'permission', permission: 'crm.leads.read' } },
+  ];
+
+  it('casa o próprio caminho e tudo abaixo dele', () => {
+    assert.deepEqual(matchRule(rules, '/entrar'), { kind: 'public' });
+    assert.deepEqual(matchRule(rules, '/entrar/senha'), { kind: 'public' });
+  });
+
+  it('o prefixo mais específico vence', () => {
+    assert.deepEqual(matchRule(rules, '/crm'), { kind: 'member' });
+    assert.deepEqual(matchRule(rules, '/crm/leads'), {
+      kind: 'permission',
+      permission: 'crm.leads.read',
+    });
+    assert.deepEqual(matchRule(rules, '/crm/leads/42'), {
+      kind: 'permission',
+      permission: 'crm.leads.read',
+    });
+  });
+
+  it('respeita a fronteira de segmento', () => {
+    // Sem isso, /crmed herdaria por acidente a regra de /crm.
+    assert.deepEqual(matchRule(rules, '/crmed'), DEFAULT_RULE);
+    assert.deepEqual(matchRule(rules, '/entrarcomofunciona'), DEFAULT_RULE);
+  });
+
+  it('rota não declarada fica FECHADA, não aberta', () => {
+    // O padrão importa mais que as regras: uma rota nova que alguém esqueceu
+    // de declarar precisa ficar protegida. Errar negando gera chamado; errar
+    // liberando gera vazamento.
+    assert.deepEqual(matchRule(rules, '/financeiro/secreto'), DEFAULT_RULE);
+    assert.deepEqual(matchRule([], '/qualquer'), DEFAULT_RULE);
+    assert.notEqual(DEFAULT_RULE.kind, 'public');
+  });
+
+  it('a raiz não é pública por acidente', () => {
+    assert.deepEqual(matchRule(rules, '/'), DEFAULT_RULE);
   });
 });
 

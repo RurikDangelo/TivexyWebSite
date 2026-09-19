@@ -30,11 +30,12 @@
     "validate:web": "npm run validate --workspace @tivexy/web",
     "check:core": "npm run check --workspace @tivexy/core",
     "test:core": "node --test \"packages/core/src/*.test.ts\"",
+    "test:web": "node --test \"apps/web/src/**/*.test.ts\"",
     "test:db": "node --test \"supabase/tests/*.test.mjs\"",
     "docs:matrix": "node scripts/permission-matrix.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "validate": "npm run check:core && npm run test:core && npm run validate:site && npm run validate:web && npm run test:db"
+    "validate": "npm run check:core && npm run test:core && npm run validate:site && npm run validate:web && npm run test:web && npm run test:db"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

@@ -47,6 +47,11 @@ jobs:
       - name: SaaS — tipos, lint e build
         run: npm run validate:web
 
+      # Cruza a navegação com as regras de rota: item de menu sem regra
+      # declarada cai no padrão e passa a exigir menos do que deveria.
+      - name: SaaS — navegação e regras de rota
+        run: npm run test:web
+
       # Sobem um Postgres 18 em WASM (PGlite): sem Docker, sem serviço externo.
       # Aqui mora o teste que não pode falhar em silêncio — o de isolamento
       # entre tenants.

@@ -18,6 +18,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace", "@tivexy/web", "--", "--port", "4390"],
       "port": 4390
+    },
+    {
+      "name": "web-start",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start", "--workspace", "@tivexy/web", "--", "--port", "4391"],
+      "port": 4391
     }
   ]
 }

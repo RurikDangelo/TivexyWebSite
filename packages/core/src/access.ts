@@ -26,9 +26,16 @@ import { grantsAccess, isOperational } from './tenancy.ts';
 
 /** O que uma rota exige. */
 export type RouteRule =
-  /** Aberta. Login, convite, recuperação de senha. */
+  /** Aberta. Login e recuperação de senha. */
   | { kind: 'public' }
-  /** Basta estar autenticado e ser membro ativo de um tenant operacional. */
+  /**
+   * Basta ter sessão. É o que as telas de saída do limbo exigem — aceitar
+   * convite, onboarding, "preparando sua conta" —, porque exigir vínculo ativo
+   * nelas criaria um laço: o redirecionamento manda para a página, a página
+   * nega pelo mesmo motivo, e a pessoa nunca sai do lugar.
+   */
+  | { kind: 'authenticated' }
+  /** Autenticado, membro ativo, e tenant operacional. */
   | { kind: 'member' }
   /** Exige uma permissão, e que o módulo dela esteja habilitado. */
   | { kind: 'permission'; permission: PermissionCode }
@@ -82,6 +89,8 @@ export function decideAccess(rule: RouteRule, viewer: Viewer): AccessDecision {
 
   if (!isAuthenticated(viewer)) return deny('unauthenticated');
 
+  if (rule.kind === 'authenticated') return ALLOWED;
+
   if (rule.kind === 'superAdmin') {
     return viewer.isSuperAdmin ? ALLOWED : deny('missing-permission');
   }
@@ -118,6 +127,45 @@ export function decideAccess(rule: RouteRule, viewer: Viewer): AccessDecision {
 /** Atalho para esconder da interface o que seria negado. */
 export function can(viewer: Viewer, permission: PermissionCode): boolean {
   return decideAccess({ kind: 'permission', permission }, viewer).allowed;
+}
+
+/* ── Casamento de rota ────────────────────────────────────────────────── */
+
+export interface RouteMatcher {
+  /** Prefixo do caminho. Casa o próprio caminho e tudo abaixo dele. */
+  prefix: string;
+  rule: RouteRule;
+}
+
+/**
+ * Regra padrão de quem não casa com nada.
+ *
+ * **Fechado por padrão, e isto não é detalhe.** Uma rota nova que alguém
+ * esqueceu de declarar fica protegida; se o padrão fosse `public`, o
+ * esquecimento viraria uma rota aberta que ninguém percebe. Errar para o lado
+ * de negar produz um chamado; errar para o lado de liberar produz um vazamento.
+ */
+export const DEFAULT_RULE: RouteRule = { kind: 'member' };
+
+/**
+ * A regra do prefixo mais específico vence — `/crm/leads` ganha de `/crm`.
+ *
+ * O casamento respeita a fronteira de segmento: `/crm` **não** casa com
+ * `/crmed`. Sem isso, uma rota nova com nome parecido herdaria por acidente a
+ * permissão de outra.
+ */
+export function matchRule(rules: readonly RouteMatcher[], pathname: string): RouteRule {
+  let melhor: RouteMatcher | null = null;
+
+  for (const candidato of rules) {
+    const casa = pathname === candidato.prefix || pathname.startsWith(`${candidato.prefix}/`);
+    if (!casa) continue;
+    if (melhor === null || candidato.prefix.length > melhor.prefix.length) {
+      melhor = candidato;
+    }
+  }
+
+  return melhor?.rule ?? DEFAULT_RULE;
 }
 
 /**

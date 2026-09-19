@@ -29,12 +29,15 @@ export {
 
 export {
   ANONYMOUS,
+  DEFAULT_RULE,
   can,
   decideAccess,
   isAuthenticated,
+  matchRule,
   redirectFor,
   type AccessDecision,
   type DenialReason,
+  type RouteMatcher,
   type RouteRule,
   type Viewer,
 } from './access.ts';
