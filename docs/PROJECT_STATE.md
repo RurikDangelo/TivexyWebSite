@@ -17,18 +17,20 @@
 
 ## 1. O que existe e funciona
 
-| Item                       | Estado | Verificação                                                     |
-| -------------------------- | ------ | --------------------------------------------------------------- |
-| Landing page (`apps/site`) | ✅     | `npm run validate:site` — 0 erros de tipo, 0 de lint, 7 páginas |
-| Imagem Open Graph          | ✅     | PNG 1200×630 gerado no build                                    |
-| Sitemap + robots.txt       | ✅     | Gerados no build                                                |
-| Design system da landing   | ✅     | `apps/site/src/styles/tokens.css`                               |
-| Identidade de marca        | ✅     | 4 SVGs oficiais em `apps/site/src/assets/brand/`                |
-| Monorepo (npm workspaces)  | ✅     | `npm install` + build dos dois apps na nova estrutura           |
-| Casca do SaaS (`apps/web`) | ✅     | `npm run validate:web` — 0 erros; conferido no navegador        |
-| Esquema do Core            | 🟡     | `npm run test:db` — 40 testes em Postgres 18; **não aplicado**  |
-| Knowledge base (`docs/`)   | ✅     | Cofre Obsidian versionado                                       |
-| Trello estruturado         | ✅     | Listas, labels por módulo e backlog inicial                     |
+| Item                        | Estado | Verificação                                                       |
+| --------------------------- | ------ | ----------------------------------------------------------------- |
+| Landing page (`apps/site`)  | ✅     | `npm run validate:site` — 0 erros de tipo, 0 de lint, 7 páginas   |
+| Imagem Open Graph           | ✅     | PNG 1200×630 gerado no build                                      |
+| Sitemap + robots.txt        | ✅     | Gerados no build                                                  |
+| Design system da landing    | ✅     | `apps/site/src/styles/tokens.css`                                 |
+| Identidade de marca         | ✅     | 4 SVGs oficiais em `apps/site/src/assets/brand/`                  |
+| Monorepo (npm workspaces)   | ✅     | `npm install` + build dos dois apps na nova estrutura             |
+| Casca do SaaS (`apps/web`)  | ✅     | `npm run validate:web` — 0 erros; conferido no navegador          |
+| Esquema do Core             | 🟡     | `npm run test:db` — 51 testes em Postgres 18; **não aplicado**    |
+| Knowledge base (`docs/`)    | ✅     | Cofre Obsidian versionado                                         |
+| Trello estruturado          | ✅     | Listas, labels por módulo e backlog inicial                       |
+| Contratos (`packages/core`) | ✅     | `npm run validate` — 71 testes; contratos conferidos contra o SQL |
+| CI (GitHub Actions)         | 🟡     | Workflow escrito; só roda depois do push                          |
 
 ## 2. Estado por módulo
 
@@ -51,7 +53,7 @@ identidade e RBAC (usuários, papéis, permissões, vínculos, equipes), auditor
 provisionamento. Mais RLS em todas elas e o catálogo da plataforma
 (9 módulos, 51 permissões, 3 papéis de sistema, 3 planos).
 
-**Verificado por execução** — `npm run test:db`, 40 testes contra Postgres 18:
+**Verificado por execução** — `npm run test:db`, 51 testes contra Postgres 18:
 
 - Isolamento entre tenants nas quatro operações (ler, inserir, atualizar, excluir)
 - Nenhuma tabela sem RLS; nenhuma tabela sem política; `search_path` fixo em
@@ -68,10 +70,19 @@ simulado por configuração de sessão — fiel ao contrato, não ao transporte.
 
 ### Tivexy Core — camada de aplicação (`packages/core`)
 
-**Estado:** ⬜ NÃO EXISTE · **Docs:** [[ARCHITECTURE#3. Tivexy Core]] · **Trello:** `CORE`
+**Estado:** 🟡 PARCIAL · **Docs:** `packages/core/README.md` · **Trello:** `CORE`
 
-Serviços, contratos e regras sobre o esquema acima. Feature Flags, Themes e
-Notifications ainda não têm nem tabela.
+Existe e é consumido por `apps/web`:
+
+- Contratos do catálogo (módulos, permissões, papéis, planos) e os estados de
+  tenant, vínculo e provisionamento, tipados
+- `decideAccess()`: a decisão de acesso da aplicação, espelhando as regras do
+  RLS — 20 testes, incluindo a ordem em que nega
+- 11 testes conferem os contratos contra o catálogo SQL nos dois sentidos: a
+  duplicação entre TypeScript e banco não passa despercebida
+
+**Não existe:** serviços de domínio, Feature Flags, Themes e Notifications —
+estes três ainda não têm nem tabela.
 
 ### Provisionamento — **prioridade zero**
 
@@ -157,8 +168,8 @@ Corrigido nesta sessão:
 
 ## 4. O que está em desenvolvimento
 
-`packages/core`: os contratos do esquema em TypeScript, com teste que os confere
-contra o catálogo SQL. É o que dá para avançar sem credencial — a autenticação,
+Nada em andamento. O que dava para avançar sem credencial foi entregue:
+`packages/core` com os contratos e a decisão de acesso, e o CI. A autenticação,
 próximo passo de verdade, depende do projeto Supabase existir (🔒 externo).
 
 ## 5. Decisões tomadas
