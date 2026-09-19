@@ -10,7 +10,7 @@ mora na raiz do monorepo, no diretório que o Supabase CLI espera.
 
 As migrations **não foram aplicadas em nenhum projeto Supabase** — ele ainda não
 existe (ver `docs/PROJECT_STATE.md` §6). O que já existe é mais forte do que
-"escrito": elas rodam contra um Postgres 18 de verdade e passam em 68 testes,
+"escrito": elas rodam contra um Postgres 18 de verdade e passam em 89 testes,
 incluindo os de isolamento entre tenants.
 
 O que ainda não foi exercido: `auth.uid()` real vindo de um JWT, e o
@@ -28,13 +28,16 @@ supabase/
 │   ├── 20260919020300_core_audit_provisioning.sql auditoria e provisionamento
 │   ├── 20260919020400_core_rls.sql               Row Level Security
 │   ├── 20260919020500_core_catalog.sql           catálogo da plataforma
-│   └── 20260919030000_core_viewer.sql            contexto de acesso da requisição
+│   ├── 20260919030000_core_viewer.sql            contexto de acesso da requisição
+│   ├── 20260919040000_core_integrity_hardening.sql  privilégio de coluna e gatilhos
+│   └── 20260919050000_core_tenant_column_privileges.sql  colunas da plataforma
 └── tests/
     ├── harness.mjs             sobe Postgres em WASM e simula o que o Supabase oferece
     ├── core.test.mjs           32 testes: esquema, RLS, isolamento, integridade
     ├── provisioning.test.mjs    8 testes: o fluxo ponta a ponta
     ├── contracts.test.mjs      11 testes: TypeScript × catálogo SQL
-    └── viewer.test.mjs         17 testes: contexto de acesso e vazamento
+    ├── viewer.test.mjs         17 testes: contexto de acesso e vazamento
+    └── integrity.test.mjs      21 testes: tentativas de burlar, não de usar
 ```
 
 ## Testes
@@ -100,6 +103,19 @@ empresa mas não ganha permissão nem descobre os módulos contratados.
 
 **Contratos** — `contracts.test.mjs` compara os códigos do catálogo com as
 constantes de `@tivexy/core` nos dois sentidos.
+
+**Tentativas de burlar** — `integrity.test.mjs` não pergunta se o RLS funciona;
+pergunta o que ele **não** cobre. Foi assim que seis falhas apareceram, uma
+delas crítica: qualquer pessoa autenticada podia se tornar Super Admin
+escrevendo na própria linha, porque RLS aprova a linha e não olha a coluna.
+
+Parte dele roda **sem RLS**, como superusuário — que é como o backend roda com
+`service_role`. Nesse caminho nenhuma política é consultada, e só a constraint
+pega um dado cruzado entre tenants.
+
+Inclui uma guarda para a classe inteira: um teste consulta
+`has_column_privilege` e fixa quais colunas o papel `authenticated` pode
+atualizar. Coluna sensível nova sem privilégio pensado falha ali.
 
 ## Decisões que valem saber
 

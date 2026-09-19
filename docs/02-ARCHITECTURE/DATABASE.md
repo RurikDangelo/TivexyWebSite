@@ -3,7 +3,7 @@
 > Esquema da fundação. Entidades de CRM, ERP, estoque e financeiro vêm depois,
 > sobre esta base. Migrations e testes em `supabase/` — ver [[../../supabase/README|supabase/README]].
 >
-> **Estado:** migrations escritas e verificadas contra Postgres 18 (68 testes
+> **Estado:** migrations escritas e verificadas contra Postgres 18 (89 testes
 > passando). Ainda **não aplicadas** em projeto Supabase — ele não existe.
 
 ## ERD
