@@ -90,6 +90,21 @@ A execução passa por `compensating` e termina em `compensated`. Etapas desfeit
 ficam com `status = 'compensated'`, não são apagadas — o histórico da falha é
 parte da auditoria.
 
+Três decisões que o esquema impõe:
+
+1. **`compensating` não é terminal.** Vindo de `failed`, que é, `finished_at`
+   precisa voltar a nulo — a mesma armadilha da retomada, e a constraint recusa
+   de novo.
+2. **O tenant é cancelado, não apagado.** `provisioning_runs.tenant_id` é
+   `on delete cascade`: apagar o tenant levaria junto a execução e as etapas,
+   ou seja, a evidência do que deu errado.
+3. **Compensar ocupa o tenant.** `compensating` está no índice parcial, então
+   nenhuma execução nova entra enquanto o desfazer acontece. Depois, como
+   `compensated` é terminal e sai do índice, o cliente pode tentar de novo.
+
+O fluxo inteiro está provado em `supabase/tests/provisioning.test.mjs`,
+incluindo a ordem inversa e o que **não** se compensa: etapa que nunca rodou.
+
 ## Autorização
 
 Provisionar é **operação de plataforma**. As políticas de RLS em

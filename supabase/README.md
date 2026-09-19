@@ -13,7 +13,7 @@ região `sa-east-1`. As migrations ainda **não foram aplicadas nele** — ver
 "Aplicar no projeto" abaixo.
 
 O que já existe é mais forte do que "escrito": elas rodam contra um Postgres 18
-de verdade e passam em 89 testes, incluindo os de isolamento entre tenants.
+de verdade e passam em 101 testes, incluindo os de isolamento entre tenants.
 
 O que ainda não foi exercido: `auth.uid()` real vindo de um JWT, e o
 comportamento sob concorrência real. O harness simula `auth.uid()` com uma
@@ -37,8 +37,8 @@ supabase/
 └── tests/
     ├── harness.mjs             sobe Postgres em WASM e simula o que o Supabase oferece
     ├── core.test.mjs           32 testes: esquema, RLS, isolamento, integridade
-    ├── provisioning.test.mjs    8 testes: o fluxo ponta a ponta
-    ├── contracts.test.mjs      11 testes: TypeScript × catálogo SQL
+    ├── provisioning.test.mjs   18 testes: o fluxo, a retomada e a compensação
+    ├── contracts.test.mjs      13 testes: TypeScript × catálogo SQL
     ├── viewer.test.mjs         17 testes: contexto de acesso e vazamento
     └── integrity.test.mjs      21 testes: tentativas de burlar, não de usar
 ```
@@ -93,6 +93,21 @@ compensação precisaria desfazer.
 > voltar para `running`. Um bug de estado inconsistente pego antes de existir
 > aplicação.
 
+**Compensação** — o caminho oposto da retomada: desfazer o que já teve efeito
+quando a execução falhou e não vai continuar. Desfaz na **ordem inversa**; a
+etapa desfeita vira `compensated` em vez de sumir (o histórico da falha é a
+parte que mais interessa depois); etapa que nunca rodou não é compensada; o
+tenant é **cancelado, não apagado**, porque `provisioning_runs.tenant_id` é
+`on delete cascade` e apagar levaria junto a evidência.
+
+Dois cortes de estado que só aparecem em teste: `compensating` entra no índice
+parcial, então nenhuma execução nova começa durante o desfazer; e `compensated`
+sai dele, então o cliente cujo provisionamento falhou pode tentar de novo.
+
+> A mesma armadilha da retomada reaparece aqui, e há um teste só para ela:
+> vindo de `failed`, entrar em `compensating` sem limpar `finished_at` é
+> recusado pela constraint. `compensating` está desfazendo — ainda não terminou.
+
 **Integridade** — formato de slug, documento só com dígitos, consistência de
 data de entrada, pessoa não entra duas vezes no mesmo tenant, papel de sistema
 não pertence a tenant.
@@ -105,7 +120,11 @@ existe; membro de um tenant não vê nada do outro; convite pendente vê o nome 
 empresa mas não ganha permissão nem descobre os módulos contratados.
 
 **Contratos** — `contracts.test.mjs` compara os códigos do catálogo com as
-constantes de `@tivexy/core` nos dois sentidos.
+constantes de `@tivexy/core` nos dois sentidos. Compara também as regras que os
+dois lados duplicam: `isActive()` contra o predicado do índice parcial, e
+`isTerminal()` contra a constraint de `finished_at`. Se divergirem, a aplicação
+diz "pode começar outra execução" e o banco recusa com violação de unicidade —
+que chega ao usuário como falha genérica, no pior momento possível.
 
 **Tentativas de burlar** — `integrity.test.mjs` não pergunta se o RLS funciona;
 pergunta o que ele **não** cobre. Foi assim que seis falhas apareceram, uma

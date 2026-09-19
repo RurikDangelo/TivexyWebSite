@@ -224,6 +224,123 @@ function makePerformer(db, { failOn = null } = {}) {
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Modelo da compensação
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Desfaz, na ordem inversa, o que as etapas concluídas já tiveram de efeito.
+ *
+ * Compensar é o que se faz quando uma execução falhou e **não** vai ser
+ * retomada. Retomar avança; compensar recua. A diferença importa: um tenant
+ * parado em `provisioning` para sempre é pior que um tenant cancelado, porque
+ * ninguém sabe se ainda vai acontecer alguma coisa.
+ *
+ * Duas decisões que o esquema impõe e que não são óbvias:
+ *
+ *   1. `compensating` **não** é estado terminal. Vindo de `failed`, que é,
+ *      `finished_at` precisa voltar a nulo — senão a constraint
+ *      `provisioning_runs_finished_consistency` recusa. É exatamente o mesmo
+ *      erro que a primeira versão da retomada cometeu.
+ *
+ *   2. O tenant é **cancelado**, não apagado. `provisioning_runs.tenant_id` é
+ *      `on delete cascade`: apagar o tenant levaria junto a execução e as
+ *      etapas — ou seja, a evidência da falha. O registro do que deu errado é
+ *      a parte que mais interessa depois.
+ *
+ * @param {(step: string, result: object, ctx: object) => Promise<void>} undo
+ */
+async function compensateRun(db, runId, undo) {
+  const { rows: runRows } = await db.query(
+    'select tenant_id from public.provisioning_runs where id = $1',
+    [runId],
+  );
+  const ctx = { tenantId: runRows[0].tenant_id };
+
+  await db.query(
+    `update public.provisioning_runs
+     set status = 'compensating', current_step = null, finished_at = null
+     where id = $1`,
+    [runId],
+  );
+
+  // Ordem inversa: o que teve efeito por último é o primeiro a ser desfeito.
+  const { rows: steps } = await db.query(
+    `select id, step, result from public.provisioning_steps
+     where run_id = $1 and status = 'succeeded'
+     order by position desc`,
+    [runId],
+  );
+
+  const undone = [];
+  for (const step of steps) {
+    await db.query('update public.provisioning_runs set current_step = $2 where id = $1', [
+      runId,
+      step.step,
+    ]);
+    await undo(step.step, step.result, ctx);
+    undone.push(step.step);
+
+    // A etapa não é apagada: o histórico da falha é auditoria, não lixo.
+    await db.query(`update public.provisioning_steps set status = 'compensated' where id = $1`, [
+      step.id,
+    ]);
+  }
+
+  await db.query(
+    `update public.provisioning_runs
+     set status = 'compensated', current_step = null, finished_at = now()
+     where id = $1`,
+    [runId],
+  );
+  await db.query(`update public.tenants set status = 'cancelled' where id = $1`, [ctx.tenantId]);
+
+  await db.query(
+    `insert into public.audit_logs (tenant_id, action, resource_type, resource_id, metadata)
+     values ($1, 'tenant.provisioning_compensated', 'tenant', $2, $3)`,
+    [ctx.tenantId, ctx.tenantId, JSON.stringify({ undone })],
+  );
+
+  return { undone };
+}
+
+/** O efeito inverso de cada etapa. */
+function makeCompensator(db) {
+  return {
+    async undo(step, result, ctx) {
+      switch (step) {
+        case 'send_invite':
+          // Auditoria é somente inserção. Compensar **acrescenta** o registro
+          // do desfazer; não apaga o registro do que foi feito.
+          return;
+
+        case 'seed_defaults':
+          await db.query('delete from public.teams where tenant_id = $1', [ctx.tenantId]);
+          return;
+
+        case 'create_admin':
+          // Só remove porque esta execução criou. Usuário que já existia em
+          // outro tenant não é efeito desta execução e não se desfaz.
+          await db.query('delete from public.tenant_users where id = $1', [result.membershipId]);
+          await db.query('delete from public.users where id = $1', [result.userId]);
+          return;
+
+        case 'enable_modules':
+          await db.query('delete from public.tenant_modules where tenant_id = $1', [ctx.tenantId]);
+          return;
+
+        case 'apply_plan':
+        case 'create_tenant':
+          // Sem efeito próprio a desfazer: o tenant é cancelado ao final.
+          return;
+
+        default:
+          throw new Error(`etapa desconhecida na compensação: ${step}`);
+      }
+    },
+  };
+}
+
 const payloadFor = (n) => ({
   slug: `cliente-${n}`,
   name: `Cliente ${n}`,
@@ -429,5 +546,215 @@ describe('provisionamento — falha e retomada', () => {
     const resultado = rows[0].result;
     assert.ok(resultado.userId, 'a compensação precisa saber qual usuário remover');
     assert.ok(resultado.membershipId, 'e qual vínculo desfazer');
+  });
+});
+
+describe('provisionamento — compensação', () => {
+  /** Falha no fim: cinco etapas com efeito para desfazer. */
+  async function runQueFalhouNoFim(chave, n) {
+    const run = await startRun(db, {
+      idempotencyKey: chave,
+      payload: payloadFor(n),
+      requestedBy: superAdmin,
+    });
+    const resultado = await executeRun(
+      db,
+      run.id,
+      makePerformer(db, { failOn: 'send_invite' }).perform,
+    );
+    assert.equal(resultado.ok, false, 'o cenário depende de a execução ter falhado');
+    return run;
+  }
+
+  it('desfaz na ordem inversa da execução', async () => {
+    const run = await runQueFalhouNoFim('req-comp-ordem', 10);
+    const { undone } = await compensateRun(db, run.id, makeCompensator(db).undo);
+
+    assert.deepEqual(undone, [
+      'seed_defaults',
+      'create_admin',
+      'enable_modules',
+      'apply_plan',
+      'create_tenant',
+    ]);
+  });
+
+  it('termina em compensated, com data de fim', async () => {
+    const run = await runQueFalhouNoFim('req-comp-estado', 11);
+    await compensateRun(db, run.id, makeCompensator(db).undo);
+
+    const { rows } = await db.query(
+      `select status, current_step, finished_at is not null as terminou
+       from public.provisioning_runs where id = $1`,
+      [run.id],
+    );
+    assert.equal(rows[0].status, 'compensated');
+    assert.equal(rows[0].current_step, null);
+    assert.equal(rows[0].terminou, true);
+  });
+
+  it('recusa entrar em compensação mantendo a data de fim', async () => {
+    const run = await runQueFalhouNoFim('req-comp-constraint', 12);
+
+    // A execução está 'failed', que é terminal e tem `finished_at`.
+    // `compensating` não é terminal: deixar a data para trás é estado
+    // inconsistente, e o banco recusa. Mesmo erro que a retomada cometeu.
+    await assert.rejects(
+      () =>
+        db.query(`update public.provisioning_runs set status = 'compensating' where id = $1`, [
+          run.id,
+        ]),
+      /provisioning_runs_finished_consistency/,
+      'compensação em andamento não pode carregar data de fim',
+    );
+  });
+
+  it('marca a etapa como compensada em vez de apagá-la', async () => {
+    const run = await runQueFalhouNoFim('req-comp-historico', 13);
+    await compensateRun(db, run.id, makeCompensator(db).undo);
+
+    const { rows } = await db.query(
+      `select status::text as status, count(*)::int as c from public.provisioning_steps
+       where run_id = $1 group by status order by status`,
+      [run.id],
+    );
+    const porStatus = Object.fromEntries(rows.map((r) => [r.status, r.c]));
+
+    assert.equal(porStatus.compensated, 5, 'as cinco que tiveram efeito');
+    assert.equal(porStatus.failed, 1, 'a que falhou continua registrada como falha');
+    assert.equal(
+      rows.reduce((t, r) => t + r.c, 0),
+      6,
+      'nenhuma etapa desaparece: o histórico da falha é auditoria',
+    );
+  });
+
+  it('não compensa etapa que nunca chegou a rodar', async () => {
+    const run = await startRun(db, {
+      idempotencyKey: 'req-comp-parcial',
+      payload: payloadFor(14),
+      requestedBy: superAdmin,
+    });
+    await executeRun(db, run.id, makePerformer(db, { failOn: 'create_admin' }).perform);
+
+    const { undone } = await compensateRun(db, run.id, makeCompensator(db).undo);
+    assert.deepEqual(undone, ['enable_modules', 'apply_plan', 'create_tenant']);
+
+    const { rows } = await db.query(
+      `select step, status::text as status from public.provisioning_steps
+       where run_id = $1 order by position`,
+      [run.id],
+    );
+    const porEtapa = Object.fromEntries(rows.map((r) => [r.step, r.status]));
+
+    assert.equal(porEtapa.create_admin, 'failed');
+    assert.equal(porEtapa.seed_defaults, 'pending', 'nunca rodou: não há o que desfazer');
+    assert.equal(porEtapa.send_invite, 'pending');
+  });
+
+  it('desfaz o efeito de verdade, não só o registro', async () => {
+    const run = await runQueFalhouNoFim('req-comp-efeito', 15);
+
+    const antes = await db.query(
+      `select
+         (select count(*)::int from public.tenant_modules where tenant_id = $1) as modulos,
+         (select count(*)::int from public.tenant_users where tenant_id = $1) as membros,
+         (select count(*)::int from public.teams where tenant_id = $1) as equipes`,
+      [run.tenant_id],
+    );
+    assert.equal(antes.rows[0].modulos, 6, 'o cenário depende de haver efeito a desfazer');
+    assert.equal(antes.rows[0].membros, 1);
+    assert.equal(antes.rows[0].equipes, 1);
+
+    await compensateRun(db, run.id, makeCompensator(db).undo);
+
+    const depois = await db.query(
+      `select
+         (select count(*)::int from public.tenant_modules where tenant_id = $1) as modulos,
+         (select count(*)::int from public.tenant_users where tenant_id = $1) as membros,
+         (select count(*)::int from public.teams where tenant_id = $1) as equipes,
+         (select count(*)::int from public.users where email = $2) as usuario`,
+      [run.tenant_id, payloadFor(15).adminEmail],
+    );
+    const [c] = depois.rows;
+    assert.equal(c.modulos, 0);
+    assert.equal(c.membros, 0);
+    assert.equal(c.equipes, 0);
+    assert.equal(c.usuario, 0, 'o administrador criado pela execução também sai');
+  });
+
+  it('cancela o tenant em vez de apagá-lo, preservando a evidência', async () => {
+    const run = await runQueFalhouNoFim('req-comp-evidencia', 16);
+    await compensateRun(db, run.id, makeCompensator(db).undo);
+
+    const { rows } = await db.query(
+      `select
+         (select status::text from public.tenants where id = $1) as tenant,
+         (select count(*)::int from public.provisioning_runs where tenant_id = $1) as execucoes,
+         (select count(*)::int from public.provisioning_steps where run_id = $2) as etapas`,
+      [run.tenant_id, run.id],
+    );
+    const [c] = rows;
+
+    // `provisioning_runs.tenant_id` é `on delete cascade`: apagar o tenant
+    // levaria junto a execução e as etapas — a evidência da falha.
+    assert.equal(c.tenant, 'cancelled', 'tenant parado em provisioning para sempre é pior');
+    assert.equal(c.execucoes, 1);
+    assert.equal(c.etapas, 6);
+  });
+
+  it('registra a compensação na auditoria', async () => {
+    const run = await runQueFalhouNoFim('req-comp-auditoria', 17);
+    await compensateRun(db, run.id, makeCompensator(db).undo);
+
+    const { rows } = await db.query(
+      `select action, metadata from public.audit_logs
+       where tenant_id = $1 and action = 'tenant.provisioning_compensated'`,
+      [run.tenant_id],
+    );
+    assert.equal(rows.length, 1, 'desfazer é operação de plataforma e é auditável');
+    assert.equal(rows[0].metadata.undone.length, 5, 'o que foi desfeito fica registrado');
+  });
+
+  it('enquanto compensa, nenhuma outra execução entra no mesmo tenant', async () => {
+    const run = await runQueFalhouNoFim('req-comp-concorrente', 18);
+    const compensador = makeCompensator(db);
+
+    let erroConcorrente = 'não tentou';
+    await compensateRun(db, run.id, async (step, result, ctx) => {
+      if (step === 'create_admin') {
+        erroConcorrente = await db
+          .query(
+            `insert into public.provisioning_runs (tenant_id, idempotency_key, status)
+             values ($1, 'req-durante-compensacao', 'pending')`,
+            [ctx.tenantId],
+          )
+          .then(
+            () => null,
+            (e) => e.message,
+          );
+      }
+      await compensador.undo(step, result, ctx);
+    });
+
+    // O índice parcial `provisioning_runs_one_active_per_tenant` inclui
+    // `compensating`: uma execução nova durante o desfazer disputaria as
+    // mesmas linhas com o que está sendo removido.
+    assert.match(String(erroConcorrente), /duplicate key|unique/i);
+  });
+
+  it('depois de compensada, o tenant aceita uma execução nova', async () => {
+    const run = await runQueFalhouNoFim('req-comp-recomeco', 19);
+    await compensateRun(db, run.id, makeCompensator(db).undo);
+
+    // `compensated` é terminal e sai do índice parcial. Cliente cujo
+    // provisionamento falhou precisa poder tentar de novo.
+    const { rows } = await db.query(
+      `insert into public.provisioning_runs (tenant_id, idempotency_key, status)
+       values ($1, 'req-segunda-chance', 'pending')
+       returning id`,
+      [run.tenant_id],
+    );
+    assert.ok(rows[0].id);
   });
 });

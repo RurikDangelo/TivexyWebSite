@@ -26,10 +26,10 @@
 | Identidade de marca          | ✅     | 4 SVGs oficiais em `apps/site/src/assets/brand/`                   |
 | Monorepo (npm workspaces)    | ✅     | `npm install` + build dos dois apps na nova estrutura              |
 | Casca do SaaS (`apps/web`)   | ✅     | `npm run validate:web` — 0 erros; conferido no navegador           |
-| Esquema do Core              | 🟡     | `npm run test:db` — 89 testes em Postgres 18; **não aplicado**     |
+| Esquema do Core              | 🟡     | `npm run test:db` — 101 testes em Postgres 18; **não aplicado**    |
 | Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
 | Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
-| Contratos (`packages/core`)  | ✅     | `npm run validate` — 133 testes; contratos conferidos contra o SQL |
+| Contratos (`packages/core`)  | ✅     | `npm run validate` — 157 testes; contratos conferidos contra o SQL |
 | CI (GitHub Actions)          | 🟡     | Push feito; execução não conferida — `gh` sem autenticação aqui    |
 | Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado       |
 
@@ -54,7 +54,7 @@ identidade e RBAC (usuários, papéis, permissões, vínculos, equipes), auditor
 provisionamento. Mais RLS em todas elas e o catálogo da plataforma
 (9 módulos, 51 permissões, 3 papéis de sistema, 3 planos).
 
-**Verificado por execução** — `npm run test:db`, 89 testes contra Postgres 18:
+**Verificado por execução** — `npm run test:db`, 101 testes contra Postgres 18:
 
 - Isolamento entre tenants nas quatro operações (ler, inserir, atualizar, excluir)
 - Nenhuma tabela sem RLS; nenhuma tabela sem política; `search_path` fixo em
@@ -63,7 +63,10 @@ provisionamento. Mais RLS em todas elas e o catálogo da plataforma
 - `current_viewer()`: o contexto de acesso da requisição, com teste de vazamento
   em cada corte — estranho não descobre nem que o tenant existe
 - Provisionamento ponta a ponta: idempotência, falha no meio, retomada sem
-  repetir etapa concluída, dados de compensação
+  repetir etapa concluída
+- Compensação: desfaz na ordem inversa, preserva o histórico da falha, cancela
+  o tenant em vez de apagá-lo, e não deixa execução nova entrar durante o
+  desfazer
 
 **Não verificado:** `auth.uid()` real vindo de JWT e comportamento sob
 concorrência. Os testes rodam em PGlite (Postgres em WASM) com `auth.uid()`
@@ -81,9 +84,9 @@ Existe e é consumido por `apps/web`:
 - Contratos do catálogo (módulos, permissões, papéis, planos) e os estados de
   tenant, vínculo e provisionamento, tipados
 - `decideAccess()`, `matchRule()` e `parseViewer()`: a decisão de acesso da
-  aplicação, espelhando as regras do RLS — 34 testes, incluindo a ordem em que
+  aplicação, espelhando as regras do RLS — 37 testes, incluindo a ordem em que
   nega, o padrão fechado e o contexto malformado virando menos acesso
-- 11 testes conferem os contratos contra o catálogo SQL nos dois sentidos: a
+- 13 testes conferem os contratos contra o catálogo SQL nos dois sentidos: a
   duplicação entre TypeScript e banco não passa despercebida
 
 **Não existe:** serviços de domínio, Feature Flags, Themes e Notifications —
@@ -300,7 +303,7 @@ sessão foi autorizado antes de `tivexy-core` existir e responde
 `You do not have permission` nele.
 
 Depois de aplicar, **rodar o teste de isolamento contra o projeto real**. Os
-133 testes rodam em Postgres WASM: fiéis ao contrato, não ao transporte.
+157 testes rodam em Postgres WASM: fiéis ao contrato, não ao transporte.
 
 ### Depois, na ordem do ADR-002
 
@@ -318,8 +321,6 @@ Depois de aplicar, **rodar o teste de isolamento contra o projeto real**. Os
 - Abrir o PR da branch `monorepo-tivexy-core` (o push já aconteceu; o `gh` nesta
   máquina não está autenticado, então é pela interface do GitHub ou depois de um
   `gh auth login`)
-- Fechar a lacuna de teste da **compensação** do provisionamento: os estados
-  `compensating` e `compensated` estão no esquema e documentados, sem cobertura
 - Conferir se o destino do formulário de contato da landing ainda responde
 - Revisar as variáveis de outro projeto no ambiente Vercel (`DATABASE_URL`,
   `AUTH_SECRET`, `STORE_TIMEZONE` e outras) — a landing não usa nenhuma, mas

@@ -66,7 +66,9 @@ de negócio nova entra com esse teste no mesmo commit.
 ### Provisionamento ponta a ponta
 
 Caminho feliz, idempotência, falha no meio, retomada sem repetir etapa
-concluída, e os dados que a compensação precisaria para desfazer.
+concluída — e o caminho oposto, a compensação: desfazer na ordem inversa,
+preservar o histórico da falha, cancelar o tenant em vez de apagá-lo, e não
+deixar execução nova entrar durante o desfazer.
 
 ### Testes de esquema
 
@@ -99,6 +101,19 @@ Dois defeitos reais, achados por teste antes de existir aplicação:
 E um diagnóstico corrigido: "90 arquivos fora do padrão de formatação" era, em
 boa parte, **final de linha** — ausência de `.gitattributes` com
 `core.autocrlf=true` no Windows.
+
+## O que não foi pego, e por que vale registrar
+
+Os 12 testes da compensação **não acharam defeito nenhum**: o esquema já
+sustentava tudo que eles exigem. Isso não os torna desperdício — a compensação
+era a única parte do provisionamento sem cobertura, e agora a primeira
+implementação de backend tem contra o que ser escrita. Mas registrar o resultado
+honesto importa: teste que passa de primeira prova que o desenho estava certo,
+não que o teste foi esperto.
+
+Os dois de contrato (`isActive` e `isTerminal` contra o SQL) foram conferidos
+por mutação — quebrando `TERMINAL` de propósito e vendo os dois falharem
+nomeando `compensating`. Teste que nunca falhou não provou nada.
 
 ## Como escrever teste aqui
 

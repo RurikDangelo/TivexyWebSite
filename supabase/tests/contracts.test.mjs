@@ -21,6 +21,8 @@ import {
   PROVISIONING_STEP_STATUSES,
   SYSTEM_ROLE_CODES,
   TENANT_STATUSES,
+  isActive,
+  isTerminal,
   moduleOf,
 } from '../../packages/core/src/index.ts';
 import { createDatabase } from './harness.mjs';
@@ -137,5 +139,51 @@ describe('coerência interna', () => {
     ]) {
       assert.equal(new Set(lista).size, lista.length, `${rotulo}: há código duplicado`);
     }
+  });
+});
+
+describe('provisionamento — o que o TypeScript acha que está vivo', () => {
+  /**
+   * `isActive()` responde "esta execução ainda ocupa o tenant?". O banco
+   * responde a mesma pergunta pelo índice parcial
+   * `provisioning_runs_one_active_per_tenant`.
+   *
+   * Se os dois discordarem, a aplicação diz "pode começar outra execução" e o
+   * banco recusa com violação de unicidade — erro que chega ao usuário como
+   * falha genérica, no pior momento possível. É duplicação de regra, e
+   * duplicação de regra se confere.
+   */
+  it('isActive concorda com o índice parcial do banco', async () => {
+    const { rows } = await db.query(`
+      select pg_get_expr(i.indpred, i.indrelid) as predicado
+      from pg_index i
+      join pg_class c on c.oid = i.indexrelid
+      where c.relname = 'provisioning_runs_one_active_per_tenant'
+    `);
+    assert.equal(rows.length, 1, 'o índice parcial precisa existir');
+
+    const noBanco = [...rows[0].predicado.matchAll(/'([a-z]+)'::/g)].map((m) => m[1]).sort();
+    const noTypeScript = PROVISIONING_STATUSES.filter(isActive).sort();
+
+    assertSameSet(noTypeScript, noBanco, 'estados que ocupam o tenant');
+  });
+
+  /**
+   * A constraint exige `finished_at` exatamente nos estados terminais. Se o
+   * TypeScript achar que `compensating` é terminal, a aplicação grava a data
+   * de fim e o banco recusa — foi assim que a retomada quebrou.
+   */
+  it('isTerminal concorda com a constraint de data de fim', async () => {
+    const { rows } = await db.query(`
+      select pg_get_constraintdef(oid) as definicao
+      from pg_constraint
+      where conname = 'provisioning_runs_finished_consistency'
+    `);
+    assert.equal(rows.length, 1, 'a constraint precisa existir');
+
+    const noBanco = [...rows[0].definicao.matchAll(/'([a-z]+)'::/g)].map((m) => m[1]).sort();
+    const noTypeScript = PROVISIONING_STATUSES.filter(isTerminal).sort();
+
+    assertSameSet(noTypeScript, noBanco, 'estados terminais');
   });
 });
