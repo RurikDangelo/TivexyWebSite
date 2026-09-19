@@ -3,7 +3,7 @@
 > Esquema da fundação. Entidades de CRM, ERP, estoque e financeiro vêm depois,
 > sobre esta base. Migrations e testes em `supabase/` — ver [[../../supabase/README|supabase/README]].
 >
-> **Estado:** migrations escritas e verificadas contra Postgres 18 (40 testes
+> **Estado:** migrations escritas e verificadas contra Postgres 18 (68 testes
 > passando). Ainda **não aplicadas** em projeto Supabase — ele não existe.
 
 ## ERD
@@ -153,6 +153,35 @@ Funções auxiliares, todas `SECURITY DEFINER` com `search_path` fixo:
 `tenant_users` sob RLS entraria em recursão infinita. `search_path` fixo também:
 sem ele, quem controla o search_path da sessão redireciona os nomes não
 qualificados e escala privilégio. Um teste verifica as duas coisas.
+
+## Contexto da requisição
+
+| Função                      | Devolve                                                      |
+| --------------------------- | ------------------------------------------------------------ |
+| `current_viewer(tenant_id)` | Tudo que a aplicação precisa para decidir acesso, em um JSON |
+| `my_tenants()`              | Os tenants da pessoa, incluindo convites pendentes           |
+
+`current_viewer()` devolve exatamente o formato do `Viewer` de `@tivexy/core`,
+e `decideAccess()` consome isso sem adaptação — há teste que prova.
+
+**Por que uma função e não cinco consultas:** a decisão de acesso acontece em
+toda requisição. Cinco idas ao banco por página, mais a latência de cada uma, é
+o tipo de custo que ninguém nota até estar em produção.
+
+**Por que ela não vaza**, mesmo sendo `SECURITY DEFINER` (ou seja, rodando por
+fora do RLS) — a segurança vem do filtro, e cada item tem teste:
+
+- Tudo é filtrado por `auth.uid()`
+- O tenant só aparece para quem tem vínculo com ele. Para um estranho devolve
+  nulo: **nem confirma que o tenant existe**
+- Permissões só com vínculo **ativo** — o mesmo corte de `user_tenant_ids()`
+- Módulos habilitados também só para membro ativo, senão qualquer pessoa
+  autenticada descobriria o que outra empresa contratou
+- Convite pendente é o caso intermediário: vê o **nome** da empresa, porque a
+  tela de convite precisa nomeá-la, e nada além disso
+
+`my_tenants()` inclui convites pendentes de propósito: é na lista de empresas
+que a pessoa aceita o convite.
 
 ## O que ainda não existe
 

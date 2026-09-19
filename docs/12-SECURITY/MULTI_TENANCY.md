@@ -116,7 +116,7 @@ Mais: não vaza usuário de outro tenant; não deixa forjar auditoria em nome de
 outro tenant; convite pendente não dá acesso; visitante não autenticado não lê
 nada; colaborador não altera o cadastro da empresa.
 
-**Estado atual:** 40 testes passando contra Postgres 18 em WASM.
+**Estado atual:** 68 testes passando contra Postgres 18 em WASM.
 
 **O que ainda não foi exercido:** `auth.uid()` real vindo de um JWT, e
 comportamento sob concorrência real. O harness simula `auth.uid()` com uma

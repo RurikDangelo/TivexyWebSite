@@ -10,7 +10,7 @@ mora na raiz do monorepo, no diretório que o Supabase CLI espera.
 
 As migrations **não foram aplicadas em nenhum projeto Supabase** — ele ainda não
 existe (ver `docs/PROJECT_STATE.md` §6). O que já existe é mais forte do que
-"escrito": elas rodam contra um Postgres 18 de verdade e passam em 40 testes,
+"escrito": elas rodam contra um Postgres 18 de verdade e passam em 68 testes,
 incluindo os de isolamento entre tenants.
 
 O que ainda não foi exercido: `auth.uid()` real vindo de um JWT, e o
@@ -27,11 +27,14 @@ supabase/
 │   ├── 20260919020200_core_identity_rbac.sql     usuários, papéis, permissões, vínculos
 │   ├── 20260919020300_core_audit_provisioning.sql auditoria e provisionamento
 │   ├── 20260919020400_core_rls.sql               Row Level Security
-│   └── 20260919020500_core_catalog.sql           catálogo da plataforma
+│   ├── 20260919020500_core_catalog.sql           catálogo da plataforma
+│   └── 20260919030000_core_viewer.sql            contexto de acesso da requisição
 └── tests/
     ├── harness.mjs             sobe Postgres em WASM e simula o que o Supabase oferece
     ├── core.test.mjs           32 testes: esquema, RLS, isolamento, integridade
-    └── provisioning.test.mjs    8 testes: o fluxo ponta a ponta
+    ├── provisioning.test.mjs    8 testes: o fluxo ponta a ponta
+    ├── contracts.test.mjs      11 testes: TypeScript × catálogo SQL
+    └── viewer.test.mjs         17 testes: contexto de acesso e vazamento
 ```
 
 ## Testes
@@ -87,6 +90,16 @@ compensação precisaria desfazer.
 **Integridade** — formato de slug, documento só com dígitos, consistência de
 data de entrada, pessoa não entra duas vezes no mesmo tenant, papel de sistema
 não pertence a tenant.
+
+**Contexto da requisição** — `current_viewer()` devolve o formato do `Viewer` de
+`@tivexy/core` e alimenta `decideAccess()` sem adaptação. Como a função é
+`SECURITY DEFINER` (roda por fora do RLS), o que a torna segura é o filtro por
+`auth.uid()` — e cada corte tem teste: estranho não descobre nem que o tenant
+existe; membro de um tenant não vê nada do outro; convite pendente vê o nome da
+empresa mas não ganha permissão nem descobre os módulos contratados.
+
+**Contratos** — `contracts.test.mjs` compara os códigos do catálogo com as
+constantes de `@tivexy/core` nos dois sentidos.
 
 ## Decisões que valem saber
 
