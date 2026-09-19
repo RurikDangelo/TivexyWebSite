@@ -36,6 +36,11 @@ jobs:
       - name: Contratos do Core (tipos)
         run: npm run check:core
 
+      # Regras puras de decisão de acesso: rodam no runner do Node, direto
+      # sobre o TypeScript. Sem build e sem banco.
+      - name: Core — decisão de acesso
+        run: npm run test:core
+
       - name: Landing — tipos, lint e build
         run: npm run validate:site
 

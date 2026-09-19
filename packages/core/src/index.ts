@@ -28,6 +28,18 @@ export {
 } from './tenancy.ts';
 
 export {
+  ANONYMOUS,
+  can,
+  decideAccess,
+  isAuthenticated,
+  redirectFor,
+  type AccessDecision,
+  type DenialReason,
+  type RouteRule,
+  type Viewer,
+} from './access.ts';
+
+export {
   PROVISIONING_STATUSES,
   PROVISIONING_STEP_STATUSES,
   PROVISIONING_STEPS,
