@@ -141,9 +141,10 @@ Cada aplicação publica sozinha:
 Na Vercel, **um projeto por app**, cada um com seu Root Directory
 (`apps/site` e `apps/web`).
 
-> ⚠️ **Pendência externa:** o projeto Vercel atual da landing ainda aponta para a
-> raiz do repositório. Precisa passar a apontar para `apps/site`, senão o próximo
-> deploy falha. Ver [[PROJECT_AUDIT#15. Tarefas externas — `BLOCKED — EXTERNAL`]].
+O projeto da landing na Vercel já aponta para `apps/site` (19/09/2026),
+verificado por um deploy de preview: o build conclui com npm workspaces e a home
+é servida corretamente. O deploy de **produção** só acontece quando a branch
+`monorepo-tivexy-core` for mergeada na `main`.
 
 ## Antes de criar um diretório novo
 

@@ -50,9 +50,8 @@ Cada aplicação publica sozinha. Na Vercel, **um projeto por app**:
 | `apps/site` | `apps/site`    | `npm run build` | `dist`           |
 | `apps/web`  | `apps/web`     | `npm run build` | (padrão Next.js) |
 
-> ⚠️ **Pendência:** o projeto Vercel da landing ainda aponta para a raiz do
-> repositório. Precisa passar a apontar para `apps/site` — sem isso o próximo
-> deploy falha.
+O Root Directory do projeto da landing já está em `apps/site`, verificado por um
+deploy de preview real: o build conclui e a home é servida corretamente.
 
 ## Documentação
 

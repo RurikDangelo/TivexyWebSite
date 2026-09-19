@@ -174,24 +174,38 @@ em `docs/06-ADMIN/PROVISIONING.md`.
 
 Ordenadas por urgência:
 
-| #   | Tarefa                                              | Bloqueia          | Urgência    |
-| --- | --------------------------------------------------- | ----------------- | ----------- |
-| 1   | **Vercel: Root Directory da landing → `apps/site`** | Deploy da landing | 🔴 Imediata |
-| 2   | Criar projeto Supabase da Tivexy                    | Todo o SaaS       | 🔴 Alta     |
-| 3   | `PUBLIC_SITE_URL` + destino do formulário           | Leads da landing  | 🟠 Alta     |
-| 4   | Conta/organização Vercel própria da Tivexy          | Deploy do SaaS    | 🟠 Média    |
-| 5   | Domínio `tivexy.com.br` + DNS                       | SEO, e-mail       | 🟠 Média    |
-| 6   | E-mail corporativo + SPF/DKIM/DMARC                 | Convites do SaaS  | 🟠 Média    |
-| 7   | Credenciais OpenAI                                  | AI Engine         | 🟡 Depois   |
-| 8   | Meta Business + WhatsApp Business API               | Atendimento       | 🟡 Depois   |
-| 9   | Provedor fiscal + certificado digital               | Fiscal            | 🟡 Depois   |
-| 10  | CNPJ, contador, conta PJ, contratos                 | Venda formal      | 🟡 Paralelo |
+| #   | Tarefa                                          | Bloqueia                | Urgência    |
+| --- | ----------------------------------------------- | ----------------------- | ----------- |
+| 1   | **`git push` da branch `monorepo-tivexy-core`** | Tudo sair desta máquina | 🔴 Imediata |
+| 2   | Criar projeto Supabase da Tivexy                | Todo o SaaS             | 🔴 Alta     |
+| 3   | Conferir o destino do formulário de contato     | Leads da landing        | 🟠 Alta     |
+| 4   | Conta/organização Vercel própria da Tivexy      | Deploy do SaaS          | 🟠 Média    |
+| 5   | Domínio `tivexy.com.br` + DNS                   | SEO, e-mail             | 🟠 Média    |
+| 6   | E-mail corporativo + SPF/DKIM/DMARC             | Convites do SaaS        | 🟠 Média    |
+| 7   | Credenciais OpenAI                              | AI Engine               | 🟡 Depois   |
+| 8   | Meta Business + WhatsApp Business API           | Atendimento             | 🟡 Depois   |
+| 9   | Provedor fiscal + certificado digital           | Fiscal                  | 🟡 Depois   |
+| 10  | CNPJ, contador, conta PJ, contratos             | Venda formal            | 🟡 Paralelo |
+
+**Resolvido em 19/09/2026:** Root Directory da landing na Vercel → `apps/site`,
+verificado por deploy de preview real (build READY, home servida corretamente).
+
+**Correção da auditoria:** `PUBLIC_SITE_URL`, `PUBLIC_WHATSAPP_NUMBER`,
+`PUBLIC_CONTACT_EMAIL` e `PUBLIC_LEADS_ENDPOINT` **já estão cadastradas** em
+produção e preview na Vercel. A auditoria as deu como ausentes porque o aviso do
+build era local — falta o `.env` na máquina, não a variável no ambiente. O que
+resta é conferir se o destino do formulário ainda responde.
+
+**Observado, não alterado:** o projeto tem variáveis que parecem sobra de outro
+app (`DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_APP_URL`,
+`STORE_TIMEZONE`, `SESSION_TTL_DAYS`). A landing em Astro não usa nenhuma.
+Apagar segredo sem contexto é irreversível — vale revisar.
 
 ## 7. Riscos ativos
 
 | #   | Risco                                          | Impacto                      |
 | --- | ---------------------------------------------- | ---------------------------- |
-| 1   | Deploy da landing quebrar no próximo push      | 🔴 Alto, imediato            |
+| 1   | Trabalho existir só nesta máquina, sem push    | 🔴 Alto, imediato            |
 | 2   | Construir ERP/CRM antes de um Core confiável   | 🔴 Alto                      |
 | 3   | Blueprint Engine virar abstração prematura     | 🔴 Alto                      |
 | 4   | Duplicar auth/permissões dentro dos módulos    | 🟠 Alto                      |
@@ -202,11 +216,14 @@ Detalhe em [[PROJECT_AUDIT#17. Riscos]].
 
 ## 8. Próximo passo
 
-1. 🔒 Ajustar o Root Directory na Vercel — **antes do próximo push**
+1. 🔒 **`git push` da branch `monorepo-tivexy-core`** — o push trava aqui porque
+   o Git Credential Manager pede autenticação em janela. É o único risco real
+   em aberto: sem isso o trabalho existe só nesta máquina.
 2. 🔒 Criar o projeto Supabase
-3. ✅ ~~Scaffold de `apps/web`~~ — concluído em 18/09/2026
-4. ✅ ~~Modelagem do banco~~ — migrations escritas e testadas em 18/09/2026;
+3. ✅ ~~Root Directory na Vercel~~ — corrigido e verificado em 19/09/2026
+4. ✅ ~~Scaffold de `apps/web`~~ — concluído em 18/09/2026
+5. ✅ ~~Modelagem do banco~~ — migrations escritas e testadas em 18/09/2026;
    aplicar depende do item 2
-5. Auth + multi-tenancy com RLS — RLS já escrito e testado; falta a autenticação
-6. Provisionamento ponta a ponta + teste E2E — esquema pronto e provado; falta
+6. Auth + multi-tenancy com RLS — RLS já escrito e testado; falta a autenticação
+7. Provisionamento ponta a ponta + teste E2E — esquema pronto e provado; falta
    a implementação na aplicação
