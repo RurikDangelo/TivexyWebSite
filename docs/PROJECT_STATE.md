@@ -17,21 +17,21 @@
 
 ## 1. O que existe e funciona
 
-| Item                         | Estado | Verificação                                                       |
-| ---------------------------- | ------ | ----------------------------------------------------------------- |
-| Landing page (`apps/site`)   | ✅     | `npm run validate:site` — 0 erros de tipo, 0 de lint, 7 páginas   |
-| Imagem Open Graph            | ✅     | PNG 1200×630 gerado no build                                      |
-| Sitemap + robots.txt         | ✅     | Gerados no build                                                  |
-| Design system da landing     | ✅     | `apps/site/src/styles/tokens.css`                                 |
-| Identidade de marca          | ✅     | 4 SVGs oficiais em `apps/site/src/assets/brand/`                  |
-| Monorepo (npm workspaces)    | ✅     | `npm install` + build dos dois apps na nova estrutura             |
-| Casca do SaaS (`apps/web`)   | ✅     | `npm run validate:web` — 0 erros; conferido no navegador          |
-| Esquema do Core              | 🟡     | `npm run test:db` — 51 testes em Postgres 18; **não aplicado**    |
-| Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                         |
-| Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                       |
-| Contratos (`packages/core`)  | ✅     | `npm run validate` — 85 testes; contratos conferidos contra o SQL |
-| CI (GitHub Actions)          | 🟡     | Workflow escrito; só roda depois do push                          |
-| Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado      |
+| Item                         | Estado | Verificação                                                        |
+| ---------------------------- | ------ | ------------------------------------------------------------------ |
+| Landing page (`apps/site`)   | ✅     | `npm run validate:site` — 0 erros de tipo, 0 de lint, 7 páginas    |
+| Imagem Open Graph            | ✅     | PNG 1200×630 gerado no build                                       |
+| Sitemap + robots.txt         | ✅     | Gerados no build                                                   |
+| Design system da landing     | ✅     | `apps/site/src/styles/tokens.css`                                  |
+| Identidade de marca          | ✅     | 4 SVGs oficiais em `apps/site/src/assets/brand/`                   |
+| Monorepo (npm workspaces)    | ✅     | `npm install` + build dos dois apps na nova estrutura              |
+| Casca do SaaS (`apps/web`)   | ✅     | `npm run validate:web` — 0 erros; conferido no navegador           |
+| Esquema do Core              | 🟡     | `npm run test:db` — 51 testes em Postgres 18; **não aplicado**     |
+| Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
+| Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
+| Contratos (`packages/core`)  | ✅     | `npm run validate` — 125 testes; contratos conferidos contra o SQL |
+| CI (GitHub Actions)          | 🟡     | Workflow escrito; só roda depois do push                           |
+| Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado       |
 
 ## 2. Estado por módulo
 
@@ -54,7 +54,7 @@ identidade e RBAC (usuários, papéis, permissões, vínculos, equipes), auditor
 provisionamento. Mais RLS em todas elas e o catálogo da plataforma
 (9 módulos, 51 permissões, 3 papéis de sistema, 3 planos).
 
-**Verificado por execução** — `npm run test:db`, 51 testes contra Postgres 18:
+**Verificado por execução** — `npm run test:db`, 81 testes contra Postgres 18:
 
 - Isolamento entre tenants nas quatro operações (ler, inserir, atualizar, excluir)
 - Nenhuma tabela sem RLS; nenhuma tabela sem política; `search_path` fixo em
@@ -168,10 +168,29 @@ real, não.
 
 Nada, no momento.
 
-Corrigido nesta sessão:
+Corrigido em 18–19/09/2026:
 
 - `sharp` usado sem ser declarado no `package.json` — funcionava por acidente
 - `og.png.ts` montava caminho de fonte à mão, incompatível com o içamento do monorepo
+
+**Corrigido em revisão adversarial do próprio esquema**, depois de a primeira
+rodada de testes ter passado. Todas introduzidas nas migrations desta noite:
+
+| #   | Falha                                                                                                                                       | Gravidade  |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| 1   | **Escalada de privilégio:** qualquer pessoa autenticada podia escrever `is_super_admin = true` na própria linha e enxergar todos os tenants | 🔴 Crítica |
+| 2   | Vínculo podia apontar para papel de **outro** tenant, aplicando as permissões dele no tenant errado                                         | 🟠 Alta    |
+| 3   | Equipe podia receber membro de **outro** tenant                                                                                             | 🟠 Alta    |
+| 4   | `userId: ''` contava como autenticado                                                                                                       | 🟡 Média   |
+| 5   | `/ADMIN` caía no padrão `member` em vez de `superAdmin`                                                                                     | 🟡 Média   |
+
+A causa comum das três primeiras: **RLS decide quais linhas alguém enxerga, não
+quais colunas foram escritas nem se os valores da linha fazem sentido juntos.**
+Documentado em [[12-SECURITY/MULTI_TENANCY#O que o RLS **não** cobre]].
+
+Um defeito no harness contribuía: os `GRANT`s eram aplicados **depois** das
+migrations, o que desfaria qualquer revogação de privilégio feita em migration —
+o teste de escalada teria passado por engano.
 
 ## 4. O que está em desenvolvimento
 
