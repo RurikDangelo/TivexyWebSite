@@ -23,7 +23,11 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { after, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { executeProvisioning } from '../../apps/web/src/server/provisioning/execute.ts';
+import {
+  compensateProvisioning,
+  executeProvisioning,
+  resumeProvisioning,
+} from '../../apps/web/src/server/provisioning/execute.ts';
 import { checkBlueprint } from '../../packages/core/src/blueprint.ts';
 import { planProvisioning } from '../../packages/core/src/provisioning-plan.ts';
 import { PROVISIONING_STEPS } from '../../packages/core/src/provisioning.ts';
@@ -67,6 +71,35 @@ async function modulosDoPlano(db, planCode) {
 }
 
 /**
+ * A identidade, sobre o harness.
+ *
+ * Em produção isto é a Auth Admin API do Supabase. Aqui insere em `auth.users`
+ * e deixa o gatilho `mirror_auth_user` criar o perfil — o mesmo caminho.
+ *
+ * `created` importa para a compensação: quem já existia administra outro
+ * cliente, e apagá-la tiraria o acesso dela a algo que nada tem a ver com a
+ * falha.
+ */
+function identidadeDoHarness(db) {
+  return {
+    async ensureUser({ email, fullName }) {
+      const { rows } = await db.query(
+        'select id from public.users where lower(email) = lower($1)',
+        [email],
+      );
+      if (rows.length > 0) return { id: rows[0].id, created: false };
+      return { id: await createUser(db, { email, fullName }), created: true };
+    },
+
+    async deleteUser(id) {
+      // Apagar em `auth.users` leva `public.users` por cascata, que é como o
+      // Supabase se comporta ao remover uma conta.
+      await db.query('delete from auth.users where id = $1', [id]);
+    },
+  };
+}
+
+/**
  * Planeja com o Core e executa com o executor de produção.
  *
  * Nenhuma linha de lógica de provisionamento mora neste arquivo. O que decide
@@ -87,26 +120,7 @@ async function provisionarPorBlueprint(db, { blueprint, slug, name, admin, idemp
     throw new Error(plano.problems.map((p) => `${p.path}: ${p.message}`).join('; '));
   }
 
-  /*
-   * A identidade vem de fora do SQL — em produção, da Auth Admin API do
-   * Supabase. Aqui ela vem do harness, que insere em `auth.users` e deixa o
-   * gatilho `mirror_auth_user` criar o perfil, exatamente como em produção.
-   *
-   * `ensureUser` e não `createUser`: quem administra dois clientes é a mesma
-   * pessoa, e o segundo provisionamento precisa reaproveitar a identidade.
-   */
-  const identidade = {
-    async ensureUser({ email, fullName }) {
-      const { rows } = await db.query(
-        'select id from public.users where lower(email) = lower($1)',
-        [email],
-      );
-      if (rows.length > 0) return rows[0].id;
-      return createUser(db, { email, fullName });
-    },
-  };
-
-  const r = await executeProvisioning(db, identidade, {
+  const r = await executeProvisioning(db, identidadeDoHarness(db), {
     operations: plano.operations,
     blueprint: { code: blueprint.code, version: blueprint.version },
     idempotencyKey,
@@ -455,6 +469,7 @@ describe('o executor: garantias que só aparecem escrevendo', () => {
       async ensureUser() {
         throw new Error('Auth indisponível');
       },
+      async deleteUser() {},
     };
 
     const r = await executeProvisioning(db, identidadeQuebrada, {
@@ -504,6 +519,7 @@ describe('o executor: garantias que só aparecem escrevendo', () => {
         async ensureUser() {
           throw new Error('parou aqui');
         },
+        async deleteUser() {},
       },
       {
         operations: plano.operations,
@@ -604,5 +620,461 @@ describe('o espelho de auth.users', () => {
     const perfil = await db.query('select full_name from public.users where id = $1', [rows[0].id]);
     assert.equal(perfil.rows.length, 1);
     assert.equal(perfil.rows[0].full_name, null);
+  });
+});
+
+/**
+ * Um cliente de banco que falha quando a consulta casa com um padrão.
+ *
+ * É como se provoca falha numa etapa específica sem alterar o executor. A
+ * alternativa — um sinalizador dentro do código de produção só para teste —
+ * seria pior: teste que exige uma porta no código testa a porta, não o código.
+ */
+function dbQueFalhaEm(db, padrao, mensagem = 'falha provocada') {
+  return {
+    async query(sql, params) {
+      if (padrao.test(sql)) throw new Error(mensagem);
+      return db.query(sql, params);
+    },
+  };
+}
+
+/** Planeja sem executar, para retomada e compensação reusarem o mesmo plano. */
+async function planoDe(db, blueprint, { slug, name, admin }) {
+  const plano = planProvisioning({
+    blueprint,
+    planModules: [...(await modulosDoPlano(db, blueprint.plan))],
+    slug,
+    name,
+    admin: { email: admin.email, fullName: admin.name },
+  });
+  assert.equal(plano.ok, true, 'o plano precisa ser válido para este teste');
+  return plano.operations;
+}
+
+describe('retomada', () => {
+  /** Provisiona falhando na criação de papéis, que é no meio do fluxo. */
+  async function falharEmPapeis(chave, slug = 'cafe-retomada') {
+    const bp = nichos['cafeteria'];
+    const operations = await planoDe(db, bp, { slug, name: 'Café', admin: admin(1) });
+
+    const r = await executeProvisioning(
+      dbQueFalhaEm(db, /insert into public\.roles/, 'banco fora do ar'),
+      identidadeDoHarness(db),
+      {
+        operations,
+        blueprint: { code: bp.code, version: bp.version },
+        idempotencyKey: chave,
+        requestedBy: superAdmin,
+      },
+    );
+    assert.equal(r.ok, false);
+    assert.equal(r.failedStep, 'create_roles');
+    return { bp, operations, runId: r.runId, tenantId: r.tenantId };
+  }
+
+  it('continua de onde parou e conclui', async () => {
+    const { bp, operations } = await falharEmPapeis('req-retoma');
+
+    const r = await resumeProvisioning(db, identidadeDoHarness(db), {
+      operations,
+      blueprint: { code: bp.code, version: bp.version },
+      idempotencyKey: 'req-retoma',
+      requestedBy: superAdmin,
+    });
+
+    assert.equal(r.ok, true);
+    const retratoFinal = await retrato(db, r.tenantId);
+    assert.equal(retratoFinal.status, 'active');
+    assert.deepEqual(retratoFinal.papeis, bp.roles.map((p) => p.code).sort());
+  });
+
+  it('não repete o que já tinha concluído', async () => {
+    // Habilitar módulo de novo seria inócuo, mas criar papel de novo viola
+    // unicidade e criar vínculo de novo viola `tenant_users_unique`. Repetir
+    // não é ineficiência: é erro.
+    const { bp, operations, tenantId } = await falharEmPapeis('req-sem-repetir');
+
+    await resumeProvisioning(db, identidadeDoHarness(db), {
+      operations,
+      blueprint: { code: bp.code, version: bp.version },
+      idempotencyKey: 'req-sem-repetir',
+      requestedBy: superAdmin,
+    });
+
+    const { rows } = await db.query(
+      `select
+         (select count(*)::int from public.tenant_modules where tenant_id = $1) as modulos,
+         (select count(*)::int from public.roles where tenant_id = $1) as papeis,
+         (select count(*)::int from public.tenant_users where tenant_id = $1) as membros,
+         (select count(*)::int from public.tenants) as tenants`,
+      [tenantId],
+    );
+    const [c] = rows;
+    assert.equal(c.modulos, bp.modules.length, 'os módulos não foram habilitados duas vezes');
+    assert.equal(c.papeis, bp.roles.length);
+    assert.equal(c.membros, 1);
+    assert.equal(c.tenants, 1, 'a retomada não pode criar um segundo tenant');
+  });
+
+  it('conta a tentativa e limpa a data de fim', async () => {
+    // `finished_at` precisa voltar a nulo: `running` não é terminal, e a
+    // constraint recusa uma execução viva com data de fim.
+    const { bp, operations, runId } = await falharEmPapeis('req-tentativas');
+
+    const durante = await db.query(
+      'select attempts, finished_at from public.provisioning_runs where id = $1',
+      [runId],
+    );
+    assert.equal(durante.rows[0].attempts, 1);
+    assert.notEqual(durante.rows[0].finished_at, null, 'falha é terminal e tem data de fim');
+
+    await resumeProvisioning(db, identidadeDoHarness(db), {
+      operations,
+      blueprint: { code: bp.code, version: bp.version },
+      idempotencyKey: 'req-tentativas',
+      requestedBy: superAdmin,
+    });
+
+    const depois = await db.query(
+      'select attempts, status::text as status from public.provisioning_runs where id = $1',
+      [runId],
+    );
+    assert.equal(depois.rows[0].attempts, 2, 'a contagem de tentativas precisa ser visível');
+    assert.equal(depois.rows[0].status, 'succeeded');
+  });
+
+  it('recusa retomar o que não falhou', async () => {
+    // Uma `running` está em andamento em outro lugar: continuar seria duas
+    // escritas no mesmo tenant ao mesmo tempo.
+    const bp = nichos['cafeteria'];
+    await provisionarPorBlueprint(db, {
+      blueprint: bp,
+      slug: 'cafe-ok',
+      name: 'Café',
+      admin: admin(1),
+      idempotencyKey: 'req-ja-deu-certo',
+    });
+
+    const operations = await planoDe(db, bp, {
+      slug: 'cafe-ok',
+      name: 'Café',
+      admin: admin(1),
+    });
+    const r = await resumeProvisioning(db, identidadeDoHarness(db), {
+      operations,
+      blueprint: { code: bp.code, version: bp.version },
+      idempotencyKey: 'req-ja-deu-certo',
+      requestedBy: superAdmin,
+    });
+
+    assert.equal(r.ok, false);
+    assert.match(r.error, /succeeded/);
+  });
+
+  it('recusa retomar uma chave que não existe', async () => {
+    const bp = nichos['cafeteria'];
+    const operations = await planoDe(db, bp, {
+      slug: 'nao-existe',
+      name: 'X',
+      admin: admin(1),
+    });
+    const r = await resumeProvisioning(db, identidadeDoHarness(db), {
+      operations,
+      blueprint: { code: bp.code, version: bp.version },
+      idempotencyKey: 'req-inexistente',
+      requestedBy: superAdmin,
+    });
+
+    assert.equal(r.ok, false);
+    assert.match(r.error, /não há execução/);
+  });
+
+  it('falhar de novo continua retomável', async () => {
+    // Duas falhas seguidas não podem travar o cliente num estado sem saída.
+    const { bp, operations } = await falharEmPapeis('req-duas-falhas');
+
+    const segunda = await resumeProvisioning(
+      dbQueFalhaEm(db, /insert into public\.roles/, 'ainda fora do ar'),
+      identidadeDoHarness(db),
+      {
+        operations,
+        blueprint: { code: bp.code, version: bp.version },
+        idempotencyKey: 'req-duas-falhas',
+        requestedBy: superAdmin,
+      },
+    );
+    assert.equal(segunda.ok, false);
+
+    const terceira = await resumeProvisioning(db, identidadeDoHarness(db), {
+      operations,
+      blueprint: { code: bp.code, version: bp.version },
+      idempotencyKey: 'req-duas-falhas',
+      requestedBy: superAdmin,
+    });
+    assert.equal(terceira.ok, true);
+
+    const { rows } = await db.query('select attempts from public.provisioning_runs where id = $1', [
+      terceira.runId,
+    ]);
+    assert.equal(rows[0].attempts, 3);
+  });
+});
+
+describe('compensação', () => {
+  /** Falha no convite: tudo antes já teve efeito, inclusive o vínculo. */
+  async function falharNoConvite(chave, { slug = 'cafe-comp', quem = admin(1) } = {}) {
+    const bp = nichos['cafeteria'];
+    const operations = await planoDe(db, bp, { slug, name: 'Café', admin: quem });
+
+    const r = await executeProvisioning(
+      dbQueFalhaEm(db, /insert into public\.audit_logs/, 'e-mail recusado'),
+      identidadeDoHarness(db),
+      {
+        operations,
+        blueprint: { code: bp.code, version: bp.version },
+        idempotencyKey: chave,
+        requestedBy: superAdmin,
+      },
+    );
+    assert.equal(r.ok, false);
+    assert.equal(r.failedStep, 'send_invite');
+    return { bp, runId: r.runId, tenantId: r.tenantId };
+  }
+
+  it('desfaz na ordem inversa da execução', async () => {
+    const { tenantId } = await falharNoConvite('req-comp-ordem');
+
+    const r = await compensateProvisioning(db, identidadeDoHarness(db), {
+      idempotencyKey: 'req-comp-ordem',
+    });
+
+    assert.equal(r.ok, true);
+    assert.deepEqual(r.undone, ['create_admin', 'create_roles', 'enable_modules', 'create_tenant']);
+    assert.equal(r.tenantId, tenantId);
+  });
+
+  it('desfaz o efeito de verdade, não só o registro', async () => {
+    const { tenantId } = await falharNoConvite('req-comp-efeito');
+
+    const antes = await db.query(
+      `select
+         (select count(*)::int from public.tenant_modules where tenant_id = $1) as modulos,
+         (select count(*)::int from public.roles where tenant_id = $1) as papeis,
+         (select count(*)::int from public.tenant_users where tenant_id = $1) as membros`,
+      [tenantId],
+    );
+    assert.ok(antes.rows[0].modulos > 0, 'o cenário depende de haver efeito a desfazer');
+
+    await compensateProvisioning(db, identidadeDoHarness(db), {
+      idempotencyKey: 'req-comp-efeito',
+    });
+
+    const depois = await db.query(
+      `select
+         (select count(*)::int from public.tenant_modules where tenant_id = $1) as modulos,
+         (select count(*)::int from public.roles where tenant_id = $1) as papeis,
+         (select count(*)::int from public.tenant_users where tenant_id = $1) as membros`,
+      [tenantId],
+    );
+    const [c] = depois.rows;
+    assert.equal(c.modulos, 0);
+    assert.equal(c.papeis, 0);
+    assert.equal(c.membros, 0);
+  });
+
+  it('cancela o cliente em vez de apagá-lo, preservando a evidência', async () => {
+    const { runId, tenantId } = await falharNoConvite('req-comp-evidencia');
+
+    await compensateProvisioning(db, identidadeDoHarness(db), {
+      idempotencyKey: 'req-comp-evidencia',
+    });
+
+    const { rows } = await db.query(
+      `select
+         (select t.status::text from public.tenants t where t.id = $1) as tenant,
+         (select pr.status::text from public.provisioning_runs pr where pr.id = $2) as execucao,
+         (select count(*)::int from public.provisioning_steps where run_id = $2) as etapas`,
+      [tenantId, runId],
+    );
+    const [c] = rows;
+    // `provisioning_runs.tenant_id` é `on delete cascade`: apagar o tenant
+    // levaria junto a execução e as etapas — a evidência do que deu errado.
+    assert.equal(c.tenant, 'cancelled');
+    assert.equal(c.execucao, 'compensated');
+    assert.equal(c.etapas, PROVISIONING_STEPS.length, 'nenhuma etapa desaparece');
+  });
+
+  it('a etapa desfeita vira "compensated", não some', async () => {
+    const { runId } = await falharNoConvite('req-comp-historico');
+
+    await compensateProvisioning(db, identidadeDoHarness(db), {
+      idempotencyKey: 'req-comp-historico',
+    });
+
+    const { rows } = await db.query(
+      `select status::text as status, count(*)::int as c
+       from public.provisioning_steps where run_id = $1 group by status order by status`,
+      [runId],
+    );
+    const porStatus = Object.fromEntries(rows.map((r) => [r.status, r.c]));
+    assert.equal(porStatus.compensated, 4, 'as quatro que tiveram efeito');
+    assert.equal(porStatus.failed, 1, 'a que falhou continua registrada como falha');
+  });
+
+  it('não apaga a auditoria — acrescenta o registro do desfazer', async () => {
+    // `audit_logs` não tem política de DELETE, e isso é de propósito: log
+    // editável não é auditoria.
+    const { tenantId } = await falharNoConvite('req-comp-auditoria');
+
+    const r = await compensateProvisioning(db, identidadeDoHarness(db), {
+      idempotencyKey: 'req-comp-auditoria',
+    });
+    assert.equal(r.ok, true);
+
+    const { rows } = await db.query(
+      `select action, metadata from public.audit_logs
+       where tenant_id = $1 and action = 'tenant.provisioning_compensated'`,
+      [tenantId],
+    );
+    assert.equal(rows.length, 1, 'desfazer é operação de plataforma e é auditável');
+    assert.equal(rows[0].metadata.undone.length, 4);
+  });
+
+  it('NÃO apaga a identidade de quem já administrava outro cliente', async () => {
+    /*
+     * O caso que mais importa deste arquivo inteiro.
+     *
+     * A mesma pessoa administra dois clientes. O segundo provisionamento
+     * falha e é compensado. Se a compensação apagasse a identidade dela, ela
+     * perderia o acesso ao **primeiro** cliente — que nada tinha a ver com a
+     * falha, e cujo dono não entenderia o que aconteceu.
+     */
+    const pessoa = { email: 'dono@grupo.com.br', name: 'Dono do Grupo' };
+
+    const primeiro = await provisionarPorBlueprint(db, {
+      blueprint: nichos['mercado'],
+      slug: 'unidade-boa',
+      name: 'Unidade Boa',
+      admin: pessoa,
+      idempotencyKey: 'req-unidade-boa',
+    });
+
+    await falharNoConvite('req-unidade-ruim', { slug: 'unidade-ruim', quem: pessoa });
+    const r = await compensateProvisioning(db, identidadeDoHarness(db), {
+      idempotencyKey: 'req-unidade-ruim',
+    });
+    assert.equal(r.ok, true);
+
+    const { rows } = await db.query(
+      `select
+         (select count(*)::int from public.users where lower(email) = lower($1)) as pessoa,
+         (select count(*)::int from public.tenant_users where tenant_id = $2) as vinculo_bom`,
+      [pessoa.email, primeiro.tenantId],
+    );
+    assert.equal(rows[0].pessoa, 1, 'a pessoa não pode ser apagada');
+    assert.equal(rows[0].vinculo_bom, 1, 'nem perder o acesso ao cliente que deu certo');
+  });
+
+  it('apaga a identidade que esta execução criou', async () => {
+    // O outro lado: deixar a conta órfã produz alguém que entra e não
+    // encontra empresa nenhuma, sem que ninguém saiba por quê.
+    const novo = { email: 'so.aqui@exemplo.com.br', name: 'Só Aqui' };
+    await falharNoConvite('req-comp-identidade', { slug: 'so-aqui', quem: novo });
+
+    const antes = await db.query('select count(*)::int as c from public.users where email = $1', [
+      novo.email,
+    ]);
+    assert.equal(antes.rows[0].c, 1, 'o cenário depende de a identidade ter sido criada');
+
+    await compensateProvisioning(db, identidadeDoHarness(db), {
+      idempotencyKey: 'req-comp-identidade',
+    });
+
+    const depois = await db.query('select count(*)::int as c from public.users where email = $1', [
+      novo.email,
+    ]);
+    assert.equal(depois.rows[0].c, 0);
+  });
+
+  it('recusa compensar o que não falhou', async () => {
+    await provisionarPorBlueprint(db, {
+      blueprint: nichos['cafeteria'],
+      slug: 'cafe-vivo',
+      name: 'Café',
+      admin: admin(1),
+      idempotencyKey: 'req-vivo',
+    });
+
+    const r = await compensateProvisioning(db, identidadeDoHarness(db), {
+      idempotencyKey: 'req-vivo',
+    });
+    assert.equal(r.ok, false);
+    assert.match(r.error, /succeeded/);
+  });
+
+  it('depois de compensado, o cliente aceita uma execução nova', async () => {
+    // `compensated` é terminal e sai do índice parcial. Quem teve o
+    // provisionamento desfeito precisa poder tentar de novo.
+    const { tenantId } = await falharNoConvite('req-comp-recomeco');
+    await compensateProvisioning(db, identidadeDoHarness(db), {
+      idempotencyKey: 'req-comp-recomeco',
+    });
+
+    const { rows } = await db.query(
+      `insert into public.provisioning_runs (tenant_id, idempotency_key, status)
+       values ($1, 'req-segunda-chance', 'pending')
+       returning id`,
+      [tenantId],
+    );
+    assert.ok(rows[0].id);
+  });
+
+  it('compensação interrompida volta para "failed", não trava em "compensating"', async () => {
+    /*
+     * O pior estado possível: parte desfeita, parte não, e a execução em
+     * `compensating` — que ocupa o tenant pelo índice parcial e impede
+     * qualquer tentativa nova. `failed` é o único estado a partir do qual dá
+     * para tentar outra vez.
+     */
+    const { runId } = await falharNoConvite('req-comp-interrompida');
+
+    const r = await compensateProvisioning(
+      dbQueFalhaEm(db, /delete from public\.tenant_users/, 'conexão caiu'),
+      identidadeDoHarness(db),
+      { idempotencyKey: 'req-comp-interrompida' },
+    );
+    assert.equal(r.ok, false);
+
+    const { rows } = await db.query(
+      'select status::text as status, last_error from public.provisioning_runs where id = $1',
+      [runId],
+    );
+    assert.equal(rows[0].status, 'failed');
+    assert.match(rows[0].last_error, /compensação interrompida/);
+  });
+
+  it('e uma compensação interrompida pode ser retomada', async () => {
+    const { runId } = await falharNoConvite('req-comp-retomar');
+
+    await compensateProvisioning(
+      dbQueFalhaEm(db, /delete from public\.tenant_users/, 'conexão caiu'),
+      identidadeDoHarness(db),
+      { idempotencyKey: 'req-comp-retomar' },
+    );
+
+    const segunda = await compensateProvisioning(db, identidadeDoHarness(db), {
+      idempotencyKey: 'req-comp-retomar',
+    });
+    assert.equal(segunda.ok, true, segunda.ok ? '' : segunda.error);
+
+    const { rows } = await db.query(
+      `select pr.status::text as execucao, t.status::text as tenant
+       from public.provisioning_runs pr join public.tenants t on t.id = pr.tenant_id
+       where pr.id = $1`,
+      [runId],
+    );
+    assert.equal(rows[0].execucao, 'compensated');
+    assert.equal(rows[0].tenant, 'cancelled');
   });
 });

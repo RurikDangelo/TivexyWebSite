@@ -120,6 +120,23 @@ Ao retomar uma execução que falhou:
 > constraint `provisioning_runs_finished_consistency` recusou a operação — um
 > estado inconsistente pego pelo banco antes de existir aplicação.
 
+**Pula por etapa, não por operação.** Habilitar um módulo de novo seria inócuo,
+mas criar papel de novo viola unicidade e criar vínculo de novo viola
+`tenant_users_unique`. Repetir não é ineficiência — é erro.
+
+**Só se retoma o que falhou.** Uma execução `running` está em andamento em outro
+lugar, e continuar seria duas escritas no mesmo tenant ao mesmo tempo. Uma
+`succeeded` não tem o que continuar.
+
+### O plano vem de novo, não do registro
+
+`resumeProvisioning` recebe as operações outra vez em vez de lê-las do
+`payload`. `planProvisioning` é determinístico: o mesmo blueprint com a mesma
+entrada produz a mesma lista.
+
+Guardar as operações seria uma segunda fonte de verdade que envelhece — e a
+retomada de um mês depois executaria um plano velho, com as regras de antes.
+
 ## Compensação
 
 Quando uma execução falha e não vai ser retomada, o que já teve efeito precisa
@@ -146,8 +163,36 @@ Três decisões que o esquema impõe:
    nenhuma execução nova entra enquanto o desfazer acontece. Depois, como
    `compensated` é terminal e sai do índice, o cliente pode tentar de novo.
 
-O fluxo inteiro está provado em `supabase/tests/provisioning.test.mjs`,
-incluindo a ordem inversa e o que **não** se compensa: etapa que nunca rodou.
+### Só se desfaz o que esta execução criou
+
+A compensação lê `provisioning_steps.result`, onde cada etapa gravou o que
+criou: o id do papel, o código do módulo, o id do vínculo. **Deduzir seria
+errado** — "apague os módulos deste tenant" apagaria também o que um
+administrador tivesse habilitado à mão depois, que não é efeito desta execução.
+
+O caso mais delicado é a identidade. `ensureUser` devolve `created`, e a
+compensação só apaga quando foi esta execução que criou. Quem já existia
+administra outro cliente: apagá-la tiraria o acesso dela a algo que nada tinha
+a ver com a falha, e o dono desse outro cliente não entenderia o que aconteceu.
+
+### Duas coisas que nunca se desfazem
+
+**A auditoria.** `audit_logs` não tem política de `DELETE`, de propósito: log
+editável não é auditoria. O registro de que a empresa foi provisionada fica; a
+compensação **acrescenta** o próprio registro.
+
+**A execução e as etapas.** São a evidência. É por isso que o tenant é
+cancelado e não apagado — `provisioning_runs.tenant_id` é `on delete cascade`.
+
+### Compensação interrompida
+
+É o pior estado possível: parte desfeita, parte não, e a execução em
+`compensating` — que ocupa o tenant pelo índice parcial e impede qualquer
+tentativa nova.
+
+Por isso ela volta para `failed`, não fica em `compensating`. `failed` é o único
+estado a partir do qual dá para tentar outra vez, e as etapas já compensadas não
+são refeitas, porque só as `succeeded` entram na próxima passada.
 
 ## Autorização
 
@@ -186,18 +231,23 @@ disso, `user_tenant_ids()` não o retorna e o RLS não libera nada.
 ## O que já está provado
 
 **Com o código de produção.** `supabase/tests/blueprint-provisioning.test.mjs`
-importa `planProvisioning` e `executeProvisioning` — os mesmos módulos que o
-servidor vai importar — e os roda contra Postgres de verdade:
+importa `planProvisioning`, `executeProvisioning`, `resumeProvisioning` e
+`compensateProvisioning` — os mesmos módulos que o servidor vai importar — e os
+roda contra Postgres de verdade. 37 testes.
 
-- cada nicho do repositório provisiona, e o resultado é o que o blueprint declara
-- a mesma chave devolve a execução existente e não escreve de novo
-- uma linha por etapa, inclusive as que nem chegaram a rodar
-- falha no meio deixa o cliente em `provisioning` e o que já foi escrito fica
-- a mesma pessoa administrando dois clientes é uma pessoa só
+Para provocar falha numa etapa específica, o teste envolve o cliente de banco
+num que recusa consultas casando com um padrão. A alternativa seria um
+sinalizador dentro do código de produção só para teste — e aí o teste passaria a
+testar a porta, não o código.
+
+Duas garantias foram conferidas **por mutação**, quebrando o executor de
+propósito para ver o teste falhar: compensar na ordem direta, e apagar a
+identidade sem olhar se foi esta execução que a criou.
 
 **Com um modelo.** `supabase/tests/provisioning.test.mjs` continua exercitando
-retomada e compensação, que o executor ainda não implementa. O modelo prova que
-o esquema as sustenta; quando o executor as ganhar, os testes migram para ele.
+as garantias do **esquema** — a constraint de data de fim, o índice parcial, a
+unicidade da chave. São testes de banco, não do executor, e por isso continuam
+valendo.
 
 **O que ainda não foi exercido:** envio de e-mail de verdade, a Auth Admin API
 do Supabase por trás do `IdentityPort`, e concorrência real.

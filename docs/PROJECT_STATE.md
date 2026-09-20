@@ -26,10 +26,10 @@
 | Identidade de marca          | ✅     | 4 SVGs oficiais em `apps/site/src/assets/brand/`                   |
 | Monorepo (npm workspaces)    | ✅     | `npm install` + build dos dois apps na nova estrutura              |
 | Casca do SaaS (`apps/web`)   | ✅     | `npm run validate:web` — 0 erros; conferido no navegador           |
-| Esquema do Core              | 🟡     | `npm run test:db` — 126 testes em Postgres 18; **não aplicado**    |
+| Esquema do Core              | 🟡     | `npm run test:db` — 143 testes em Postgres 18; **não aplicado**    |
 | Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
 | Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
-| Contratos (`packages/core`)  | ✅     | `npm run validate` — 387 testes; contratos conferidos contra o SQL |
+| Contratos (`packages/core`)  | ✅     | `npm run validate` — 404 testes; contratos conferidos contra o SQL |
 | CI (GitHub Actions)          | 🟡     | Escrito e no remoto; roda na abertura do PR, não em push de branch |
 | Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado       |
 
@@ -54,7 +54,7 @@ identidade e RBAC (usuários, papéis, permissões, vínculos, equipes), auditor
 provisionamento. Mais RLS em todas elas e o catálogo da plataforma
 (9 módulos, 51 permissões, 3 papéis de sistema, 3 planos).
 
-**Verificado por execução** — `npm run test:db`, 126 testes contra Postgres 18:
+**Verificado por execução** — `npm run test:db`, 143 testes contra Postgres 18:
 
 - Isolamento entre tenants nas quatro operações (ler, inserir, atualizar, excluir)
 - Nenhuma tabela sem RLS; nenhuma tabela sem política; `search_path` fixo em
@@ -117,11 +117,22 @@ estes três ainda não têm nem tabela.
 produção — o teste importa os mesmos módulos que o servidor vai importar, sem
 uma terceira versão parecida no meio.
 
-As garantias, verificadas: a mesma chave de idempotência devolve a execução
-existente sem escrever de novo; uma linha por etapa do fluxo, inclusive as que
-nem chegaram a rodar; falha no meio deixa o cliente em `provisioning`, que é
-honesto — existe e não opera; e a mesma pessoa administrando dois clientes é
-uma pessoa só.
+Os três caminhos existem e são exercitados contra Postgres:
+
+- **`executeProvisioning`** — a primeira tentativa. Idempotência pela chave,
+  uma linha por etapa, e falha no meio deixa o cliente em `provisioning`, que é
+  honesto: existe e não opera.
+- **`resumeProvisioning`** — continua de onde parou, **sem repetir etapa
+  concluída**. Habilitar módulo de novo seria inócuo, mas criar papel de novo
+  viola unicidade. Recusa retomar o que não falhou.
+- **`compensateProvisioning`** — desfaz na ordem inversa, lendo de
+  `provisioning_steps.result` o que **esta** execução criou. O cliente é
+  cancelado, não apagado; a etapa vira `compensated`, não some; a auditoria não
+  é apagada — o desfazer acrescenta o próprio registro.
+
+A garantia mais delicada, e a que tem o teste mais importante: **a compensação
+não apaga a identidade de quem já administrava outro cliente.** Ela perderia o
+acesso a um cliente que nada tinha a ver com a falha.
 
 **Não existe:** o gatilho da interface. Criar cliente pelo painel Super Admin
 depende de autenticação, que depende do Supabase aplicado 🔒.
@@ -416,7 +427,7 @@ corporativa, e nenhum projeto Tivexy vive nela. Sair e entrar com a conta certa
 resolve os dois de uma vez, Supabase e Vercel.
 
 Depois de aplicar, **rodar o teste de isolamento contra o projeto real**. Os
-126 testes de banco rodam em Postgres WASM: fiéis ao contrato, não ao
+143 testes de banco rodam em Postgres WASM: fiéis ao contrato, não ao
 transporte.
 
 ### 3. 🔴 Abrir o PR
