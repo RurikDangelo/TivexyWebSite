@@ -26,10 +26,10 @@
 | Identidade de marca          | ✅     | 4 SVGs oficiais em `apps/site/src/assets/brand/`                   |
 | Monorepo (npm workspaces)    | ✅     | `npm install` + build dos dois apps na nova estrutura              |
 | Casca do SaaS (`apps/web`)   | ✅     | `npm run validate:web` — 0 erros; conferido no navegador           |
-| Esquema do Core              | 🟡     | `npm run test:db` — 114 testes em Postgres 18; **não aplicado**    |
+| Esquema do Core              | 🟡     | `npm run test:db` — 117 testes em Postgres 18; **não aplicado**    |
 | Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
 | Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
-| Contratos (`packages/core`)  | ✅     | `npm run validate` — 371 testes; contratos conferidos contra o SQL |
+| Contratos (`packages/core`)  | ✅     | `npm run validate` — 374 testes; contratos conferidos contra o SQL |
 | CI (GitHub Actions)          | 🟡     | Escrito e no remoto; roda na abertura do PR, não em push de branch |
 | Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado       |
 
@@ -54,7 +54,7 @@ identidade e RBAC (usuários, papéis, permissões, vínculos, equipes), auditor
 provisionamento. Mais RLS em todas elas e o catálogo da plataforma
 (9 módulos, 51 permissões, 3 papéis de sistema, 3 planos).
 
-**Verificado por execução** — `npm run test:db`, 114 testes contra Postgres 18:
+**Verificado por execução** — `npm run test:db`, 117 testes contra Postgres 18:
 
 - Isolamento entre tenants nas quatro operações (ler, inserir, atualizar, excluir)
 - Nenhuma tabela sem RLS; nenhuma tabela sem política; `search_path` fixo em
@@ -79,7 +79,7 @@ depende de autorizar o conector ou rodar `npm run db:push` com o CLI 🔒.
 
 **Estado:** 🟡 PARCIAL · **Docs:** `packages/core/README.md` · **Trello:** `CORE`
 
-Existe e é consumido por `apps/web`. **178 testes.**
+Existe e é consumido por `apps/web`. **185 testes.**
 
 **O catálogo e os estados** — módulos, permissões, papéis, planos, e os estados
 de tenant, vínculo e provisionamento. Espelham o SQL, e é o teste de contratos
@@ -99,7 +99,7 @@ banco, cada uma espelhando uma garantia que o banco também tem:
 **A configuração de nicho** — `checkBlueprint()`, `resolveSettings()` e o
 catálogo de configurações. Ver a seção Blueprint abaixo.
 
-**16 testes conferem os contratos contra o SQL**, e não só os códigos: `isActive`
+**18 testes conferem os contratos contra o SQL**, e não só os códigos: `isActive`
 contra o índice parcial, `isTerminal` contra a constraint de data de fim, e o
 formato do slug contra `tenants_slug_format`.
 
@@ -178,11 +178,19 @@ declarativa de provisionamento**.
 
 - `packages/core/src/blueprint.ts` — o contrato e `checkBlueprint`, que relata
   todos os problemas de uma vez com o caminho dentro do documento
-- Dois nichos reais em JSON: `cafeteria` (erp, inventory, finance) e
-  `clinica-odontologica` (crm, finance) — diferem em módulo e em vocabulário
-- 71 testes de contrato e 10 de provisionamento contra Postgres, incluindo o
-  marco do ADR-003: nichos diferentes produzem tenants diferentes, e o mesmo
-  nicho provisionado duas vezes produz tenants iguais
+- Três nichos reais em JSON: `cafeteria` e `mercado` (erp, inventory, finance)
+  e `clinica-odontologica` (crm, finance). Os dois primeiros habilitam os
+  **mesmos módulos** e ainda assim são nichos diferentes — mudam papéis,
+  categorias e vocabulário. Se o módulo bastasse para distinguir, o plano já
+  resolveria.
+- `settings.ts`: o catálogo de configurações com tipo, padrão e descrição.
+  `resolveSettings()` devolve o efetivo — padrão mais o que o nicho mudou, só
+  dos módulos habilitados
+- Rótulo, configuração e semente são **validados contra o Core**. Chave errada
+  não dava erro, só não tinha efeito: o defeito sem sintoma
+- 10 testes de provisionamento contra Postgres cobrem o marco do ADR-003:
+  nichos diferentes produzem tenants diferentes, e o mesmo nicho provisionado
+  duas vezes produz tenants iguais
 
 **Não existe:** o motor de esquema em tempo de execução — entidades e
 formulários definidos por dado. Continua adiado pelo ADR-002, e com razão.
@@ -391,7 +399,7 @@ corporativa, e nenhum projeto Tivexy vive nela. Sair e entrar com a conta certa
 resolve os dois de uma vez, Supabase e Vercel.
 
 Depois de aplicar, **rodar o teste de isolamento contra o projeto real**. Os
-114 testes de banco rodam em Postgres WASM: fiéis ao contrato, não ao
+117 testes de banco rodam em Postgres WASM: fiéis ao contrato, não ao
 transporte.
 
 ### 3. 🔴 Abrir o PR

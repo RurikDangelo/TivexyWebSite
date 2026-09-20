@@ -13,7 +13,7 @@ região `sa-east-1`. As migrations ainda **não foram aplicadas nele** — ver
 "Aplicar no projeto" abaixo.
 
 O que já existe é mais forte do que "escrito": elas rodam contra um Postgres 18
-de verdade e passam em 114 testes, incluindo os de isolamento entre tenants.
+de verdade e passam em 117 testes, incluindo os de isolamento entre tenants.
 
 O que ainda não foi exercido: `auth.uid()` real vindo de um JWT, e o
 comportamento sob concorrência real. O harness simula `auth.uid()` com uma
@@ -38,7 +38,7 @@ supabase/
     ├── harness.mjs             sobe Postgres em WASM e simula o que o Supabase oferece
     ├── core.test.mjs           32 testes: esquema, RLS, isolamento, integridade
     ├── provisioning.test.mjs   18 testes: o fluxo, a retomada e a compensação
-    ├── contracts.test.mjs      16 testes: TypeScript × catálogo e constraints
+    ├── contracts.test.mjs      18 testes: TypeScript × catálogo, constraints e docs
     ├── viewer.test.mjs         17 testes: contexto de acesso e vazamento
     ├── integrity.test.mjs      21 testes: tentativas de burlar, não de usar
     └── blueprint-provisioning.test.mjs  10 testes: provisionar por nicho

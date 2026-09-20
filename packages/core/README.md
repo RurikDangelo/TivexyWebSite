@@ -65,7 +65,7 @@ que o banco recusaria_. Ser mais rígido que o banco é aceitável; ser mais fro
 é o que quebra no meio de um provisionamento.
 
 ```bash
-npm run test:db      # inclui os 16 testes de contrato
+npm run test:db      # inclui os 18 testes de contrato
 npm run check:core   # tipos
 ```
 

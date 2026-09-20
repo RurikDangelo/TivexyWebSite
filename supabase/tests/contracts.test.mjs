@@ -11,7 +11,10 @@
  *   npm run test:db
  */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { after, before, describe, it } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { checkBlueprint } from '../../packages/core/src/blueprint.ts';
 import {
   MEMBERSHIP_STATUSES,
   MODULE_CODES,
@@ -25,9 +28,14 @@ import {
   isTerminal,
   moduleOf,
 } from '../../packages/core/src/index.ts';
-import { checkBlueprint } from '../../packages/core/src/blueprint.ts';
 import { planProvisioning } from '../../packages/core/src/provisioning-plan.ts';
+import { permissionMatrix, permissionRows } from '../../scripts/permission-matrix.mjs';
 import { createDatabase } from './harness.mjs';
+
+/** O caminho do documento que carrega a matriz copiada à mão. */
+const AUTHORIZATION_MD = fileURLToPath(
+  new URL('../../docs/12-SECURITY/AUTHORIZATION.md', import.meta.url),
+);
 
 let db;
 
@@ -303,5 +311,40 @@ describe('o subdomínio: TypeScript × constraint', () => {
     const aceitos = candidatos.filter((c) => slugQueOCoreGrava(c) !== null);
     assert.ok(aceitos.length > 0, 'nenhum candidato válido');
     assert.ok(aceitos.length < candidatos.length, 'nenhum candidato inválido');
+  });
+});
+
+describe('a matriz de permissões da documentação', () => {
+  /**
+   * `docs/12-SECURITY/AUTHORIZATION.md` traz a matriz completa — 51 permissões
+   * contra três papéis. Ela é **copiada à mão** da saída de
+   * `npm run docs:matrix`, e cópia manual diverge: basta uma permissão nova
+   * entrar na migration para a documentação passar a mentir.
+   *
+   * Matriz de permissão errada na documentação é pior que nenhuma: alguém
+   * decide quem pode o quê olhando para ela.
+   *
+   * O teste importa **a mesma função** que o comando usa, não uma segunda
+   * implementação — duas implementações poderiam concordar entre si e discordar
+   * do banco.
+   */
+  it('bate com o catálogo do banco', async () => {
+    const gerada = permissionRows(await permissionMatrix(db));
+    const noDocumento = permissionRows(readFileSync(AUTHORIZATION_MD, 'utf8'));
+
+    const soNoDocumento = noDocumento.filter((l) => !gerada.includes(l));
+    const soNoBanco = gerada.filter((l) => !noDocumento.includes(l));
+
+    assert.deepEqual(
+      { soNoDocumento, soNoBanco },
+      { soNoDocumento: [], soNoBanco: [] },
+      'a matriz da documentação divergiu do catálogo — rode `npm run docs:matrix` e cole a saída',
+    );
+  });
+
+  it('e cobre todas as permissões, não um pedaço', () => {
+    // Sem isto, um documento truncado passaria: as linhas que sobraram bateriam.
+    const noDocumento = permissionRows(readFileSync(AUTHORIZATION_MD, 'utf8'));
+    assert.equal(noDocumento.length, PERMISSION_CODES.length);
   });
 });
