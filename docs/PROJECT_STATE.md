@@ -79,15 +79,29 @@ depende de autorizar o conector ou rodar `npm run db:push` com o CLI 🔒.
 
 **Estado:** 🟡 PARCIAL · **Docs:** `packages/core/README.md` · **Trello:** `CORE`
 
-Existe e é consumido por `apps/web`:
+Existe e é consumido por `apps/web`. **178 testes.**
 
-- Contratos do catálogo (módulos, permissões, papéis, planos) e os estados de
-  tenant, vínculo e provisionamento, tipados
-- `decideAccess()`, `matchRule()` e `parseViewer()`: a decisão de acesso da
-  aplicação, espelhando as regras do RLS — 37 testes, incluindo a ordem em que
-  nega, o padrão fechado e o contexto malformado virando menos acesso
-- 16 testes conferem os contratos contra o catálogo SQL nos dois sentidos: a
-  duplicação entre TypeScript e banco não passa despercebida
+**O catálogo e os estados** — módulos, permissões, papéis, planos, e os estados
+de tenant, vínculo e provisionamento. Espelham o SQL, e é o teste de contratos
+que impede os dois de divergirem.
+
+**As decisões** — regras puras que a aplicação aplica antes de falar com o
+banco, cada uma espelhando uma garantia que o banco também tem:
+
+- `decideAccess()`, `matchRule()`, `parseViewer()` — quem pode abrir esta rota.
+  37 testes: a ordem em que nega, o padrão fechado, contexto malformado virando
+  menos acesso
+- `planProvisioning()` — o que acontece ao criar este cliente. A decisão saiu de
+  dentro do backend e virou lista ordenada de operações; `previewOf()` a resume
+  para mostrar antes de executar
+- `tenantSlugFromHost()` — de qual tenant é esta requisição, lido do subdomínio
+
+**A configuração de nicho** — `checkBlueprint()`, `resolveSettings()` e o
+catálogo de configurações. Ver a seção Blueprint abaixo.
+
+**16 testes conferem os contratos contra o SQL**, e não só os códigos: `isActive`
+contra o índice parcial, `isTerminal` contra a constraint de data de fim, e o
+formato do slug contra `tenants_slug_format`.
 
 **Não existe:** serviços de domínio, Feature Flags, Themes e Notifications —
 estes três ainda não têm nem tabela.
