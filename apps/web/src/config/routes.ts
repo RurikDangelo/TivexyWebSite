@@ -26,6 +26,13 @@ export const routeRules: readonly RouteMatcher[] = [
   { prefix: '/preparando', rule: { kind: 'authenticated' } },
   { prefix: '/conta', rule: { kind: 'authenticated' } },
 
+  /*
+   * A página que explica a negação. `authenticated` de propósito, e não
+   * `member`: quem chega aqui já foi negado uma vez, e negá-lo de novo na
+   * página que existe para explicar a negação seria o pior laço possível.
+   */
+  { prefix: '/acesso-negado', rule: { kind: 'authenticated' } },
+
   /* Plataforma. Nenhum papel de tenant alcança. */
   { prefix: '/admin', rule: { kind: 'superAdmin' } },
 

@@ -30,6 +30,7 @@ export {
 export {
   ANONYMOUS,
   DEFAULT_RULE,
+  DENIAL_REASONS,
   can,
   decideAccess,
   isAuthenticated,

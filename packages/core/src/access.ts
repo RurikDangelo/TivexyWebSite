@@ -52,13 +52,26 @@ export interface Viewer {
   enabledModules: ReadonlySet<ModuleCode>;
 }
 
-export type DenialReason =
-  | 'unauthenticated'
-  | 'no-tenant'
-  | 'membership-inactive'
-  | 'tenant-not-operational'
-  | 'module-disabled'
-  | 'missing-permission';
+/**
+ * Por que o acesso foi negado.
+ *
+ * Const em vez de união de tipos para que a lista exista em tempo de execução:
+ * é o que permite um teste provar que toda razão tem tradução para texto e
+ * destino de redirecionamento — exaustividade que o compilador sozinho não
+ * garante contra string vazia.
+ *
+ * A ordem é a da checagem em `decideAccess`, de propósito.
+ */
+export const DENIAL_REASONS = [
+  'unauthenticated',
+  'no-tenant',
+  'membership-inactive',
+  'tenant-not-operational',
+  'module-disabled',
+  'missing-permission',
+] as const;
+
+export type DenialReason = (typeof DENIAL_REASONS)[number];
 
 export type AccessDecision = { allowed: true } | { allowed: false; reason: DenialReason };
 
