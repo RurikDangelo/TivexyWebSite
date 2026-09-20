@@ -225,8 +225,9 @@ fictício de tenant demo é outra coisa e vai para `seed.sql`.
 ## Aplicar no projeto
 
 O CLI do Supabase está no monorepo como devDependency — não precisa de
-instalação global, nem de Docker (Docker só é exigido por `supabase start` e
-por `gen types --db-url`, que não usamos).
+instalação global **nem de Docker**. Nada neste projeto usa contêiner: os
+testes rodam em Postgres compilado para WASM, as migrations vão por conexão
+direta, e os tipos vêm da API.
 
 A conexão vem do `.env` da raiz, que **não entra no git**:
 
@@ -262,19 +263,32 @@ truncada — e o erro é o mesmo, indistinguível do anterior.
    do esquema depende de recurso exclusivo dele, mas divergência silenciosa
    entre o que se testa e o que roda é como bug de produção começa
 
-### Os tipos gerados ainda não
+### Os tipos gerados
 
-`npm run db:types` precisa de `supabase login` (usa a API) ou de Docker (se for
-por `--db-url`). Nenhum dos dois existe nesta máquina, então
-`apps/web/src/lib/database.types.ts` **não foi gerado**.
+```bash
+npx supabase login    # uma vez, abre o navegador
+npm run db:types      # gera apps/web/src/lib/database.types.ts
+```
 
-Não bloqueia nada hoje: nada no `apps/web` consulta o banco ainda. Quando
-consultar, é o primeiro passo.
+Vai pela **API** (`--project-id`), não por `--db-url` — este último sobe um
+contêiner para inspecionar o esquema, e **este projeto não usa Docker para
+nada**. O ref sai do `SUPABASE_URL` do `.env`, não está fixo no código.
 
-> Cuidado ao rodar à mão: `comando > arquivo` cria o arquivo **antes** de o
-> comando rodar. Se o CLI falhar, o erro em JSON vai parar dentro do
-> `database.types.ts` e quebra o typecheck com uma mensagem que não tem nada a
-> ver. Aconteceu.
+Para rodar sem interação — CI, por exemplo — um token em
+[account/tokens](https://supabase.com/dashboard/account/tokens) no `.env` como
+`SUPABASE_ACCESS_TOKEN` dispensa o login.
+
+**Ainda não foi gerado:** falta o login nesta máquina. Não bloqueia nada hoje,
+porque nada no `apps/web` consulta o banco — quando consultar, é o primeiro
+passo.
+
+> **Por que é um script e não um comando com `>`.** `comando > arquivo` cria o
+> arquivo **antes** de o comando rodar. Se o CLI falhar, o erro em JSON vai
+> parar dentro do `database.types.ts` e o typecheck quebra reclamando de
+> sintaxe — uma mensagem que não tem nada a ver com a causa. Aconteceu aqui.
+> `scripts/db-types.mjs` confere se a saída parece TypeScript antes de tocar o
+> disco, e não confia no código de saída do CLI, que às vezes é zero mesmo com
+> erro.
 
 ### Por que `config.toml` tem 400 linhas que não usamos
 

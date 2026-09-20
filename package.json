@@ -34,7 +34,7 @@
     "test:web": "node --test \"apps/web/src/**/*.test.ts\"",
     "test:db": "node --test \"supabase/tests/*.test.mjs\"",
     "db:push": "node scripts/db.mjs push",
-    "db:types": "supabase gen types typescript --linked --schema public > apps/web/src/lib/database.types.ts",
+    "db:types": "node scripts/db-types.mjs",
     "docs:matrix": "node scripts/permission-matrix.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
