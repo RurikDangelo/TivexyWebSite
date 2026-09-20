@@ -33,14 +33,14 @@
     "test:core": "node --test \"packages/core/src/*.test.ts\"",
     "test:web": "node --test \"apps/web/src/**/*.test.ts\"",
     "test:db": "node --test \"supabase/tests/*.test.mjs\"",
-    "db:link": "supabase link --project-ref lddpqizqjvtimxmorxux",
-    "db:push": "supabase db push",
-    "db:diff": "supabase db diff --linked",
+    "db:push": "node scripts/db.mjs push",
     "db:types": "supabase gen types typescript --linked --schema public > apps/web/src/lib/database.types.ts",
     "docs:matrix": "node scripts/permission-matrix.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "validate": "npm run check:core && npm run test:core && npm run validate:site && npm run validate:web && npm run test:web && npm run test:db"
+    "validate": "npm run check:core && npm run test:core && npm run validate:site && npm run validate:web && npm run test:web && npm run test:db",
+    "db:status": "node scripts/db.mjs status",
+    "db:list": "node scripts/db.mjs list"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

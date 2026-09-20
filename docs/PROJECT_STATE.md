@@ -26,7 +26,7 @@
 | Identidade de marca          | ✅     | 4 SVGs oficiais em `apps/site/src/assets/brand/`                   |
 | Monorepo (npm workspaces)    | ✅     | `npm install` + build dos dois apps na nova estrutura              |
 | Casca do SaaS (`apps/web`)   | ✅     | `npm run validate:web` — 0 erros; conferido no navegador           |
-| Esquema do Core              | 🟡     | `npm run test:db` — 146 testes em Postgres 18; **não aplicado**    |
+| Esquema do Core              | ✅     | **Aplicado** em `tivexy-core`; 146 testes em Postgres 18           |
 | Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
 | Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
 | Contratos (`packages/core`)  | ✅     | `npm run validate` — 407 testes; contratos conferidos contra o SQL |
@@ -72,8 +72,10 @@ provisionamento. Mais RLS em todas elas e o catálogo da plataforma
 concorrência. Os testes rodam em PGlite (Postgres em WASM) com `auth.uid()`
 simulado por configuração de sessão — fiel ao contrato, não ao transporte.
 
-**Bloqueado:** o projeto `tivexy-core` existe; aplicar as migrations nele
-depende de autorizar o conector ou rodar `npm run db:push` com o CLI 🔒.
+**Aplicado em 20/09/2026.** As dez migrations subiram para `tivexy-core` pelo
+CLI. `supabase db push --dry-run` responde `upToDate: true`, e as 15 tabelas
+estão lá com todos os índices — inclusive o parcial
+`provisioning_runs_one_active_per_tenant`.
 
 ### Tivexy Core — camada de aplicação (`packages/core`)
 
@@ -301,19 +303,18 @@ aplicadas em `tivexy-core` (🔒 externo).
 
 Ordenadas por urgência:
 
-| #   | Tarefa                                          | Bloqueia                | Urgência    |
-| --- | ----------------------------------------------- | ----------------------- | ----------- |
-| 1   | **Aplicar as migrations em `tivexy-core`**      | Todo o SaaS             | 🔴 Imediata |
-| 2   | **Abrir o PR** da branch `monorepo-tivexy-core` | Primeira execução do CI | 🔴 Imediata |
-| 3   | **Trocar a conta dos conectores** desta máquina | Supabase e Vercel daqui | 🟠 Alta     |
-| 4   | Conferir o destino do formulário de contato     | Leads da landing        | 🟠 Alta     |
-| 5   | Projeto Vercel do `apps/web` + variáveis        | Deploy do SaaS          | 🟡 Depois   |
-| 6   | Domínio `tivexy.com.br` + DNS                   | SEO, e-mail             | 🟠 Média    |
-| 7   | E-mail corporativo + SPF/DKIM/DMARC             | Convites do SaaS        | 🟠 Média    |
-| 8   | Credenciais OpenAI                              | AI Engine               | 🟡 Depois   |
-| 9   | Meta Business + WhatsApp Business API           | Atendimento             | 🟡 Depois   |
-| 10  | Provedor fiscal + certificado digital           | Fiscal                  | 🟡 Depois   |
-| 11  | CNPJ, contador, conta PJ, contratos             | Venda formal            | 🟡 Paralelo |
+| #   | Tarefa                                          | Bloqueia                 | Urgência    |
+| --- | ----------------------------------------------- | ------------------------ | ----------- |
+| 1   | **Abrir o PR** da branch `monorepo-tivexy-core` | Primeira execução do CI  | 🔴 Imediata |
+| 2   | Conferir o destino do formulário de contato     | Leads da landing         | 🟠 Alta     |
+| 3   | **Trocar a conta do conector Vercel**           | Qualquer coisa na Vercel | 🟠 Alta     |
+| 4   | Projeto Vercel do `apps/web` + variáveis        | Deploy do SaaS           | 🟡 Depois   |
+| 6   | Domínio `tivexy.com.br` + DNS                   | SEO, e-mail              | 🟠 Média    |
+| 7   | E-mail corporativo + SPF/DKIM/DMARC             | Convites do SaaS         | 🟠 Média    |
+| 8   | Credenciais OpenAI                              | AI Engine                | 🟡 Depois   |
+| 9   | Meta Business + WhatsApp Business API           | Atendimento              | 🟡 Depois   |
+| 10  | Provedor fiscal + certificado digital           | Fiscal                   | 🟡 Depois   |
+| 11  | CNPJ, contador, conta PJ, contratos             | Venda formal             | 🟡 Paralelo |
 
 A ordem importa: o Supabase é o que **produz as chaves** que a variável de
 ambiente da Vercel vai precisar. Cadastrar env antes é preencher campo com valor
@@ -407,28 +408,24 @@ publicar um preview; nada além disso.
 Na mesma passada, vale revogar o _deployment protection bypass token_ que a CLI
 gerou sozinha para conseguir ler o preview protegido.
 
-### 2. 🔴 Aplicar as migrations no projeto
+### ✅ As migrations foram aplicadas — 20/09/2026
 
-O projeto existe (`tivexy-core`, ref `lddpqizqjvtimxmorxux`). Aplicar destrava
-autenticação, provisionamento, Admin, CRM e ERP — tudo depende disto. Há dois
-caminhos, e o segundo é o que fica.
+Subiram pelo CLI, com a URL de conexão do `.env`. `supabase db push --dry-run`
+responde `upToDate: true`, e as 15 tabelas estão lá com todos os índices.
 
-**Pelo CLI** — já configurado, não depende de conector:
+> **A armadilha que custou quatro tentativas.** O painel do Supabase entrega a
+> string de conexão com `[YOUR-PASSWORD]` no lugar da senha. Substituir só o
+> miolo deixa o `]` de fechamento grudado no fim, e o servidor responde
+> `password authentication failed` — que parece senha errada e não é. Se
+> reaparecer, é isso.
+>
+> A senha também contém caracteres reservados em URL, então ela precisa ser
+> percent-encoded. `scripts/` não tem isso; foi feito à mão nesta sessão.
 
-```bash
-npx supabase login
-npm run db:link
-npm run db:push
-npm run db:types
-```
-
-**Pelo conector** — os conectores desta sessão estão logados na conta
-corporativa, e nenhum projeto Tivexy vive nela. Sair e entrar com a conta certa
-resolve os dois de uma vez, Supabase e Vercel.
-
-Depois de aplicar, **rodar o teste de isolamento contra o projeto real**. Os
-146 testes de banco rodam em Postgres WASM: fiéis ao contrato, não ao
-transporte.
+**O que ainda não foi exercido contra o projeto real:** o teste de isolamento
+entre tenants. Os 146 testes de banco rodam em Postgres WASM com `auth.uid()`
+simulado — fiéis ao contrato, não ao transporte. Rodá-los contra o Supabase
+exige um cliente Postgres remoto no harness, que não existe.
 
 ### 3. 🔴 Abrir o PR
 

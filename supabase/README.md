@@ -8,9 +8,9 @@ mora na raiz do monorepo, no diretório que o Supabase CLI espera.
 
 ## Estado
 
-O projeto Supabase **existe**: `tivexy-core`, ref `lddpqizqjvtimxmorxux`,
-região `sa-east-1`. As migrations ainda **não foram aplicadas nele** — ver
-"Aplicar no projeto" abaixo.
+As migrations estão **aplicadas** em `tivexy-core` (ref `lddpqizqjvtimxmorxux`,
+região `sa-east-1`) desde 20/09/2026. `supabase db push --dry-run` responde
+`upToDate: true`.
 
 O que já existe é mais forte do que "escrito": elas rodam contra um Postgres 18
 de verdade e passam em 146 testes, incluindo os de isolamento entre tenants.
@@ -225,26 +225,56 @@ fictício de tenant demo é outra coisa e vai para `seed.sql`.
 ## Aplicar no projeto
 
 O CLI do Supabase está no monorepo como devDependency — não precisa de
-instalação global, nem de Docker (Docker só é exigido por `supabase start`,
-que não usamos).
+instalação global, nem de Docker (Docker só é exigido por `supabase start` e
+por `gen types --db-url`, que não usamos).
+
+A conexão vem do `.env` da raiz, que **não entra no git**:
 
 ```bash
-npx supabase login    # abre o navegador; a credencial fica na sua máquina
-npm run db:link       # vincula ao ref lddpqizqjvtimxmorxux
-npm run db:push       # aplica as 9 migrations, na ordem dos nomes
-npm run db:types      # gera apps/web/src/lib/database.types.ts
+npm run db:push          # aplica o que faltar, na ordem dos nomes
+npm run db:status        # o remoto está em dia?
 ```
 
-`db:link` pede a senha do banco. Ela é sua: não passa pelo chat, não entra em
-arquivo do repositório, não vira variável de ambiente aqui.
+Os dois montam a URL a partir de `DIRECT_URL` — o pooler em modo sessão, que é
+o que migration exige. `DATABASE_URL` aponta para o modo transação e serve para
+a aplicação, não para DDL.
 
-Depois do push:
+### A armadilha da senha
+
+Duas coisas na string de conexão que o painel entrega já custaram uma hora:
+
+**O colchete que sobra.** O painel mostra `[YOUR-PASSWORD]` como marcador.
+Substituir só o miolo deixa o `]` grudado no fim da senha, e o servidor
+responde `password authentication failed` — que parece senha errada e não é.
+
+**Os caracteres reservados.** A senha gerada costuma ter `]`, `*`, `#` ou `?`,
+que têm significado em URL. Sem percent-encoding, o servidor recebe a senha
+truncada — e o erro é o mesmo, indistinguível do anterior.
+
+`scripts/db-url.mjs` resolve os dois e é o que os comandos acima usam.
+
+### Depois do push
 
 1. Conferir os avisos de segurança e performance no painel
-2. Rodar o teste de isolamento **contra o projeto real**, não só no PGlite
+2. Rodar o teste de isolamento **contra o projeto real**, não só no PGlite —
+   ainda não feito, exige um cliente Postgres remoto no harness
 3. Confirmar a versão do Postgres do projeto — os testes rodam em 18, e nada
    do esquema depende de recurso exclusivo dele, mas divergência silenciosa
    entre o que se testa e o que roda é como bug de produção começa
+
+### Os tipos gerados ainda não
+
+`npm run db:types` precisa de `supabase login` (usa a API) ou de Docker (se for
+por `--db-url`). Nenhum dos dois existe nesta máquina, então
+`apps/web/src/lib/database.types.ts` **não foi gerado**.
+
+Não bloqueia nada hoje: nada no `apps/web` consulta o banco ainda. Quando
+consultar, é o primeiro passo.
+
+> Cuidado ao rodar à mão: `comando > arquivo` cria o arquivo **antes** de o
+> comando rodar. Se o CLI falhar, o erro em JSON vai parar dentro do
+> `database.types.ts` e quebra o typecheck com uma mensagem que não tem nada a
+> ver. Aconteceu.
 
 ### Por que `config.toml` tem 400 linhas que não usamos
 
