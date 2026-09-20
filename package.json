@@ -40,7 +40,8 @@
     "format:check": "prettier --check .",
     "validate": "npm run check:core && npm run test:core && npm run validate:site && npm run validate:web && npm run test:web && npm run test:db",
     "db:status": "node scripts/db.mjs status",
-    "db:list": "node scripts/db.mjs list"
+    "db:list": "node scripts/db.mjs list",
+    "db:super-admin": "node scripts/super-admin.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

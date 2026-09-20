@@ -1077,4 +1077,63 @@ describe('compensação', () => {
     assert.equal(rows[0].execucao, 'compensated');
     assert.equal(rows[0].tenant, 'cancelled');
   });
+  /*
+   * Regressão de um defeito que só apareceu contra o Postgres de verdade.
+   *
+   * `provisioning_steps.result` é `jsonb`. O driver de produção, ao receber
+   * uma string destinada a coluna jsonb, **serializava de novo** — e o que
+   * ficava gravado era a string `"{\"effects\":[…]}"` em vez do objeto. O
+   * PGlite destes testes analisa a string, então aqui tudo passava.
+   *
+   * O estrago não era um erro: a leitura não achava `effects`, a compensação
+   * desfazia zero efeitos, marcava toda etapa como `compensated` e devolvia
+   * sucesso. Módulos e papéis continuavam no banco, com a tela dizendo que
+   * tinham saído.
+   *
+   * A escrita foi corrigida com `$n::text::jsonb`. Este teste cobre a outra
+   * metade — o que acontece quando o registro, por qualquer motivo, não puder
+   * ser lido. A resposta precisa ser recusar, não fingir.
+   */
+  it('recusa quando o registro de uma etapa concluída não é legível', async () => {
+    const { runId } = await falharNoConvite('req-comp-ilegivel', { slug: 'cafe-ileg' });
+
+    // Exatamente a forma que o driver produzia: JSON dentro de uma string.
+    await db.query(
+      `update public.provisioning_steps
+       set result = to_jsonb('{"effects":[{"kind":"module","code":"erp"}]}'::text)
+       where run_id = $1 and step = 'enable_modules'`,
+      [runId],
+    );
+
+    const r = await compensateProvisioning(db, identidadeDoHarness(db), {
+      idempotencyKey: 'req-comp-ilegivel',
+    });
+
+    assert.equal(r.ok, false, 'compensar sem saber o que desfazer não pode dar certo');
+    assert.match(r.error, /enable_modules/);
+
+    // E não marcou como desfeito o que não desfez.
+    const { rows } = await db.query(
+      `select status::text from public.provisioning_steps
+        where run_id = $1 and step = 'enable_modules'`,
+      [runId],
+    );
+    assert.notEqual(rows[0].status, 'compensated');
+  });
+
+  it('o que o executor grava em result é objeto, não string de JSON', async () => {
+    const { runId } = await falharNoConvite('req-comp-forma', { slug: 'cafe-forma' });
+
+    const { rows } = await db.query(
+      `select step, jsonb_typeof(result) as tipo
+         from public.provisioning_steps
+        where run_id = $1 and status = 'succeeded'`,
+      [runId],
+    );
+
+    assert.ok(rows.length > 0, 'o cenário depende de haver etapa concluída');
+    for (const linha of rows) {
+      assert.equal(linha.tipo, 'object', `${linha.step} gravou ${linha.tipo} em vez de object`);
+    }
+  });
 });

@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Contratos e regras compartilhadas do Tivexy Core.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./blueprints": "./src/blueprint-registry.ts"
   },
   "types": "./src/index.ts",
   "scripts": {

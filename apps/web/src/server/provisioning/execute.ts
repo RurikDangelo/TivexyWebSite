@@ -17,6 +17,22 @@
  * passa pelo RLS — e é por isso que as constraints do esquema importam tanto
  * (ver `docs/12-SECURITY/MULTI_TENANCY.md`, "E vale para o service_role").
  *
+ * ## `$n::text::jsonb`, e não `$n`
+ *
+ * Todo parâmetro que carrega JSON é descrito como texto e convertido pelo
+ * servidor. Sem o `::text`, cada driver decide sozinho como serializar uma
+ * string destinada a coluna `jsonb`: o PGlite dos testes a **analisa** e
+ * grava um objeto; o driver de produção a **serializa de novo** e grava uma
+ * string de JSON dentro do jsonb.
+ *
+ * O estrago não era um erro, era silêncio. `result` virava a string
+ * `"{\"effects\":[…]}"`, a leitura não achava `effects`, a compensação
+ * desfazia zero efeitos — e marcava cada etapa como `compensated`. Módulos e
+ * papéis continuavam lá, e a tela dizia que tinha desfeito.
+ *
+ * Nenhum teste pegava: em PGlite os dois caminhos dão no mesmo. Só apareceu
+ * contra o Postgres de verdade.
+ *
  * Recebe o cliente de banco por parâmetro em vez de criá-lo. Dois motivos, e o
  * segundo é o que decidiu: o teste executa este mesmo arquivo contra um
  * Postgres de verdade (PGlite), sem Supabase e sem credencial. O que é provado
@@ -91,6 +107,22 @@ export interface ExecuteInput {
   operations: readonly ProvisioningOperation[];
   /** De qual documento este tenant nasceu. Fica no registro da execução. */
   blueprint: { code: string; version: number };
+  /**
+   * A entrada que gerou o plano — slug, nome e administrador.
+   *
+   * Guardada no `payload` porque a retomada precisa dela e **não tem como
+   * derivá-la**: o e-mail de quem vai administrar não está em nenhuma tabela
+   * enquanto a etapa `create_admin' não concluir, que é justamente a etapa
+   * que costuma falhar.
+   *
+   * Note a diferença para as **operações**, que continuam fora daqui de
+   * propósito: o plano é recalculado de `planProvisioning` a cada retomada, com
+   * o blueprint de hoje. Guardar a entrada não cria segunda fonte de verdade;
+   * guardar o plano criaria, e ele envelheceria.
+   *
+   * Não há senha aqui. Identidade nasce por convite.
+   */
+  request?: { slug: string; name: string; admin: { email: string; fullName: string } };
   /**
    * A chave do chamador. É o que impede um duplo clique ou um retry de rede de
    * criar dois clientes — e a unicidade é do banco, não deste código.
@@ -187,7 +219,7 @@ async function buscarExecucao(db: SqlClient, idempotencyKey: string): Promise<Ex
 async function etapasDa(
   db: SqlClient,
   runId: string,
-): Promise<{ step: ProvisioningStep; status: string; efeitos: Efeito[] }[]> {
+): Promise<{ step: ProvisioningStep; status: string; efeitos: Efeito[] | null }[]> {
   const { rows } = await db.query(
     `select step, status::text as status, result
      from public.provisioning_steps where run_id = $1 order by position`,
@@ -203,14 +235,19 @@ async function etapasDa(
 /**
  * Lê os efeitos gravados numa etapa.
  *
- * Tolerante de propósito: `result` é `jsonb` e pode vir de uma versão anterior
- * do executor, ou vazio. Explodir aqui impediria compensar uma execução antiga
- * — exatamente quando compensar mais importa.
+ * Devolve `null` quando **não dá para saber** o que a etapa fez, e lista vazia
+ * quando ela genuinamente não fez nada. A diferença é a que faltava: um
+ * `result` ilegível lido como "zero efeitos" fazia a compensação percorrer as
+ * etapas, não desfazer coisa alguma e marcar tudo como `compensated`. Os
+ * módulos e os papéis continuavam no banco, e a tela dizia que tinham saído.
+ *
+ * Quem chama decide o que fazer com `null` — e a compensação recusa, em vez de
+ * fingir. Ver o cabeçalho deste arquivo, em `$n::text::jsonb`.
  */
-function lerEfeitos(result: unknown): Efeito[] {
-  if (result === null || typeof result !== 'object') return [];
+function lerEfeitos(result: unknown): Efeito[] | null {
+  if (result === null || typeof result !== 'object') return null;
   const efeitos = (result as { effects?: unknown }).effects;
-  return Array.isArray(efeitos) ? (efeitos as Efeito[]) : [];
+  return Array.isArray(efeitos) ? (efeitos as Efeito[]) : null;
 }
 
 /* ── As escritas de cada operação ─────────────────────────────────────── */
@@ -230,7 +267,7 @@ async function aplicar(
     case 'create_tenant': {
       const { rows } = await db.query(
         `insert into public.tenants (slug, name, status, plan_id, settings)
-         values ($1, $2, 'provisioning', (select id from public.plans where code = $3), $4)
+         values ($1, $2, 'provisioning', (select id from public.plans where code = $3), $4::text::jsonb)
          returning id`,
         [op.slug, op.name, op.plan, JSON.stringify(op.settings)],
       );
@@ -296,7 +333,7 @@ async function aplicar(
        */
       const { rows } = await db.query(
         `insert into public.audit_logs (tenant_id, actor_user_id, action, resource_type, resource_id, metadata)
-         values ($1, $2, 'tenant.provisioned', 'tenant', $3, $4)
+         values ($1, $2, 'tenant.provisioned', 'tenant', $3, $4::text::jsonb)
          returning id`,
         [ctx.tenantId, null, ctx.tenantId, JSON.stringify({ email: op.email })],
       );
@@ -586,6 +623,22 @@ export async function compensateProvisioning(
         etapa.step,
       ]);
 
+      /*
+       * Etapa concluída cujo registro não diz o que ela criou.
+       *
+       * Parar é o único desfecho honesto: seguir marcaria como `compensated`
+       * uma etapa cujos efeitos continuam no banco, e o próximo a olhar veria
+       * "desfeito" sobre um tenant que ainda tem módulos e papéis. A execução
+       * fica em `compensating`, que é visível e não é terminal.
+       */
+      if (etapa.efeitos === null) {
+        throw new Error(
+          `a etapa "${etapa.step}" está concluída e o registro do que ela criou não ` +
+            'pôde ser lido. Nada foi desfeito a partir daqui — o estado precisa ser ' +
+            'conferido à mão antes de tentar de novo.',
+        );
+      }
+
       // Dentro da etapa também na ordem inversa: o que foi criado por último
       // é o primeiro a sair.
       for (const efeito of [...etapa.efeitos].reverse()) {
@@ -617,7 +670,7 @@ export async function compensateProvisioning(
     // apaga o registro do que foi feito.
     await db.query(
       `insert into public.audit_logs (tenant_id, action, resource_type, resource_id, metadata)
-       values ($1, 'tenant.provisioning_compensated', 'tenant', $2, $3)`,
+       values ($1, 'tenant.provisioning_compensated', 'tenant', $2, $3::text::jsonb)`,
       [execucao.tenantId, execucao.tenantId, JSON.stringify({ undone: desfeitas })],
     );
 
@@ -667,12 +720,12 @@ async function abrirExecucao(
   const { rows } = await db.query(
     `insert into public.provisioning_runs
        (tenant_id, idempotency_key, payload, requested_by, status, started_at, attempts)
-     values ($1, $2, $3, $4, 'running', now(), 1)
+     values ($1, $2, $3::text::jsonb, $4, 'running', now(), 1)
      returning id`,
     [
       tenantId,
       input.idempotencyKey,
-      JSON.stringify({ blueprint: input.blueprint }),
+      JSON.stringify({ blueprint: input.blueprint, request: input.request ?? null }),
       input.requestedBy,
     ],
   );
@@ -727,7 +780,7 @@ async function concluirEtapa(
   await db.query(
     `update public.provisioning_steps
      set status = $3::public.provisioning_step_status,
-         finished_at = now(), error = null, result = $4
+         finished_at = now(), error = null, result = $4::text::jsonb
      where run_id = $1 and step = $2`,
     [runId, step, aconteceuAlgo ? 'succeeded' : 'skipped', JSON.stringify({ effects: efeitos })],
   );
@@ -747,7 +800,7 @@ async function concluir(db: SqlClient, runId: string, ctx: Contexto): Promise<vo
   if (ctx.pendentes.length > 0) {
     await db.query(
       `update public.provisioning_steps
-       set result = result || $2::jsonb
+       set result = result || $2::text::jsonb
        where run_id = $1 and step = 'seed_defaults'`,
       [runId, JSON.stringify({ pending: ctx.pendentes, reason: MOTIVO_SEMENTE_PENDENTE })],
     );

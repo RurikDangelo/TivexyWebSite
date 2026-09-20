@@ -50,7 +50,10 @@ export function connectionUrl(chave = 'DIRECT_URL') {
     .trim()
     .replace(/^["']|["']$/g, '');
 
-  const partes = bruta.match(/^(postgres(?:ql)?:\/\/[^:]+:)([^@]*)(@.+)$/);
+  // A senha vai até o último `@`: o host não pode conter um, e parar no
+  // primeiro cortaria uma senha que tivesse `@` dentro. Mesma regra de
+  // apps/web/src/server/connection-url.ts, que tem os testes.
+  const partes = bruta.match(/^(postgres(?:ql)?:\/\/[^:@]+:)(.*)(@[^@]+)$/);
   if (partes === null) {
     throw new Error(`${chave} não tem a forma postgresql://usuario:senha@host/banco`);
   }
