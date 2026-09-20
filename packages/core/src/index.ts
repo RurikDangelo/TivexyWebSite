@@ -45,6 +45,18 @@ export {
 } from './access.ts';
 
 export {
+  checkBlueprint,
+  enables,
+  termFor,
+  type Blueprint,
+  type BlueprintCheck,
+  type BlueprintProblem,
+  type BlueprintRole,
+  type SeedRecord,
+  type Term,
+} from './blueprint.ts';
+
+export {
   PROVISIONING_STATUSES,
   PROVISIONING_STEP_STATUSES,
   PROVISIONING_STEPS,

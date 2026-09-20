@@ -1,0 +1,74 @@
+{
+  "code": "clinica-odontologica",
+  "name": "Clínica odontológica",
+  "description": "Clínicas e consultórios odontológicos com agenda, pacientes e convênios.",
+  "version": 1,
+  "plan": "profissional",
+  "modules": ["core", "crm", "finance"],
+  "terms": {
+    "crm.contacts": { "singular": "paciente", "plural": "pacientes" },
+    "crm.companies": { "singular": "convênio", "plural": "convênios" },
+    "crm.deals": { "singular": "tratamento", "plural": "tratamentos" },
+    "crm.activities": { "singular": "consulta", "plural": "consultas" },
+    "crm.leads": { "singular": "interessado", "plural": "interessados" }
+  },
+  "roles": [
+    {
+      "code": "recepcao",
+      "name": "Recepção",
+      "permissions": [
+        "crm.contacts.read",
+        "crm.contacts.write",
+        "crm.activities.read",
+        "crm.activities.write",
+        "crm.leads.read",
+        "crm.leads.write",
+        "crm.companies.read",
+        "finance.receivables.read"
+      ]
+    },
+    {
+      "code": "dentista",
+      "name": "Dentista",
+      "permissions": [
+        "crm.contacts.read",
+        "crm.contacts.write",
+        "crm.deals.read",
+        "crm.deals.write",
+        "crm.activities.read",
+        "crm.activities.write"
+      ]
+    }
+  ],
+  "seeds": [
+    { "entity": "crm.pipelines", "values": { "name": "Tratamentos", "is_default": true } },
+    {
+      "entity": "crm.pipeline_stages",
+      "values": { "pipeline": "Tratamentos", "name": "Avaliação", "position": 1 }
+    },
+    {
+      "entity": "crm.pipeline_stages",
+      "values": { "pipeline": "Tratamentos", "name": "Orçamento enviado", "position": 2 }
+    },
+    {
+      "entity": "crm.pipeline_stages",
+      "values": { "pipeline": "Tratamentos", "name": "Aprovado", "position": 3 }
+    },
+    {
+      "entity": "crm.pipeline_stages",
+      "values": { "pipeline": "Tratamentos", "name": "Em tratamento", "position": 4 }
+    },
+    {
+      "entity": "crm.pipeline_stages",
+      "values": { "pipeline": "Tratamentos", "name": "Concluído", "position": 5 }
+    },
+    { "entity": "crm.activity_types", "values": { "name": "Consulta" } },
+    { "entity": "crm.activity_types", "values": { "name": "Retorno" } },
+    { "entity": "crm.activity_types", "values": { "name": "Urgência" } }
+  ],
+  "settings": {
+    "currency": "BRL",
+    "timezone": "America/Sao_Paulo",
+    "crm.contact_requires_document": true
+  }
+}
