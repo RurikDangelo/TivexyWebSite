@@ -30,7 +30,7 @@
 | Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
 | Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
 | Contratos (`packages/core`)  | ✅     | `npm run validate` — 157 testes; contratos conferidos contra o SQL |
-| CI (GitHub Actions)          | 🟡     | Push feito; execução não conferida — `gh` sem autenticação aqui    |
+| CI (GitHub Actions)          | 🟡     | Escrito e no remoto; roda na abertura do PR, não em push de branch |
 | Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado       |
 
 ## 2. Estado por módulo
@@ -217,17 +217,47 @@ aplicadas em `tivexy-core` (🔒 externo).
 
 Ordenadas por urgência:
 
-| #   | Tarefa                                       | Bloqueia              | Urgência    |
-| --- | -------------------------------------------- | --------------------- | ----------- |
-| 1   | **Autorizar o conector Supabase no projeto** | Aplicar as migrations | 🔴 Imediata |
-| 2   | Conferir o destino do formulário de contato  | Leads da landing      | 🟠 Alta     |
-| 3   | Conta/organização Vercel própria da Tivexy   | Deploy do SaaS        | 🟠 Média    |
-| 4   | Domínio `tivexy.com.br` + DNS                | SEO, e-mail           | 🟠 Média    |
-| 5   | E-mail corporativo + SPF/DKIM/DMARC          | Convites do SaaS      | 🟠 Média    |
-| 6   | Credenciais OpenAI                           | AI Engine             | 🟡 Depois   |
-| 7   | Meta Business + WhatsApp Business API        | Atendimento           | 🟡 Depois   |
-| 8   | Provedor fiscal + certificado digital        | Fiscal                | 🟡 Depois   |
-| 9   | CNPJ, contador, conta PJ, contratos          | Venda formal          | 🟡 Paralelo |
+| #   | Tarefa                                             | Bloqueia                 | Urgência    |
+| --- | -------------------------------------------------- | ------------------------ | ----------- |
+| 1   | **Aplicar as migrations em `tivexy-core`**         | Todo o SaaS              | 🔴 Imediata |
+| 2   | **Abrir o PR** da branch `monorepo-tivexy-core`    | Primeira execução do CI  | 🔴 Imediata |
+| 3   | **Reautorizar o conector Vercel no escopo Tivexy** | Qualquer coisa na Vercel | 🟠 Alta     |
+| 4   | Conferir o destino do formulário de contato        | Leads da landing         | 🟠 Alta     |
+| 5   | Projeto Vercel do `apps/web` + variáveis           | Deploy do SaaS           | 🟡 Depois   |
+| 6   | Domínio `tivexy.com.br` + DNS                      | SEO, e-mail              | 🟠 Média    |
+| 7   | E-mail corporativo + SPF/DKIM/DMARC                | Convites do SaaS         | 🟠 Média    |
+| 8   | Credenciais OpenAI                                 | AI Engine                | 🟡 Depois   |
+| 9   | Meta Business + WhatsApp Business API              | Atendimento              | 🟡 Depois   |
+| 10  | Provedor fiscal + certificado digital              | Fiscal                   | 🟡 Depois   |
+| 11  | CNPJ, contador, conta PJ, contratos                | Venda formal             | 🟡 Paralelo |
+
+A ordem importa: o Supabase é o que **produz as chaves** que a variável de
+ambiente da Vercel vai precisar. Cadastrar env antes é preencher campo com valor
+que ainda não existe.
+
+O item 5 é deliberadamente "depois": sem autenticação, o SaaS não tem o que
+servir. Criar o projeto agora seria estrutura vazia. Ver ADR-002.
+
+### Os dois conectores estão fora de alcance — verificado em 19/09/2026
+
+Ambos foram autorizados antes de o alvo existir, e nenhum dos dois se resolve
+daqui: `reconnect` só serve para conector com falha, e os dois estão saudáveis.
+
+| Conector | Alcança                                           | Precisa alcançar                                  |
+| -------- | ------------------------------------------------- | ------------------------------------------------- |
+| Supabase | `NIT-GLASSES`, `NIT-ERP-CRM`                      | `tivexy-core` (`lddpqizqjvtimxmorxux`)            |
+| Vercel   | `team_VerzWfKr9mCSD0jxIT4siHqz` — projetos da NIT | escopo `tivexy` (`team_StfA3dMbSHoj6qr0sLbMGLK4`) |
+
+A Vercel responde literalmente:
+
+> Trying to access resource under scope "tivexy". You must re-authenticate to
+> this scope or use a token with access to this scope.
+
+**Achado positivo:** o escopo `tivexy` **já existe** na Vercel, e a landing vive
+nele (`prj_d10OZnrXAeUDSHIgDTEDJMvQ7RKA` — lido de `.vercel/project.json`). A
+auditoria listava "criar organização Vercel própria da Tivexy" como pendência;
+essa parte está feita. O que falta é o projeto do `apps/web`, que ainda não
+existe.
 
 **Resolvido em 19/09/2026 (madrugada):** o `git push` aconteceu — a branch
 `monorepo-tivexy-core` está no remoto, no mesmo commit do local. Deixou de
@@ -316,11 +346,18 @@ Depois de aplicar, **rodar o teste de isolamento contra o projeto real**. Os
    teste. Falta a implementação no backend, com `service_role`.
 6. **Painel Super Admin**, e só então CRM e ERP.
 
+### 2b. 🔴 Abrir o PR
+
+O push aconteceu, mas **o CI nunca rodou** — e isso está certo: o workflow
+dispara em `push` para `main`, em `pull_request` e manualmente. Push de branch
+de trabalho não dispara nada, de propósito.
+
+Abrir o PR é o que faz os 27 commits serem validados em máquina limpa, não só
+nesta. O `gh` aqui não está autenticado, então é pela interface do GitHub — ou
+`gh auth login` para destravar e eu abrir.
+
 ### O que dá para fazer sem esperar nada
 
-- Abrir o PR da branch `monorepo-tivexy-core` (o push já aconteceu; o `gh` nesta
-  máquina não está autenticado, então é pela interface do GitHub ou depois de um
-  `gh auth login`)
 - Conferir se o destino do formulário de contato da landing ainda responde
 - Revisar as variáveis de outro projeto no ambiente Vercel (`DATABASE_URL`,
   `AUTH_SECRET`, `STORE_TIMEZONE` e outras) — a landing não usa nenhuma, mas
