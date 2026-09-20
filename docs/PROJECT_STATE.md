@@ -452,7 +452,7 @@ para publicar é a conta certa no conector, logo acima nesta lista, e cadastrar
 as mesmas variáveis que `apps/web/.env.local` já tem — inclusive `DATABASE_URL`,
 que o provisionamento usa.
 
-### Os dois conectores estão logados na conta errada — verificado em 19/09/2026
+### Os dois conectores estão logados na conta errada — reconferido em 20/09/2026
 
 **Diagnóstico corrigido.** A primeira leitura foi "o conector precisa ser
 reautorizado no projeto". Está errado: o problema não é escopo, é **conta**.
@@ -473,6 +473,11 @@ conector com falha, e os dois estão saudáveis.
 | -------- | ------------------------------------------------- | ------------------------------------------------- |
 | Supabase | `NIT-GLASSES`, `NIT-ERP-CRM`                      | `tivexy-core` (`lddpqizqjvtimxmorxux`)            |
 | Vercel   | `team_VerzWfKr9mCSD0jxIT4siHqz` — projetos da NIT | escopo `tivexy` (`team_StfA3dMbSHoj6qr0sLbMGLK4`) |
+
+Reconferido em 20/09/2026, sem mudança: o conector Vercel lista apenas
+`nit-crm-whitelabel-admin`, `vidros` e `barbearia-salao`, todos em
+`team_VerzWfKr9mCSD0jxIT4siHqz`. Nenhum projeto Tivexy aparece, e pedir o
+escopo `tivexy` responde 403.
 
 A Vercel responde literalmente:
 
@@ -508,6 +513,24 @@ resta é conferir se o destino do formulário ainda responde.
 app (`DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_APP_URL`,
 `STORE_TIMEZONE`, `SESSION_TTL_DAYS`). A landing em Astro não usa nenhuma.
 Apagar segredo sem contexto é irreversível — vale revisar.
+
+## 6.1 O Trello não foi atualizado em 20/09/2026
+
+O conector do Trello caiu no meio da sessão e as ferramentas dele deixaram de
+existir. As entregas desta data estão em `docs/` e no código; **o quadro não**.
+
+Enquanto não for reconciliado, quatro fontes de verdade viraram três — que é
+exatamente o risco nº 5 desta página acontecendo. O que precisa entrar:
+
+| Card                                | Para                                          |
+| ----------------------------------- | --------------------------------------------- |
+| Autenticação e sessão               | Concluído                                     |
+| Middleware / guarda ligada          | Concluído — virou `proxy.ts`                  |
+| Provisionamento no backend          | Concluído                                     |
+| Painel Super Admin                  | Concluído em parte — criar, retomar, desfazer |
+| **Novo:** SMTP próprio no Supabase  | Bloqueado — externo, 🔴                       |
+| **Novo:** aceitar convite pela tela | A fazer — precisa de função SECURITY DEFINER  |
+| **Novo:** escolher CRM ou ERP       | Precisa de decisão                            |
 
 ## 7. Riscos ativos
 
