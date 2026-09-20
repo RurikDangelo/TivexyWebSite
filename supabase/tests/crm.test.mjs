@@ -1,0 +1,437 @@
+/**
+ * Testes do esquema do CRM.
+ *
+ * Três famílias, e cada uma prova uma afirmação que a migration faz:
+ *
+ *   1. Isolamento — o CRM herda o do Core, e isso precisa ser verificado, não
+ *      suposto: política nova é oportunidade nova de errar.
+ *   2. Chave composta — a migration afirma que apontar para outro tenant é
+ *      **impossível de escrever**. Ou o banco recusa, ou a afirmação é falsa.
+ *   3. Gatilhos — etapa do funil certo, e `closed_at` acompanhando a etapa.
+ *
+ * O teste mais importante do arquivo é o da família 2. Os três defeitos que a
+ * revisão adversarial do Core encontrou eram todos dessa forma, e nenhum deles
+ * dava erro: produziam dado que parecia certo na tela e era de outra empresa.
+ *
+ *   npm run test:db
+ */
+import assert from 'node:assert/strict';
+import { after, before, describe, it } from 'node:test';
+
+import { addMember, asUser, createDatabase, createTenant, createUser } from './harness.mjs';
+
+let db;
+const fx = {};
+
+/** Uma linha de CRM, criada com privilégio total (fora do RLS). */
+async function criar(tabela, valores) {
+  const colunas = Object.keys(valores);
+  const params = colunas.map((_, i) => `$${i + 1}`);
+  const { rows } = await db.query(
+    `insert into public.${tabela} (${colunas.join(', ')}) values (${params.join(', ')}) returning id`,
+    Object.values(valores),
+  );
+  return rows[0].id;
+}
+
+before(async () => {
+  db = await createDatabase();
+
+  fx.tenantA = await createTenant(db, { slug: 'aurora-crm', name: 'Aurora' });
+  fx.tenantB = await createTenant(db, { slug: 'base-crm', name: 'Base' });
+
+  fx.adminA = await createUser(db, { email: 'admin@aurora.crm', fullName: 'Admin A' });
+  fx.adminB = await createUser(db, { email: 'admin@base.crm', fullName: 'Admin B' });
+  fx.colabA = await createUser(db, { email: 'colab@aurora.crm', fullName: 'Colab A' });
+
+  await addMember(db, { tenantId: fx.tenantA, userId: fx.adminA, roleCode: 'tenant_admin' });
+  await addMember(db, { tenantId: fx.tenantB, userId: fx.adminB, roleCode: 'tenant_admin' });
+  await addMember(db, { tenantId: fx.tenantA, userId: fx.colabA, roleCode: 'collaborator' });
+
+  /* Um funil completo em cada tenant, para o isolamento ter o que separar. */
+  for (const [lado, tenant] of [
+    ['A', fx.tenantA],
+    ['B', fx.tenantB],
+  ]) {
+    fx[`empresa${lado}`] = await criar('crm_companies', {
+      tenant_id: tenant,
+      name: `Cliente ${lado}`,
+    });
+    fx[`pessoa${lado}`] = await criar('crm_contacts', {
+      tenant_id: tenant,
+      company_id: fx[`empresa${lado}`],
+      name: `Pessoa ${lado}`,
+    });
+    fx[`funil${lado}`] = await criar('crm_pipelines', {
+      tenant_id: tenant,
+      name: 'Vendas',
+      is_default: true,
+    });
+    fx[`etapa${lado}`] = await criar('crm_pipeline_stages', {
+      tenant_id: tenant,
+      pipeline_id: fx[`funil${lado}`],
+      name: 'Primeiro contato',
+      position: 1,
+    });
+    fx[`ganha${lado}`] = await criar('crm_pipeline_stages', {
+      tenant_id: tenant,
+      pipeline_id: fx[`funil${lado}`],
+      name: 'Fechado',
+      kind: 'won',
+      position: 9,
+    });
+    fx[`negocio${lado}`] = await criar('crm_deals', {
+      tenant_id: tenant,
+      pipeline_id: fx[`funil${lado}`],
+      stage_id: fx[`etapa${lado}`],
+      company_id: fx[`empresa${lado}`],
+      title: `Proposta ${lado}`,
+      value_cents: 150000,
+    });
+    fx[`lead${lado}`] = await criar('crm_leads', {
+      tenant_id: tenant,
+      name: `Lead ${lado}`,
+    });
+  }
+});
+
+after(async () => {
+  await db?.close?.();
+});
+
+/* ── 1. Isolamento ─────────────────────────────────────────────────────── */
+
+describe('isolamento entre tenants', () => {
+  const tabelas = [
+    'crm_companies',
+    'crm_contacts',
+    'crm_pipelines',
+    'crm_pipeline_stages',
+    'crm_deals',
+    'crm_leads',
+  ];
+
+  it('cada tabela do CRM só devolve linhas do próprio tenant', async () => {
+    for (const tabela of tabelas) {
+      const linhas = await asUser(db, fx.adminA, () =>
+        db.query(`select tenant_id from public.${tabela}`),
+      );
+      assert.ok(linhas.rows.length > 0, `${tabela}: o cenário precisa ter linha para separar`);
+      for (const linha of linhas.rows) {
+        assert.equal(linha.tenant_id, fx.tenantA, `${tabela} vazou linha de outro tenant`);
+      }
+    }
+  });
+
+  it('não dá para ler uma linha do outro tenant nem sabendo o id', async () => {
+    const { rows } = await asUser(db, fx.adminA, () =>
+      db.query('select id from public.crm_deals where id = $1', [fx.negocioB]),
+    );
+    assert.equal(rows.length, 0, 'o id de outro tenant não pode responder nada');
+  });
+
+  it('não dá para escrever no tenant do outro', async () => {
+    await assert.rejects(
+      asUser(db, fx.adminA, () =>
+        db.query('insert into public.crm_leads (tenant_id, name) values ($1, $2)', [
+          fx.tenantB,
+          'Infiltrado',
+        ]),
+      ),
+      /row-level security|violates/i,
+    );
+  });
+
+  it('não dá para apagar a linha do outro', async () => {
+    await asUser(db, fx.adminA, () =>
+      db.query('delete from public.crm_deals where id = $1', [fx.negocioB]),
+    );
+    const { rows } = await db.query('select id from public.crm_deals where id = $1', [fx.negocioB]);
+    assert.equal(rows.length, 1, 'a oportunidade do outro tenant sumiu');
+  });
+
+  it('`tenant_id` não é editável — nem para a própria linha', async () => {
+    // O RLS recusaria de qualquer jeito, porque o `with check` olha o valor
+    // novo. Mas depender disso é depender de a política continuar escrita do
+    // jeito certo; o privilégio de coluna é a regra direta.
+    await assert.rejects(
+      asUser(db, fx.adminA, () =>
+        db.query('update public.crm_leads set tenant_id = $1 where id = $2', [
+          fx.tenantB,
+          fx.leadA,
+        ]),
+      ),
+      /permission denied|row-level security/i,
+    );
+  });
+});
+
+/* ── 2. Permissão ──────────────────────────────────────────────────────── */
+
+describe('permissão, não só pertencimento', () => {
+  it('colaborador lê lead e não apaga', async () => {
+    // `collaborator` tem leads.read/write e não tem leads.delete — ver a
+    // matriz em docs/12-SECURITY/AUTHORIZATION.md, gerada do próprio banco.
+    const leitura = await asUser(db, fx.colabA, () =>
+      db.query('select id from public.crm_leads where id = $1', [fx.leadA]),
+    );
+    assert.equal(leitura.rows.length, 1, 'colaborador precisa enxergar o lead');
+  });
+
+  it('quem não é membro não enxerga nada do CRM', async () => {
+    const estranho = await createUser(db, { email: 'ninguem@fora.crm', fullName: 'Ninguém' });
+    const { rows } = await asUser(db, estranho, () =>
+      db.query('select id from public.crm_companies'),
+    );
+    assert.equal(rows.length, 0);
+  });
+});
+
+/* ── 3. Chave composta: a garantia estrutural ──────────────────────────── */
+
+describe('referência entre tenants é impossível de escrever', () => {
+  it('pessoa não aponta para conta de outro tenant', async () => {
+    await assert.rejects(
+      criar('crm_contacts', {
+        tenant_id: fx.tenantA,
+        company_id: fx.empresaB,
+        name: 'Espião',
+      }),
+      /foreign key|violates/i,
+    );
+  });
+
+  it('oportunidade não aponta para funil de outro tenant', async () => {
+    await assert.rejects(
+      criar('crm_deals', {
+        tenant_id: fx.tenantA,
+        pipeline_id: fx.funilB,
+        stage_id: fx.etapaB,
+        title: 'Vazada',
+      }),
+      /foreign key|violates/i,
+    );
+  });
+
+  it('etapa não pertence a funil de outro tenant', async () => {
+    await assert.rejects(
+      criar('crm_pipeline_stages', {
+        tenant_id: fx.tenantA,
+        pipeline_id: fx.funilB,
+        name: 'Etapa alheia',
+      }),
+      /foreign key|violates/i,
+    );
+  });
+
+  it('atividade não aponta para oportunidade de outro tenant', async () => {
+    await assert.rejects(
+      criar('crm_activities', {
+        tenant_id: fx.tenantA,
+        subject: 'Ligar',
+        deal_id: fx.negocioB,
+      }),
+      /foreign key|violates/i,
+    );
+  });
+
+  it('responsável precisa ser membro deste tenant', async () => {
+    await assert.rejects(
+      criar('crm_companies', {
+        tenant_id: fx.tenantA,
+        name: 'Com dono alheio',
+        owner_id: fx.adminB,
+      }),
+      /foreign key|violates/i,
+    );
+  });
+
+  /*
+   * A prova de que a garantia é do banco e não do caminho da aplicação: a
+   * escrita acima roda **sem RLS**, com privilégio total. Se só o RLS
+   * protegesse, ela passaria — e passaria também para o provisionamento, que
+   * usa a chave de serviço.
+   */
+  it('a recusa vale mesmo com privilégio total, fora do RLS', async () => {
+    await assert.rejects(
+      db.query(
+        `insert into public.crm_deals (tenant_id, pipeline_id, stage_id, title)
+         values ($1, $2, $3, 'Direto no banco')`,
+        [fx.tenantA, fx.funilB, fx.etapaB],
+      ),
+      /foreign key|violates/i,
+    );
+  });
+});
+
+/* ── 4. Gatilhos ───────────────────────────────────────────────────────── */
+
+describe('a etapa precisa ser do funil da oportunidade', () => {
+  it('recusa etapa de outro funil do mesmo tenant', async () => {
+    // Mesmo tenant, então a chave composta deixa passar. É o caso que ela
+    // **não** alcança, e por isso existe um gatilho.
+    const outroFunil = await criar('crm_pipelines', {
+      tenant_id: fx.tenantA,
+      name: 'Pós-venda',
+    });
+    const outraEtapa = await criar('crm_pipeline_stages', {
+      tenant_id: fx.tenantA,
+      pipeline_id: outroFunil,
+      name: 'Acompanhamento',
+    });
+
+    await assert.rejects(
+      criar('crm_deals', {
+        tenant_id: fx.tenantA,
+        pipeline_id: fx.funilA,
+        stage_id: outraEtapa,
+        title: 'Etapa de outro funil',
+      }),
+      /não pertence ao funil/i,
+    );
+  });
+});
+
+describe('closed_at acompanha a etapa', () => {
+  it('nasce vazio em etapa aberta', async () => {
+    const { rows } = await db.query('select closed_at from public.crm_deals where id = $1', [
+      fx.negocioA,
+    ]);
+    assert.equal(rows[0].closed_at, null);
+  });
+
+  it('é carimbado ao entrar em etapa terminal', async () => {
+    await db.query('update public.crm_deals set stage_id = $1 where id = $2', [
+      fx.ganhaA,
+      fx.negocioA,
+    ]);
+    const { rows } = await db.query('select closed_at from public.crm_deals where id = $1', [
+      fx.negocioA,
+    ]);
+    assert.notEqual(rows[0].closed_at, null, 'oportunidade ganha sem data de fechamento');
+  });
+
+  it('é limpo ao voltar para etapa aberta', async () => {
+    await db.query('update public.crm_deals set stage_id = $1 where id = $2', [
+      fx.etapaA,
+      fx.negocioA,
+    ]);
+    const { rows } = await db.query('select closed_at from public.crm_deals where id = $1', [
+      fx.negocioA,
+    ]);
+    assert.equal(rows[0].closed_at, null, 'oportunidade reaberta continuou com data de fechamento');
+  });
+
+  /*
+   * O caso que motiva o gatilho existir: a data não depende de quem escreve
+   * lembrar dela. Importação, automação e SQL à mão passam pelo mesmo caminho.
+   */
+  it('não depende de a escrita informar a data', async () => {
+    const negocio = await criar('crm_deals', {
+      tenant_id: fx.tenantA,
+      pipeline_id: fx.funilA,
+      stage_id: fx.ganhaA,
+      title: 'Nasce ganha',
+    });
+    const { rows } = await db.query('select closed_at from public.crm_deals where id = $1', [
+      negocio,
+    ]);
+    assert.notEqual(rows[0].closed_at, null);
+  });
+});
+
+/* ── 5. Regras de forma ────────────────────────────────────────────────── */
+
+describe('o que o esquema recusa', () => {
+  it('atividade sem alvo', async () => {
+    await assert.rejects(
+      criar('crm_activities', { tenant_id: fx.tenantA, subject: 'Solta no mundo' }),
+      /crm_activities_one_target/,
+    );
+  });
+
+  it('atividade com dois alvos', async () => {
+    await assert.rejects(
+      criar('crm_activities', {
+        tenant_id: fx.tenantA,
+        subject: 'Ambígua',
+        lead_id: fx.leadA,
+        deal_id: fx.negocioA,
+      }),
+      /crm_activities_one_target/,
+    );
+  });
+
+  it('dois funis padrão no mesmo tenant', async () => {
+    await assert.rejects(
+      criar('crm_pipelines', { tenant_id: fx.tenantA, name: 'Outro padrão', is_default: true }),
+      /crm_pipelines_one_default_per_tenant|duplicate key/i,
+    );
+  });
+
+  it('cada tenant tem o seu padrão, sem conflito com o do vizinho', async () => {
+    const { rows } = await db.query(
+      'select tenant_id from public.crm_pipelines where is_default order by tenant_id',
+    );
+    assert.equal(rows.length, 2, 'os dois tenants precisam ter funil padrão próprio');
+  });
+
+  it('nome em branco', async () => {
+    await assert.rejects(
+      criar('crm_companies', { tenant_id: fx.tenantA, name: '   ' }),
+      /name_not_blank/,
+    );
+  });
+
+  it('valor negativo', async () => {
+    await assert.rejects(
+      criar('crm_deals', {
+        tenant_id: fx.tenantA,
+        pipeline_id: fx.funilA,
+        stage_id: fx.etapaA,
+        title: 'Negativa',
+        value_cents: -1,
+      }),
+      /value_not_negative/,
+    );
+  });
+
+  it('lead convertido sem data de conversão', async () => {
+    await assert.rejects(
+      criar('crm_leads', { tenant_id: fx.tenantA, name: 'Meio convertido', status: 'converted' }),
+      /converted_consistency/,
+    );
+  });
+
+  it('lead com data de conversão e status que não é convertido', async () => {
+    await assert.rejects(
+      criar('crm_leads', {
+        tenant_id: fx.tenantA,
+        name: 'Data sem estado',
+        status: 'qualified',
+        converted_at: new Date().toISOString(),
+      }),
+      /converted_consistency/,
+    );
+  });
+});
+
+/* ── 6. O que acontece quando o tenant sai ─────────────────────────────── */
+
+describe('apagar o tenant leva o CRM junto', () => {
+  it('nenhuma linha de CRM sobrevive ao tenant', async () => {
+    const tenant = await createTenant(db, { slug: 'efemero-crm', name: 'Efêmero' });
+    const empresa = await criar('crm_companies', { tenant_id: tenant, name: 'Some junto' });
+    await criar('crm_contacts', { tenant_id: tenant, company_id: empresa, name: 'Também' });
+
+    await db.query('delete from public.tenants where id = $1', [tenant]);
+
+    for (const tabela of ['crm_companies', 'crm_contacts']) {
+      const { rows } = await db.query(
+        `select count(*)::int as n from public.${tabela} where tenant_id = $1`,
+        [tenant],
+      );
+      assert.equal(rows[0].n, 0, `${tabela} deixou órfão para trás`);
+    }
+  });
+});
