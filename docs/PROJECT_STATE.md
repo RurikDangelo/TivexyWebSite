@@ -29,7 +29,7 @@
 | Esquema do Core              | 🟡     | `npm run test:db` — 101 testes em Postgres 18; **não aplicado**    |
 | Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
 | Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
-| Contratos (`packages/core`)  | ✅     | `npm run validate` — 157 testes; contratos conferidos contra o SQL |
+| Contratos (`packages/core`)  | ✅     | `npm run validate` — 222 testes; contratos conferidos contra o SQL |
 | CI (GitHub Actions)          | 🟡     | Escrito e no remoto; roda na abertura do PR, não em push de branch |
 | Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado       |
 
@@ -118,11 +118,27 @@ build sem erro; conferido no navegador em claro, escuro e 375px):
 - Estados de 404, erro e carregamento (esqueleto, não spinner)
 - Mapa de regras por rota em `src/config/routes.ts`, **fechado por padrão**, com
   teste que cruza navegação e rotas
+- `lib/auth/guard.ts`: a guarda de rota, pura — junta `matchRule`,
+  `decideAccess` e `redirectFor`, e resolve as duas coisas que só aparecem
+  quando elas se juntam: laço de redirecionamento e redirecionamento aberto
+- `lib/env.ts`: leitura de ambiente que falha cedo e nomeia a variável que
+  falta, em vez de `fetch failed` no meio da requisição
+- `/acesso-negado`: a tradução de `DenialReason` para texto que distingue
+  "módulo não contratado" de "sem permissão" — a diferença entre falar com o
+  comercial ou com o administrador da empresa
+
+**72 testes em `apps/web`**, incluindo um invariante que percorre cada motivo de
+negação com destino e prova que quem foi mandado para lá consegue abrir.
 
 **Não existe ainda:** autenticação, banco, rotas `(auth)` e `(admin)`, e qualquer
 módulo de negócio. A navegação declara essas rotas como `pending`/`blocked` e as
 renderiza desabilitadas, de propósito — a estrutura aparece sem prometer tela
 que não há.
+
+**A guarda não está ligada a requisição nenhuma.** Ela existe, é pura e tem
+teste; falta o `middleware.ts` que a chama e a camada de sessão que monta o
+`Viewer`. Ligar antes de existir `/entrar` trocaria uma página que funciona por
+um 404 — e `/entrar` depende de Supabase aplicado.
 
 ### Admin / Super Admin
 
@@ -333,15 +349,17 @@ sessão foi autorizado antes de `tivexy-core` existir e responde
 `You do not have permission` nele.
 
 Depois de aplicar, **rodar o teste de isolamento contra o projeto real**. Os
-157 testes rodam em Postgres WASM: fiéis ao contrato, não ao transporte.
+101 testes de banco rodam em Postgres WASM: fiéis ao contrato, não ao
+transporte.
 
 ### Depois, na ordem do ADR-002
 
 3. **Autenticação** — Supabase Auth: login, convite, recuperação, sessão. A
    decisão de acesso já existe e está testada; falta a camada de sessão que
    chama `current_viewer()` e alimenta `parseViewer()`.
-4. **Middleware** — ligar `matchRule` + `decideAccess` + `redirectFor` às rotas.
-   As três peças existem e têm teste; falta o fio que as conecta à requisição.
+4. **Middleware** — `guard()` já existe e está testada; falta o `middleware.ts`
+   que a chama e a camada de sessão que monta o `Viewer` a partir dos cookies e
+   de `current_viewer()`. Esta é a parte que precisa do Supabase aplicado.
 5. **Provisionamento** — o esquema sustenta e há um modelo do fluxo provado em
    teste. Falta a implementação no backend, com `service_role`.
 6. **Painel Super Admin**, e só então CRM e ERP.
