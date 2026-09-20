@@ -173,6 +173,41 @@ function texto(value: unknown): string | null {
  * que não existe. O RLS negaria por módulo, e a pessoa veria "módulo não
  * contratado" com uma permissão no bolso.
  */
+/**
+ * Uma semente que cita outra precisa citar algo declarado **antes** dela.
+ *
+ * `crm.pipeline_stages` referencia o funil pelo nome, e não por id: o
+ * documento é escrito à mão e não tem como conhecer um uuid. O executor
+ * resolve o nome no banco, o que significa que o funil precisa já ter sido
+ * semeado — e a ordem é a da lista.
+ *
+ * Sem esta checagem, trocar duas linhas de lugar no JSON passa na validação e
+ * falha **no meio de um provisionamento real**, com o cliente já criado e a
+ * etapa de sementes quebrada. O erro apareceria para quem está criando o
+ * cliente, não para quem editou o documento.
+ */
+function conferirReferencia(
+  entidade: string,
+  valores: Record<string, unknown>,
+  i: number,
+  funisDeclarados: ReadonlySet<string>,
+  erro: (path: string, message: string) => void,
+): void {
+  if (entidade !== 'crm.pipeline_stages') return;
+
+  const funil = texto(valores.pipeline);
+  if (funil === null) {
+    erro(`seeds[${i}].values.pipeline`, 'a etapa precisa dizer de qual funil é');
+    return;
+  }
+  if (!funisDeclarados.has(funil)) {
+    erro(
+      `seeds[${i}].values.pipeline`,
+      `"${funil}" não foi declarado antes desta etapa — o funil precisa vir primeiro na lista`,
+    );
+  }
+}
+
 export function checkBlueprint(raw: unknown): BlueprintCheck {
   const problems: BlueprintProblem[] = [];
   const erro = (path: string, message: string) => problems.push({ path, message });
@@ -305,6 +340,8 @@ export function checkBlueprint(raw: unknown): BlueprintCheck {
   }
 
   /* Sementes */
+  // Os funis já declarados, na ordem em que aparecem. Ver `conferirReferencia`.
+  const funisDeclarados = new Set<string>();
   if (raw.seeds !== undefined) {
     if (!Array.isArray(raw.seeds)) {
       erro('seeds', 'precisa ser uma lista');
@@ -335,6 +372,12 @@ export function checkBlueprint(raw: unknown): BlueprintCheck {
         if (!isRecord(semente.values)) erro(`seeds[${i}].values`, 'precisa ser um objeto');
         else if (Object.keys(semente.values).length === 0) {
           erro(`seeds[${i}].values`, 'semente sem valor nenhum não cria nada');
+        } else if (entidade !== null) {
+          conferirReferencia(entidade, semente.values, i, funisDeclarados, erro);
+          if (entidade === 'crm.pipelines') {
+            const nome = texto(semente.values.name);
+            if (nome !== null) funisDeclarados.add(nome);
+          }
         }
       });
     }

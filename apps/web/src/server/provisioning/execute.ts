@@ -100,6 +100,8 @@ export type Efeito =
   | { kind: 'role'; id: string; code: string }
   | { kind: 'membership'; id: string; userId: string; userCreated: boolean }
   | { kind: 'audit'; id: string }
+  /** Linha de negócio criada por semente do Blueprint. */
+  | { kind: 'seed'; table: SeedTable; id: string }
   /** Semente declarada e não aplicada. Não há o que desfazer. */
   | { kind: 'seedPending'; entity: string };
 
@@ -155,20 +157,112 @@ export type CompensateResult =
   | { ok: false; runId: string | null; error: string };
 
 /**
- * Entidades de negócio ainda não têm tabela.
+ * De que entidade do Blueprint sai cada tabela.
  *
- * `crm.pipelines` e `erp.product_categories` não existem — os módulos não
- * foram construídos. As sementes ficam **registradas como pendentes**, com o
- * motivo, em vez de aplicadas. Fingir que semeou é exatamente o que este
- * projeto proíbe, e apagar a semente perderia a especificação do nicho.
+ * O CRM entrou. `erp.product_categories` e `erp.payment_methods` continuam
+ * fora, porque as tabelas do ERP ainda não existem — e semente sem tabela fica
+ * **registrada como pendente**, com o motivo, em vez de aplicada. Fingir que
+ * semeou é o que este projeto proíbe; apagar a semente perderia a
+ * especificação do nicho.
  *
- * Quando as tabelas existirem, este conjunto encolhe e a etapa passa a
- * executar. Nada mais no fluxo muda.
+ * O nome da tabela sai daqui, nunca do documento: é o que permite
+ * interpolá-lo no SQL abaixo sem abrir caminho para injeção.
  */
-const SEED_TARGETS_DISPONIVEIS: ReadonlySet<string> = new Set();
+const TABELA_DA_SEMENTE = {
+  'crm.pipelines': 'crm_pipelines',
+  'crm.pipeline_stages': 'crm_pipeline_stages',
+  'crm.activity_types': 'crm_activity_types',
+} as const;
+
+type SeedEntity = keyof typeof TABELA_DA_SEMENTE;
+type SeedTable = (typeof TABELA_DA_SEMENTE)[SeedEntity];
+
+function entidadeSemeavel(entity: string): entity is SeedEntity {
+  return Object.hasOwn(TABELA_DA_SEMENTE, entity);
+}
 
 const MOTIVO_SEMENTE_PENDENTE =
-  'módulos de negócio ainda não têm tabela — ver docs/PROJECT_STATE.md';
+  'este módulo de negócio ainda não tem tabela — ver docs/PROJECT_STATE.md';
+
+/* ── Como cada semente vira linha ───────────────────────────────────────── */
+
+function texto_opcional(valor: unknown): string | null {
+  return typeof valor === 'string' && valor.trim() !== '' ? valor.trim() : null;
+}
+
+function inteiro(valor: unknown, padrao: number): number {
+  return typeof valor === 'number' && Number.isInteger(valor) ? valor : padrao;
+}
+
+/**
+ * Semeia uma linha de CRM e devolve o efeito.
+ *
+ * `crm.pipeline_stages` referencia o funil **pelo nome**, e não por id — o
+ * documento de nicho é escrito à mão e não tem como conhecer um uuid. A
+ * resolução acontece aqui, dentro do tenant, e o nome de funil é único por
+ * tenant justamente para que ela não seja ambígua.
+ *
+ * A ordem importa: o funil precisa ter sido semeado antes da etapa. Quem
+ * garante isso é `checkBlueprint()`, que recusa o documento em que a etapa
+ * cita um funil não declarado — melhor falhar na validação do que no meio de
+ * um provisionamento.
+ */
+async function semear(
+  db: SqlClient,
+  tenantId: string,
+  entity: SeedEntity,
+  values: Readonly<Record<string, unknown>>,
+): Promise<Efeito> {
+  const nome = texto_opcional(values.name);
+  if (nome === null) {
+    throw new Error(`semente de "${entity}" sem nome`);
+  }
+
+  if (entity === 'crm.pipelines') {
+    const { rows } = await db.query(
+      `insert into public.crm_pipelines (tenant_id, name, is_default, position)
+       values ($1, $2, $3, $4) returning id`,
+      [tenantId, nome, values.is_default === true, inteiro(values.position, 0)],
+    );
+    return { kind: 'seed', table: 'crm_pipelines', id: texto(rows[0]?.id) };
+  }
+
+  if (entity === 'crm.activity_types') {
+    const { rows } = await db.query(
+      `insert into public.crm_activity_types (tenant_id, name, position)
+       values ($1, $2, $3) returning id`,
+      [tenantId, nome, inteiro(values.position, 0)],
+    );
+    return { kind: 'seed', table: 'crm_activity_types', id: texto(rows[0]?.id) };
+  }
+
+  const funil = texto_opcional(values.pipeline);
+  if (funil === null) {
+    throw new Error(`a etapa "${nome}" não diz de qual funil é`);
+  }
+
+  const { rows: encontrado } = await db.query(
+    'select id from public.crm_pipelines where tenant_id = $1 and name = $2',
+    [tenantId, funil],
+  );
+  const pipelineId = encontrado[0]?.id;
+  if (typeof pipelineId !== 'string') {
+    throw new Error(`a etapa "${nome}" cita o funil "${funil}", que não foi semeado antes dela`);
+  }
+
+  const { rows } = await db.query(
+    `insert into public.crm_pipeline_stages (tenant_id, pipeline_id, name, kind, position)
+     values ($1, $2, $3, $4::public.crm_stage_kind, $5) returning id`,
+    [
+      tenantId,
+      pipelineId,
+      nome,
+      texto_opcional(values.kind) ?? 'open',
+      inteiro(values.position, 0),
+    ],
+  );
+  return { kind: 'seed', table: 'crm_pipeline_stages', id: texto(rows[0]?.id) };
+}
 
 /* ── Auxiliares ───────────────────────────────────────────────────────── */
 
@@ -318,12 +412,14 @@ async function aplicar(
       return [{ kind: 'membership', id: texto(rows[0]?.id), userId, userCreated: created }];
     }
 
-    case 'seed':
-      if (!SEED_TARGETS_DISPONIVEIS.has(op.entity)) {
+    case 'seed': {
+      if (!entidadeSemeavel(op.entity)) {
         ctx.pendentes.push({ entity: op.entity, values: op.values });
         return [{ kind: 'seedPending', entity: op.entity }];
       }
-      throw new Error(`semente para "${op.entity}" declarada como disponível, mas sem execução`);
+      if (ctx.tenantId === null) throw new Error('semente antes de o tenant existir');
+      return [await semear(db, ctx.tenantId, op.entity, op.values)];
+    }
 
     case 'invite': {
       /*
@@ -387,6 +483,18 @@ async function desfazer(
       // **Auditoria não se desfaz.** `audit_logs` não tem política de DELETE, e
       // isso é de propósito: log editável não é auditoria. O registro de que a
       // empresa foi provisionada fica; o desfazer acrescenta o próprio.
+      return;
+
+    case 'seed':
+      /*
+       * O nome da tabela vem de `TABELA_DA_SEMENTE`, que é constante deste
+       * arquivo — nunca do documento de nicho. Por isso dá para interpolá-lo:
+       * o conjunto de valores possíveis está escrito logo acima.
+       */
+      await db.query(`delete from public.${efeito.table} where id = $1 and tenant_id = $2`, [
+        efeito.id,
+        tenantId,
+      ]);
       return;
 
     case 'seedPending':

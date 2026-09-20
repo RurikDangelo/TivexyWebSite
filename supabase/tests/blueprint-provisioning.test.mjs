@@ -338,11 +338,11 @@ describe('os papéis do nicho valem de verdade', () => {
 });
 
 describe('o que não foi aplicado fica registrado, não escondido', () => {
-  it('as sementes de negócio ficam pendentes, com o motivo', async () => {
-    // Os módulos de negócio não têm tabela ainda. Registrar como pendente é a
-    // única alternativa honesta a fingir que semeou.
+  it('as sementes de CRM viram linha de verdade', async () => {
+    // Este teste dizia o contrário até o CRM existir: as sementes ficavam
+    // pendentes porque não havia tabela. A mudança de resposta é o marco.
     const bp = nichos['clinica-odontologica'];
-    const { runId } = await provisionarPorBlueprint(db, {
+    const { runId, tenantId } = await provisionarPorBlueprint(db, {
       blueprint: bp,
       slug: 'clinica-sementes',
       name: 'Clínica Sementes',
@@ -355,9 +355,95 @@ describe('o que não foi aplicado fica registrado, não escondido', () => {
        where run_id = $1 and step = 'seed_defaults'`,
       [runId],
     );
+    assert.equal(rows[0].status, 'succeeded', 'a etapa executou');
+
+    const funis = await db.query(
+      'select name, is_default from public.crm_pipelines where tenant_id = $1',
+      [tenantId],
+    );
+    assert.equal(funis.rows.length, 1);
+    assert.equal(funis.rows[0].name, 'Tratamentos');
+    assert.equal(funis.rows[0].is_default, true);
+
+    // As etapas citam o funil pelo nome; resolver isso é do executor.
+    const etapas = await db.query(
+      `select s.name, s.position from public.crm_pipeline_stages s
+       join public.crm_pipelines p on p.id = s.pipeline_id
+       where s.tenant_id = $1 and p.name = 'Tratamentos'
+       order by s.position`,
+      [tenantId],
+    );
+    assert.deepEqual(
+      etapas.rows.map((r) => r.name),
+      ['Avaliação', 'Orçamento enviado', 'Aprovado', 'Em tratamento', 'Concluído'],
+    );
+
+    const tipos = await db.query(
+      'select name from public.crm_activity_types where tenant_id = $1 order by name',
+      [tenantId],
+    );
+    assert.deepEqual(
+      tipos.rows.map((r) => r.name),
+      ['Consulta', 'Retorno', 'Urgência'],
+    );
+  });
+
+  it('as sementes de ERP continuam pendentes, com o motivo', async () => {
+    // O ERP ainda não tem tabela. Registrar como pendente continua sendo a
+    // única alternativa honesta a fingir que semeou — e a diferença entre
+    // este teste e o de cima é a prova de que "pendente" não é preguiça.
+    const bp = nichos['mercado'];
+    const { runId } = await provisionarPorBlueprint(db, {
+      blueprint: bp,
+      slug: 'mercado-sementes',
+      name: 'Mercado Sementes',
+      admin: admin(2),
+      idempotencyKey: 'req-sementes-erp',
+    });
+
+    const { rows } = await db.query(
+      `select status::text as status, result from public.provisioning_steps
+       where run_id = $1 and step = 'seed_defaults'`,
+      [runId],
+    );
     assert.equal(rows[0].status, 'skipped', 'não foi executada — e diz isso');
     assert.equal(rows[0].result.pending.length, bp.seeds.length, 'nenhuma semente se perde');
     assert.match(rows[0].result.reason, /tabela/, 'o motivo precisa estar registrado');
+  });
+
+  it('desfazer remove as linhas que a semente criou', async () => {
+    const bp = nichos['clinica-odontologica'];
+    const { tenantId } = await provisionarPorBlueprint(db, {
+      blueprint: bp,
+      slug: 'clinica-desfaz',
+      name: 'Clínica Desfaz',
+      admin: admin(3),
+      idempotencyKey: 'req-sementes-desfaz',
+    });
+
+    const antes = await db.query(
+      'select count(*)::int as n from public.crm_pipeline_stages where tenant_id = $1',
+      [tenantId],
+    );
+    assert.ok(antes.rows[0].n > 0, 'o cenário depende de haver semente aplicada');
+
+    // Falhar de propósito depois de semear, para haver o que compensar.
+    await db.query(
+      `update public.provisioning_runs set status = 'failed', finished_at = now()
+       where idempotency_key = 'req-sementes-desfaz'`,
+    );
+    const r = await compensateProvisioning(db, identidadeDoHarness(db), {
+      idempotencyKey: 'req-sementes-desfaz',
+    });
+    assert.equal(r.ok, true, r.ok ? '' : r.error);
+
+    for (const tabela of ['crm_pipelines', 'crm_pipeline_stages', 'crm_activity_types']) {
+      const { rows } = await db.query(
+        `select count(*)::int as n from public.${tabela} where tenant_id = $1`,
+        [tenantId],
+      );
+      assert.equal(rows[0].n, 0, `${tabela} sobreviveu ao desfazer`);
+    }
   });
 
   it('a execução guarda de qual blueprint e versão o tenant nasceu', async () => {

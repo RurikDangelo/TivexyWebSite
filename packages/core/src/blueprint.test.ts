@@ -362,3 +362,54 @@ describe('sementes', () => {
     assert.equal(checkBlueprint(semente('erp.payment_methods')).valid, true);
   });
 });
+
+describe('semente que cita outra semente', () => {
+  /*
+   * A etapa referencia o funil pelo nome, e o executor resolve isso no banco.
+   * Se a etapa vier antes do funil, a validação passa e o provisionamento
+   * quebra no meio — com o cliente já criado. O erro precisa aparecer para
+   * quem editou o documento, não para quem está criando o cliente.
+   */
+  function comSementes(seeds: unknown[]) {
+    return checkBlueprint({
+      code: 'teste-ordem',
+      name: 'Teste',
+      description: 'Documento mínimo para exercitar a ordem das sementes.',
+      version: 1,
+      plan: 'profissional',
+      modules: ['core', 'crm'],
+      seeds,
+    });
+  }
+
+  const funil = { entity: 'crm.pipelines', values: { name: 'Vendas' } };
+  const etapa = { entity: 'crm.pipeline_stages', values: { pipeline: 'Vendas', name: 'Início' } };
+
+  it('aceita quando o funil vem antes', () => {
+    const r = comSementes([funil, etapa]);
+    assert.equal(r.valid, true, r.valid ? '' : JSON.stringify(r.problems));
+  });
+
+  it('recusa quando a etapa vem antes do funil', () => {
+    const r = comSementes([etapa, funil]);
+    assert.equal(r.valid, false);
+    assert.ok(
+      !r.valid && r.problems.some((p) => p.path === 'seeds[0].values.pipeline'),
+      'o problema precisa apontar a etapa, não o funil',
+    );
+  });
+
+  it('recusa etapa que cita funil inexistente', () => {
+    const r = comSementes([funil, { ...etapa, values: { pipeline: 'Outro', name: 'X' } }]);
+    assert.equal(r.valid, false);
+  });
+
+  it('recusa etapa que não diz de qual funil é', () => {
+    const r = comSementes([
+      funil,
+      { entity: 'crm.pipeline_stages', values: { name: 'Sem funil' } },
+    ]);
+    assert.equal(r.valid, false);
+    assert.ok(!r.valid && r.problems.some((p) => /funil/.test(p.message)));
+  });
+});
