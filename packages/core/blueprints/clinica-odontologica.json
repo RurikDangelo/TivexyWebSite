@@ -6,11 +6,26 @@
   "plan": "profissional",
   "modules": ["core", "crm", "finance"],
   "terms": {
-    "crm.contacts": { "singular": "paciente", "plural": "pacientes" },
-    "crm.companies": { "singular": "convênio", "plural": "convênios" },
-    "crm.deals": { "singular": "tratamento", "plural": "tratamentos" },
-    "crm.activities": { "singular": "consulta", "plural": "consultas" },
-    "crm.leads": { "singular": "interessado", "plural": "interessados" }
+    "crm.contacts": {
+      "singular": "paciente",
+      "plural": "pacientes"
+    },
+    "crm.companies": {
+      "singular": "convênio",
+      "plural": "convênios"
+    },
+    "crm.deals": {
+      "singular": "tratamento",
+      "plural": "tratamentos"
+    },
+    "crm.activities": {
+      "singular": "consulta",
+      "plural": "consultas"
+    },
+    "crm.leads": {
+      "singular": "interessado",
+      "plural": "interessados"
+    }
   },
   "roles": [
     {
@@ -41,34 +56,75 @@
     }
   ],
   "seeds": [
-    { "entity": "crm.pipelines", "values": { "name": "Tratamentos", "is_default": true } },
     {
-      "entity": "crm.pipeline_stages",
-      "values": { "pipeline": "Tratamentos", "name": "Avaliação", "position": 1 }
+      "entity": "crm.pipelines",
+      "values": {
+        "name": "Tratamentos",
+        "is_default": true
+      }
     },
     {
       "entity": "crm.pipeline_stages",
-      "values": { "pipeline": "Tratamentos", "name": "Orçamento enviado", "position": 2 }
+      "values": {
+        "pipeline": "Tratamentos",
+        "name": "Avaliação",
+        "position": 1
+      }
     },
     {
       "entity": "crm.pipeline_stages",
-      "values": { "pipeline": "Tratamentos", "name": "Aprovado", "position": 3 }
+      "values": {
+        "pipeline": "Tratamentos",
+        "name": "Orçamento enviado",
+        "position": 2
+      }
     },
     {
       "entity": "crm.pipeline_stages",
-      "values": { "pipeline": "Tratamentos", "name": "Em tratamento", "position": 4 }
+      "values": {
+        "pipeline": "Tratamentos",
+        "name": "Aprovado",
+        "position": 3
+      }
     },
     {
       "entity": "crm.pipeline_stages",
-      "values": { "pipeline": "Tratamentos", "name": "Concluído", "position": 5 }
+      "values": {
+        "pipeline": "Tratamentos",
+        "name": "Em tratamento",
+        "position": 4
+      }
     },
-    { "entity": "crm.activity_types", "values": { "name": "Consulta" } },
-    { "entity": "crm.activity_types", "values": { "name": "Retorno" } },
-    { "entity": "crm.activity_types", "values": { "name": "Urgência" } }
+    {
+      "entity": "crm.pipeline_stages",
+      "values": {
+        "pipeline": "Tratamentos",
+        "name": "Concluído",
+        "position": 5
+      }
+    },
+    {
+      "entity": "crm.activity_types",
+      "values": {
+        "name": "Consulta"
+      }
+    },
+    {
+      "entity": "crm.activity_types",
+      "values": {
+        "name": "Retorno"
+      }
+    },
+    {
+      "entity": "crm.activity_types",
+      "values": {
+        "name": "Urgência"
+      }
+    }
   ],
   "settings": {
-    "currency": "BRL",
-    "timezone": "America/Sao_Paulo",
+    "core.currency": "BRL",
+    "core.timezone": "America/Sao_Paulo",
     "crm.contact_requires_document": true
   }
 }

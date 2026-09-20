@@ -11,7 +11,9 @@ export {
   SYSTEM_ROLE_CODES,
   PLAN_CODES,
   PERMISSION_CODES,
+  TERM_KEYS,
   moduleOf,
+  moduleOfTerm,
   type ModuleCode,
   type SystemRoleCode,
   type PlanCode,
@@ -43,6 +45,15 @@ export {
   type RouteRule,
   type Viewer,
 } from './access.ts';
+
+export {
+  TENANT_SETTINGS,
+  checkSettingValue,
+  resolveSettings,
+  settingDefinition,
+  type SettingDefinition,
+  type SettingType,
+} from './settings.ts';
 
 export {
   checkBlueprint,

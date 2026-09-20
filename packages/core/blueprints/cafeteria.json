@@ -6,11 +6,26 @@
   "plan": "profissional",
   "modules": ["core", "erp", "inventory", "finance"],
   "terms": {
-    "erp.products": { "singular": "item do cardápio", "plural": "itens do cardápio" },
-    "erp.customers": { "singular": "cliente", "plural": "clientes" },
-    "erp.sales": { "singular": "venda", "plural": "vendas" },
-    "erp.suppliers": { "singular": "fornecedor", "plural": "fornecedores" },
-    "inventory.stock": { "singular": "insumo", "plural": "insumos" }
+    "erp.products": {
+      "singular": "item do cardápio",
+      "plural": "itens do cardápio"
+    },
+    "erp.customers": {
+      "singular": "cliente",
+      "plural": "clientes"
+    },
+    "erp.sales": {
+      "singular": "venda",
+      "plural": "vendas"
+    },
+    "erp.suppliers": {
+      "singular": "fornecedor",
+      "plural": "fornecedores"
+    },
+    "inventory.stock": {
+      "singular": "insumo",
+      "plural": "insumos"
+    }
   },
   "roles": [
     {
@@ -50,19 +65,67 @@
     }
   ],
   "seeds": [
-    { "entity": "erp.product_categories", "values": { "name": "Cafés", "position": 1 } },
-    { "entity": "erp.product_categories", "values": { "name": "Bebidas geladas", "position": 2 } },
-    { "entity": "erp.product_categories", "values": { "name": "Doces", "position": 3 } },
-    { "entity": "erp.product_categories", "values": { "name": "Salgados", "position": 4 } },
-    { "entity": "erp.payment_methods", "values": { "name": "Dinheiro", "code": "cash" } },
-    { "entity": "erp.payment_methods", "values": { "name": "Pix", "code": "pix" } },
-    { "entity": "erp.payment_methods", "values": { "name": "Cartão de débito", "code": "debit" } },
-    { "entity": "erp.payment_methods", "values": { "name": "Cartão de crédito", "code": "credit" } }
+    {
+      "entity": "erp.product_categories",
+      "values": {
+        "name": "Cafés",
+        "position": 1
+      }
+    },
+    {
+      "entity": "erp.product_categories",
+      "values": {
+        "name": "Bebidas geladas",
+        "position": 2
+      }
+    },
+    {
+      "entity": "erp.product_categories",
+      "values": {
+        "name": "Doces",
+        "position": 3
+      }
+    },
+    {
+      "entity": "erp.product_categories",
+      "values": {
+        "name": "Salgados",
+        "position": 4
+      }
+    },
+    {
+      "entity": "erp.payment_methods",
+      "values": {
+        "name": "Dinheiro",
+        "code": "cash"
+      }
+    },
+    {
+      "entity": "erp.payment_methods",
+      "values": {
+        "name": "Pix",
+        "code": "pix"
+      }
+    },
+    {
+      "entity": "erp.payment_methods",
+      "values": {
+        "name": "Cartão de débito",
+        "code": "debit"
+      }
+    },
+    {
+      "entity": "erp.payment_methods",
+      "values": {
+        "name": "Cartão de crédito",
+        "code": "credit"
+      }
+    }
   ],
   "settings": {
-    "currency": "BRL",
-    "timezone": "America/Sao_Paulo",
-    "sales.requires_customer": false,
+    "core.currency": "BRL",
+    "core.timezone": "America/Sao_Paulo",
+    "erp.sales_requires_customer": false,
     "inventory.deduct_on_sale": true
   }
 }

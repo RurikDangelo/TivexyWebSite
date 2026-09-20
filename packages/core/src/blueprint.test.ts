@@ -18,6 +18,7 @@ import {
   enables,
   termFor,
 } from './blueprint.ts';
+import { TERM_KEYS } from './catalog.ts';
 
 /** Um documento mínimo e válido, para as variações partirem daqui. */
 const base = {
@@ -39,7 +40,7 @@ const base = {
     },
   ],
   seeds: [{ entity: 'erp.product_categories', values: { name: 'Cafés' } }],
-  settings: { currency: 'BRL' },
+  settings: { 'core.currency': 'BRL' },
 };
 
 /** Valida e devolve o blueprint, falhando o teste se não for válido. */
@@ -74,7 +75,7 @@ describe('documento válido', () => {
     assert.deepEqual(bp.roles, []);
     assert.deepEqual(bp.seeds, []);
     assert.deepEqual(bp.terms, {});
-    assert.deepEqual(bp.settings, { currency: 'BRL' });
+    assert.deepEqual(bp.settings, { 'core.currency': 'BRL' });
   });
 
   it('apara espaço dos textos', () => {
@@ -84,19 +85,26 @@ describe('documento válido', () => {
 });
 
 describe('a fronteira do ADR-003', () => {
-  /** Sem papéis, para isolar asserções sobre módulos da cascata de permissões. */
-  const semPapeis = { ...base, roles: [] };
+  /**
+   * Só módulos, sem nada que dependa deles.
+   *
+   * Tudo no blueprint aponta para um módulo — papel, rótulo, configuração —,
+   * então mexer na lista de módulos faz o resto reclamar junto. Para afirmar
+   * algo **sobre módulos**, o resto sai do caminho.
+   */
+  const soModulos = { ...base, roles: [], terms: {}, settings: {} };
 
   it('recusa módulo que não existe no catálogo', () => {
-    assert.deepEqual(problemas({ ...semPapeis, modules: ['core', 'veterinaria'] }), ['modules[1]']);
+    assert.deepEqual(problemas({ ...soModulos, modules: ['core', 'veterinaria'] }), ['modules[1]']);
   });
 
-  it('tirar um módulo denuncia os papéis que dependiam dele', () => {
-    // A cascata é de propósito. Quem remove `erp` de um blueprint que tem um
-    // papel com permissão de ERP precisa ver as duas coisas: o módulo que
-    // sumiu e o papel que ficou órfão. Relatar só a causa esconderia o
-    // trabalho que ainda falta fazer.
+  it('tirar um módulo denuncia tudo que dependia dele', () => {
+    // A cascata é de propósito. Quem remove `erp` precisa ver as três coisas
+    // que ficaram órfãs — rótulos, permissões de papel — e não só o módulo
+    // que sumiu. Relatar apenas a causa esconderia o trabalho que ainda falta.
     assert.deepEqual(problemas({ ...base, modules: ['core', 'inventory'] }), [
+      'terms.erp.customers',
+      'terms.erp.products',
       'roles[0].permissions[0]',
       'roles[0].permissions[1]',
       'roles[0].permissions[2]',
@@ -127,7 +135,7 @@ describe('a fronteira do ADR-003', () => {
   it('o módulo core é obrigatório', () => {
     // Sem `core` não há usuários nem permissões — o tenant não teria como ter
     // administrador, e o provisionamento pararia no meio.
-    assert.deepEqual(problemas({ ...base, modules: ['erp'] }), ['modules']);
+    assert.deepEqual(problemas({ ...soModulos, modules: ['erp'] }), ['modules']);
   });
 
   it('um tenant sem módulo nenhum não opera', () => {
@@ -256,5 +264,69 @@ describe('leitura', () => {
     const bp = valido(base);
     assert.equal(enables(bp, 'erp'), true);
     assert.equal(enables(bp, 'crm'), false);
+  });
+});
+
+describe('o vocabulário precisa existir', () => {
+  it('recusa chave que não é recurso do Core', () => {
+    // Este é o defeito sem sintoma: `erp.produtos` nunca daria erro, o rótulo
+    // simplesmente não seria aplicado, e a tela mostraria o nome genérico como
+    // se estivesse tudo certo.
+    const r = { ...base, terms: { 'erp.produtos': { singular: 'item', plural: 'itens' } } };
+    assert.deepEqual(problemas(r), ['terms.erp.produtos']);
+  });
+
+  it('recusa rótulo de módulo que o blueprint não habilita', () => {
+    const r = { ...base, terms: { 'crm.leads': { singular: 'x', plural: 'y' } } };
+    assert.deepEqual(problemas(r), ['terms.crm.leads']);
+  });
+
+  it('aceita qualquer recurso que tenha permissão no catálogo', () => {
+    // A lista de chaves renomeáveis é derivada das permissões, então tudo que
+    // o Core protege pode ser renomeado. Sem exceção que alguém precise decorar.
+    for (const chave of TERM_KEYS.filter((k) => k.startsWith('erp.'))) {
+      const r = { ...base, terms: { [chave]: { singular: 'a', plural: 'b' } } };
+      assert.equal(checkBlueprint(r).valid, true, `${chave} deveria ser renomeável`);
+    }
+  });
+});
+
+describe('as configurações precisam existir', () => {
+  it('recusa chave que não é configuração do Core', () => {
+    // O Blueprint escolhe o valor de uma configuração; ele não decide que
+    // configurações existem. Antes, `moeda` entrava calada e nunca era lida.
+    assert.deepEqual(problemas({ ...base, settings: { moeda: 'BRL' } }), ['settings.moeda']);
+  });
+
+  it('recusa configuração de módulo que o blueprint não habilita', () => {
+    const r = { ...base, settings: { 'crm.contact_requires_document': true } };
+    assert.deepEqual(problemas(r), ['settings.crm.contact_requires_document']);
+  });
+
+  it('recusa valor do tipo errado, dizendo o que esperava', () => {
+    const r = checkBlueprint({ ...base, settings: { 'erp.sales_requires_customer': 'sim' } });
+    assert.equal(r.valid, false);
+    const [p] = (r as { valid: false; problems: BlueprintProblem[] }).problems;
+    assert.equal(p?.path, 'settings.erp.sales_requires_customer');
+    assert.match(p?.message ?? '', /verdadeiro ou falso/);
+  });
+
+  it('recusa valor fora das opções, listando as aceitas', () => {
+    const r = checkBlueprint({ ...base, settings: { 'core.currency': 'USD' } });
+    assert.equal(r.valid, false);
+    const [p] = (r as { valid: false; problems: BlueprintProblem[] }).problems;
+    assert.match(p?.message ?? '', /BRL/, 'a mensagem precisa dizer o que é aceito');
+  });
+
+  it('recusa fuso horário que não existe', () => {
+    const r = { ...base, settings: { 'core.timezone': 'America/Sao_Paulo_Errado' } };
+    assert.ok(problemas(r).includes('settings.core.timezone'));
+  });
+
+  it('aceita fuso horário de verdade', () => {
+    for (const fuso of ['America/Sao_Paulo', 'America/Manaus', 'UTC']) {
+      const r = { ...base, settings: { 'core.timezone': fuso } };
+      assert.equal(checkBlueprint(r).valid, true, `${fuso} deveria ser aceito`);
+    }
   });
 });

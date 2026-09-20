@@ -29,7 +29,7 @@
 | Esquema do Core              | 🟡     | `npm run test:db` — 114 testes em Postgres 18; **não aplicado**    |
 | Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
 | Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
-| Contratos (`packages/core`)  | ✅     | `npm run validate` — 305 testes; contratos conferidos contra o SQL |
+| Contratos (`packages/core`)  | ✅     | `npm run validate` — 331 testes; contratos conferidos contra o SQL |
 | CI (GitHub Actions)          | 🟡     | Escrito e no remoto; roda na abertura do PR, não em push de branch |
 | Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado       |
 
@@ -166,7 +166,7 @@ declarativa de provisionamento**.
   todos os problemas de uma vez com o caminho dentro do documento
 - Dois nichos reais em JSON: `cafeteria` (erp, inventory, finance) e
   `clinica-odontologica` (crm, finance) — diferem em módulo e em vocabulário
-- 45 testes de contrato e 10 de provisionamento contra Postgres, incluindo o
+- 71 testes de contrato e 10 de provisionamento contra Postgres, incluindo o
   marco do ADR-003: nichos diferentes produzem tenants diferentes, e o mesmo
   nicho provisionado duas vezes produz tenants iguais
 

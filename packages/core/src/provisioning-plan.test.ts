@@ -38,7 +38,7 @@ const blueprint: Blueprint = (() => {
       { entity: 'erp.product_categories', values: { name: 'Cafés' } },
       { entity: 'erp.payment_methods', values: { name: 'Pix' } },
     ],
-    settings: { currency: 'BRL' },
+    settings: { 'core.currency': 'BRL' },
   });
   assert.equal(r.valid, true);
   return (r as { valid: true; blueprint: Blueprint }).blueprint;

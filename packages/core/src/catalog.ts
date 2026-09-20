@@ -113,3 +113,29 @@ export type PermissionCode = (typeof PERMISSION_CODES)[number];
 export function moduleOf(permission: PermissionCode): ModuleCode {
   return permission.split('.')[0] as ModuleCode;
 }
+
+/* ── Vocabulário ──────────────────────────────────────────────────────── */
+
+/**
+ * As chaves que um Blueprint pode renomear.
+ *
+ * **Derivadas das permissões, não escritas à mão.** Um recurso do Core é algo
+ * sobre o que existe permissão — `crm.contacts`, `erp.products` —, então a lista
+ * de coisas renomeáveis é exatamente `modulo.recurso` de cada permissão, sem o
+ * verbo. Manter uma segunda lista escrita à mão seria criar mais uma
+ * duplicação para o teste de contratos vigiar, e ela divergiria no dia em que
+ * alguém adicionasse um recurso.
+ *
+ * O que isto permite cobrar: um blueprint que escreva `erp.produtos` em vez de
+ * `erp.products` é recusado na validação, em vez de silenciosamente nunca
+ * aplicar o rótulo — que é o tipo de defeito que ninguém encontra, porque a
+ * tela só mostra o nome genérico e parece que está certo.
+ */
+export const TERM_KEYS = [
+  ...new Set(PERMISSION_CODES.map((p) => p.split('.').slice(0, 2).join('.'))),
+].sort() as readonly string[];
+
+/** O módulo de uma chave de vocabulário. */
+export function moduleOfTerm(key: string): string {
+  return key.split('.')[0] ?? key;
+}

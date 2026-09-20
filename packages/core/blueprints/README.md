@@ -43,7 +43,7 @@ momento, e esta tabela existe para esse momento.
   "terms": { "erp.products": { "singular": "...", "plural": "..." } },
   "roles": [{ "code": "barista", "name": "Barista", "permissions": ["..."] }],
   "seeds": [{ "entity": "erp.payment_methods", "values": { "name": "Pix" } }],
-  "settings": { "currency": "BRL" },
+  "settings": { "erp.sales_requires_customer": false },
 }
 ```
 
@@ -63,6 +63,47 @@ com a permissão no bolso. A validação recusa.
 
 **`version` é do documento, não do formato.** Serve para responder depois
 "este tenant nasceu com qual configuração?".
+
+### Rótulo e configuração precisam existir
+
+As duas são validadas contra o Core, e por um motivo específico: **chave errada
+não dá erro, só não tem efeito.** `erp.produtos` em vez de `erp.products`
+simplesmente nunca aplicaria o rótulo, e a tela mostraria o nome genérico como
+se estivesse tudo certo. É o defeito que ninguém encontra, porque não há
+sintoma — só ausência.
+
+**Rótulos** (`terms`): a chave é `modulo.recurso`, e a lista vem das próprias
+permissões do catálogo. Tudo que o Core protege pode ser renomeado:
+
+```
+core.tenant  core.users  core.roles  core.teams  core.audit  core.settings
+crm.leads  crm.contacts  crm.companies  crm.deals  crm.activities
+erp.products  erp.customers  erp.suppliers  erp.sales  erp.purchases
+inventory.stock  inventory.movements
+finance.payables  finance.receivables  finance.cashflow
+fiscal.documents  automation.rules  ai.assistant  integrations.connections
+```
+
+**Configurações** (`settings`): a lista está em `packages/core/src/settings.ts`,
+com tipo, padrão e descrição de cada uma. O valor é conferido contra o tipo —
+`"sim"` onde se espera booleano é recusado com a mensagem certa.
+
+| Chave                           | Tipo     | Padrão              |
+| ------------------------------- | -------- | ------------------- |
+| `core.currency`                 | BRL      | `BRL`               |
+| `core.timezone`                 | texto    | `America/Sao_Paulo` |
+| `crm.contact_requires_document` | booleano | `false`             |
+| `erp.sales_requires_customer`   | booleano | `true`              |
+| `inventory.deduct_on_sale`      | booleano | `true`              |
+
+**Adicionar uma configuração é mudança de Core, não de Blueprint.** É a regra
+do ADR-003 funcionando na prática: quando um nicho precisa de algo que não está
+na lista, a resposta é construir no Core — não inventar uma chave no documento.
+
+Só entra no blueprint o que for **diferente do padrão**. O que fica gravado no
+tenant é a diferença, não o resultado: assim um padrão novo alcança quem já
+existe, sem migração, e continua dando para responder "o que este cliente mudou
+de propósito?".
 
 ### Os módulos precisam caber no plano
 

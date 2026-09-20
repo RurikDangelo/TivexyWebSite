@@ -27,7 +27,10 @@ import {
   type PermissionCode,
   PLAN_CODES,
   type PlanCode,
+  TERM_KEYS,
+  moduleOfTerm,
 } from './catalog.ts';
+import { checkSettingValue, settingDefinition } from './settings.ts';
 
 /* ── O documento ──────────────────────────────────────────────────────── */
 
@@ -116,6 +119,7 @@ const ROLE_CODE_FORMAT = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/;
 const MODULES = new Set<string>(MODULE_CODES);
 const PERMISSIONS = new Set<string>(PERMISSION_CODES);
 const PLANS = new Set<string>(PLAN_CODES);
+const TERMOS = new Set<string>(TERM_KEYS);
 
 /**
  * O módulo a que uma permissão pertence, lido do próprio código.
@@ -214,6 +218,26 @@ export function checkBlueprint(raw: unknown): BlueprintCheck {
       erro('terms', 'precisa ser um objeto');
     } else {
       for (const [chave, valor] of Object.entries(raw.terms)) {
+        /*
+         * A chave precisa ser um recurso que o Core conhece.
+         *
+         * Sem isto, `erp.produtos` em vez de `erp.products` não dá erro: o
+         * rótulo simplesmente nunca é aplicado, e a tela mostra o nome
+         * genérico como se estivesse tudo certo. É o defeito que ninguém
+         * encontra, porque não há sintoma — só ausência de efeito.
+         */
+        if (!TERMOS.has(chave)) {
+          erro(`terms.${chave}`, `"${chave}" não é um recurso do Core`);
+          continue;
+        }
+        if (habilitados.size > 0 && !habilitados.has(moduleOfTerm(chave))) {
+          erro(
+            `terms.${chave}`,
+            `pertence ao módulo "${moduleOfTerm(chave)}", que este blueprint não habilita`,
+          );
+          continue;
+        }
+
         if (!isRecord(valor)) {
           erro(`terms.${chave}`, 'precisa ter singular e plural');
           continue;
@@ -285,8 +309,31 @@ export function checkBlueprint(raw: unknown): BlueprintCheck {
     }
   }
 
-  if (raw.settings !== undefined && !isRecord(raw.settings)) {
-    erro('settings', 'precisa ser um objeto');
+  /* Configurações */
+  if (raw.settings !== undefined) {
+    if (!isRecord(raw.settings)) {
+      erro('settings', 'precisa ser um objeto');
+    } else {
+      for (const [chave, valor] of Object.entries(raw.settings)) {
+        const def = settingDefinition(chave);
+        if (def === null) {
+          // Mesma armadilha dos rótulos: chave errada não dá erro, só não
+          // tem efeito. O Blueprint escolhe o valor de uma configuração; ele
+          // não decide que configurações existem (ADR-003).
+          erro(`settings.${chave}`, `"${chave}" não é uma configuração do Core`);
+          continue;
+        }
+        if (habilitados.size > 0 && !habilitados.has(def.module)) {
+          erro(
+            `settings.${chave}`,
+            `pertence ao módulo "${def.module}", que este blueprint não habilita`,
+          );
+          continue;
+        }
+        const problema = checkSettingValue(def, valor);
+        if (problema !== null) erro(`settings.${chave}`, problema);
+      }
+    }
   }
 
   if (problems.length > 0) return { valid: false, problems };
