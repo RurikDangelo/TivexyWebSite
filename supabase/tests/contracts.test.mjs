@@ -25,6 +25,8 @@ import {
   isTerminal,
   moduleOf,
 } from '../../packages/core/src/index.ts';
+import { checkBlueprint } from '../../packages/core/src/blueprint.ts';
+import { planProvisioning } from '../../packages/core/src/provisioning-plan.ts';
 import { createDatabase } from './harness.mjs';
 
 let db;
@@ -185,5 +187,121 @@ describe('provisionamento — o que o TypeScript acha que está vivo', () => {
     const noTypeScript = PROVISIONING_STATUSES.filter(isTerminal).sort();
 
     assertSameSet(noTypeScript, noBanco, 'estados terminais');
+  });
+});
+
+describe('o subdomínio: TypeScript × constraint', () => {
+  /**
+   * `planProvisioning` valida o slug antes de escrever, e o banco valida de
+   * novo em `tenants_slug_format`. Duplicação deliberada: sem a primeira, um
+   * endereço inválido só é recusado depois de meia dúzia de operações, e chega
+   * ao Super Admin como violação de constraint — que não diz o que fazer.
+   *
+   * A propriedade que importa **não** é "os dois aceitam as mesmas entradas".
+   * O Core normaliza antes de validar: `CAFE` vira `cafe`, e é `cafe` que chega
+   * ao banco. Comparar as entradas cruas acusaria divergência onde há
+   * normalização.
+   *
+   * O que precisa valer é:
+   *
+   * > O Core nunca produz um slug que o banco recusaria.
+   *
+   * Ser mais rígido que o banco é aceitável — é só uma recusa mais cedo, com
+   * mensagem melhor. Ser mais frouxo é o que produz violação de constraint no
+   * meio do provisionamento, com o tenant já criado.
+   *
+   * A comparação é de **comportamento**: extrai a expressão real da constraint
+   * e pergunta ao Postgres. Comparar o texto das duas expressões falharia por
+   * diferença de escrita sem que nada estivesse errado.
+   */
+  const candidatos = [
+    'cafe-do-centro',
+    'ab',
+    'a1',
+    'x'.repeat(63),
+    'a',
+    '-cafe',
+    'cafe-',
+    'café',
+    'cafe_do_centro',
+    'cafe do centro',
+    'CAFE',
+    '',
+    'x'.repeat(64),
+  ];
+
+  const blueprintMinimo = {
+    code: 'teste',
+    name: 'Teste',
+    description: 'Para o teste de slug.',
+    version: 1,
+    plan: 'essencial',
+    modules: ['core'],
+    terms: {},
+    roles: [],
+    seeds: [],
+    settings: {},
+  };
+
+  /** O slug que o Core gravaria, ou `null` se ele recusar a entrada. */
+  function slugQueOCoreGrava(entrada) {
+    const bp = checkBlueprint(blueprintMinimo);
+    assert.equal(bp.valid, true);
+    const plano = planProvisioning({
+      blueprint: bp.blueprint,
+      planModules: ['core'],
+      slug: entrada,
+      name: 'Teste',
+      admin: { email: 'a@b.com', fullName: 'A' },
+    });
+    if (!plano.ok) return null;
+    const criar = plano.operations.find((o) => o.kind === 'create_tenant');
+    return criar.slug;
+  }
+
+  it('nunca produz um endereço que o banco recusaria', async () => {
+    const { rows } = await db.query(`
+      select pg_get_constraintdef(oid) as formato
+      from pg_constraint where conname = 'tenants_slug_format'
+    `);
+    assert.equal(rows.length, 1, 'a constraint precisa existir');
+
+    const expressao = /~ '([^']+)'/.exec(rows[0].formato)?.[1];
+    assert.ok(expressao, `não consegui extrair a expressão de: ${rows[0].formato}`);
+
+    const escapariam = [];
+    for (const entrada of candidatos) {
+      const gravado = slugQueOCoreGrava(entrada);
+      if (gravado === null) continue; // recusado antes de escrever: ótimo
+
+      const { rows: r } = await db.query('select ($1 ~ $2) and length($1) between 2 and 63 as ok', [
+        gravado,
+        expressao,
+      ]);
+      if (r[0].ok !== true) {
+        escapariam.push(`${JSON.stringify(entrada)} → ${JSON.stringify(gravado)}`);
+      }
+    }
+
+    assert.deepEqual(
+      escapariam,
+      [],
+      'o Core deixou passar endereços que o banco recusa — viraria violação de constraint com o tenant já criado',
+    );
+  });
+
+  it('normaliza em vez de recusar quando dá para normalizar', () => {
+    // Exigir que o Super Admin digite tudo em minúscula seria rigor sem
+    // motivo: `CAFE` é um endereço perfeitamente válido depois de normalizado.
+    assert.equal(slugQueOCoreGrava('CAFE'), 'cafe');
+    assert.equal(slugQueOCoreGrava('  Cafe-Do-Centro  '), 'cafe-do-centro');
+  });
+
+  it('e o conjunto de candidatos cobre os dois lados', () => {
+    // Sem isto, uma lista só de endereços válidos faria o teste acima passar
+    // sem nunca exercitar uma recusa.
+    const aceitos = candidatos.filter((c) => slugQueOCoreGrava(c) !== null);
+    assert.ok(aceitos.length > 0, 'nenhum candidato válido');
+    assert.ok(aceitos.length < candidatos.length, 'nenhum candidato inválido');
   });
 });

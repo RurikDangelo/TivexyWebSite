@@ -10,8 +10,11 @@
  * teste: um nicho que quebrasse o provisionamento precisa falhar aqui, não em
  * produção com um tenant pela metade.
  *
- * Como em `provisioning.test.mjs`, o provisionador é um MODELO. O que se prova
- * é que o esquema sustenta as garantias — não a implementação de produção.
+ * **A decisão não é modelo — é o Core.** `planProvisioning`, de `@tivexy/core`,
+ * diz o que fazer; este arquivo só executa a lista. O que ainda é modelo é o
+ * executor: a produção vai escrever com `service_role` e falar com serviços que
+ * o teste não tem. Mas a regra — a ordem, a validação, a recusa por plano — é a
+ * mesma que vai rodar em produção, e é isso que este teste exercita.
  *
  *   npm run test:db
  */
@@ -21,6 +24,7 @@ import { join } from 'node:path';
 import { after, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { checkBlueprint } from '../../packages/core/src/blueprint.ts';
+import { planProvisioning } from '../../packages/core/src/provisioning-plan.ts';
 import { createDatabase, createUser } from './harness.mjs';
 
 const DIR = fileURLToPath(new URL('../../packages/core/blueprints/', import.meta.url));
@@ -65,97 +69,108 @@ async function modulosDoPlano(db, planCode) {
 /**
  * Provisiona um tenant a partir de um blueprint.
  *
- * A ordem é a de `PROVISIONING_STEPS`, e cada passo faz o que o blueprint
- * manda — não o que está escrito no código. É essa diferença que torna um
- * nicho novo um documento em vez de um deploy.
+ * O que decide **o que** fazer é `planProvisioning`, de `@tivexy/core`. Esta
+ * função só **executa** a lista que ele devolve — não tem regra própria, nem
+ * ordem própria, nem validação própria.
+ *
+ * Essa separação é o ponto. Enquanto a lógica vivia aqui dentro, o que rodava
+ * no teste era um modelo paralelo ao que a produção teria que escrever de novo,
+ * e os dois podiam divergir sem ninguém notar. Agora o teste prova que **o
+ * plano do Core** funciona contra Postgres de verdade.
  */
-async function provisionarPorBlueprint(db, { blueprint, slug, name, admin, idempotencyKey }) {
-  /*
-   * O blueprint não pode habilitar módulo fora do plano.
-   *
-   * O esquema permite um tenant ter módulo além do plano — cortesia, piloto,
-   * migração — e isso é de propósito. Mas cortesia é decisão comercial
-   * explícita e auditada, não algo que um documento de nicho concede em
-   * silêncio para todo cliente daquele nicho. Se um blueprint precisa de um
-   * módulo, o plano dele é outro.
-   */
-  const doPlano = await modulosDoPlano(db, blueprint.plan);
-  const excedentes = blueprint.modules.filter((m) => !doPlano.has(m));
-  if (excedentes.length > 0) {
-    throw new Error(
-      `blueprint "${blueprint.code}" pede ${excedentes.join(', ')} fora do plano ${blueprint.plan}`,
-    );
+async function executarPlano(db, operacoes, { blueprint, idempotencyKey }) {
+  let tenantId = null;
+  let runId = null;
+  const pendentes = [];
+
+  for (const op of operacoes) {
+    switch (op.kind) {
+      case 'create_tenant': {
+        const { rows } = await db.query(
+          `insert into public.tenants (slug, name, status, plan_id, settings)
+           values ($1, $2, 'provisioning', (select id from public.plans where code = $3), $4)
+           returning id`,
+          [op.slug, op.name, op.plan, JSON.stringify(op.settings)],
+        );
+        tenantId = rows[0].id;
+
+        const run = await db.query(
+          `insert into public.provisioning_runs (tenant_id, idempotency_key, payload, requested_by, status, started_at)
+           values ($1, $2, $3, $4, 'running', now())
+           returning id`,
+          [
+            tenantId,
+            idempotencyKey,
+            // De qual blueprint e versão este tenant nasceu. Sem isto, a
+            // pergunta "com que configuração ele foi criado?" vira adivinhação
+            // assim que o documento mudar.
+            JSON.stringify({ blueprint: { code: blueprint.code, version: blueprint.version } }),
+            superAdmin,
+          ],
+        );
+        runId = run.rows[0].id;
+        break;
+      }
+
+      case 'enable_module':
+        await db.query(
+          `insert into public.tenant_modules (tenant_id, module_id, is_enabled, enabled_at)
+           select $1, m.id, true, now() from public.modules m where m.code = $2`,
+          [tenantId, op.module],
+        );
+        break;
+
+      case 'create_role': {
+        const { rows } = await db.query(
+          `insert into public.roles (tenant_id, code, name, is_system)
+           values ($1, $2, $3, false) returning id`,
+          [tenantId, op.code, op.name],
+        );
+        await db.query(
+          `insert into public.role_permissions (role_id, permission_id)
+           select $1, p.id from public.permissions p where p.code = any($2::text[])`,
+          [rows[0].id, [...op.permissions]],
+        );
+        break;
+      }
+
+      case 'create_admin': {
+        const userId = await createUser(db, { email: op.email, fullName: op.fullName });
+        await db.query(
+          `insert into public.tenant_users (tenant_id, user_id, role_id, status)
+           values ($1, $2, (select id from public.roles where code = $3 and tenant_id is null), 'invited')`,
+          [tenantId, userId, op.role],
+        );
+        break;
+      }
+
+      case 'seed':
+        // Não aplicada: `crm.pipelines` e `erp.product_categories` não
+        // existem, porque os módulos de negócio não foram construídos.
+        // Fingir que semeou é exatamente o que este projeto proíbe.
+        pendentes.push({ entity: op.entity, values: op.values });
+        break;
+
+      case 'invite':
+        await db.query(
+          `insert into public.audit_logs (tenant_id, action, resource_type, resource_id, metadata)
+           values ($1, 'tenant.provisioned', 'tenant', $2, $3)`,
+          [tenantId, tenantId, JSON.stringify({ email: op.email, blueprint: blueprint.code })],
+        );
+        break;
+
+      default:
+        throw new Error(`operação desconhecida no plano: ${op.kind}`);
+    }
   }
 
-  const tenant = await db.query(
-    `insert into public.tenants (slug, name, status, plan_id, settings)
-     values ($1, $2, 'provisioning', (select id from public.plans where code = $3), $4)
-     returning id`,
-    [slug, name, blueprint.plan, JSON.stringify(blueprint.settings)],
-  );
-  const tenantId = tenant.rows[0].id;
-
-  const run = await db.query(
-    `insert into public.provisioning_runs (tenant_id, idempotency_key, payload, requested_by, status, started_at)
-     values ($1, $2, $3, $4, 'running', now())
-     returning id`,
-    [
-      tenantId,
-      idempotencyKey,
-      // O blueprint inteiro vai no payload: é o que permite responder depois
-      // "este tenant nasceu com qual configuração?" sem adivinhar.
-      JSON.stringify({ blueprint: { code: blueprint.code, version: blueprint.version } }),
-      superAdmin,
-    ],
-  );
-  const runId = run.rows[0].id;
-
-  /* Módulos, exatamente os que o blueprint declara. */
-  await db.query(
-    `insert into public.tenant_modules (tenant_id, module_id, is_enabled, enabled_at)
-     select $1, m.id, true, now()
-     from public.modules m
-     where m.code = any($2::text[])`,
-    [tenantId, blueprint.modules],
-  );
-
-  /* Papéis do nicho, além dos três de sistema. */
-  for (const papel of blueprint.roles) {
-    const { rows } = await db.query(
-      `insert into public.roles (tenant_id, code, name, is_system)
-       values ($1, $2, $3, false)
-       returning id`,
-      [tenantId, papel.code, papel.name],
-    );
-    await db.query(
-      `insert into public.role_permissions (role_id, permission_id)
-       select $1, p.id from public.permissions p where p.code = any($2::text[])`,
-      [rows[0].id, papel.permissions],
-    );
-  }
-
-  const adminId = await createUser(db, { email: admin.email, fullName: admin.name });
-  await db.query(
-    `insert into public.tenant_users (tenant_id, user_id, role_id, status)
-     values ($1, $2, (select id from public.roles where code = 'tenant_admin' and tenant_id is null), 'invited')`,
-    [tenantId, adminId],
-  );
-
-  /*
-   * As sementes de negócio ficam REGISTRADAS, não aplicadas.
-   *
-   * `crm.pipelines` e `erp.product_categories` não existem: os módulos de
-   * negócio não foram construídos. Fingir que foram semeadas seria
-   * exatamente o que este projeto proíbe. Ficam no resultado da etapa, com o
-   * motivo, para serem aplicadas quando as tabelas existirem.
-   */
   await db.query(
     `insert into public.provisioning_steps (run_id, step, position, status, result, finished_at)
      values ($1, 'seed_defaults', 1, 'skipped', $2, now())`,
     [
       runId,
       JSON.stringify({
-        pending: blueprint.seeds,
+        pending: pendentes,
         reason: 'módulos de negócio ainda não têm tabela — ver docs/PROJECT_STATE.md',
       }),
     ],
@@ -168,6 +183,23 @@ async function provisionarPorBlueprint(db, { blueprint, slug, name, admin, idemp
   await db.query(`update public.tenants set status = 'active' where id = $1`, [tenantId]);
 
   return { tenantId, runId };
+}
+
+/** Planeja com o Core e executa. A recusa acontece antes de qualquer escrita. */
+async function provisionarPorBlueprint(db, { blueprint, slug, name, admin, idempotencyKey }) {
+  const plano = planProvisioning({
+    blueprint,
+    planModules: [...(await modulosDoPlano(db, blueprint.plan))],
+    slug,
+    name,
+    admin: { email: admin.email, fullName: admin.name },
+  });
+
+  if (!plano.ok) {
+    throw new Error(plano.problems.map((p) => `${p.path}: ${p.message}`).join('; '));
+  }
+
+  return executarPlano(db, plano.operations, { blueprint, idempotencyKey });
 }
 
 /** O que um tenant de fato recebeu, para comparar entre nichos. */
@@ -307,7 +339,7 @@ describe('o blueprint não passa por cima do comercial', () => {
           admin: admin(1),
           idempotencyKey: 'req-abusivo',
         }),
-      /fora do plano/,
+      /"ai" não está no plano "essencial"/,
     );
   });
 

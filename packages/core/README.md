@@ -29,7 +29,7 @@ deixaria passar o caso mais provável: alguém adiciona a permissão na migratio
 e esquece do TypeScript, e a aplicação nunca consegue verificá-la.
 
 ```bash
-npm run test:db      # inclui os 13 testes de contrato
+npm run test:db      # inclui os 16 testes de contrato
 npm run check:core   # tipos
 ```
 

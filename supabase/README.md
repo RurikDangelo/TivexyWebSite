@@ -13,7 +13,7 @@ região `sa-east-1`. As migrations ainda **não foram aplicadas nele** — ver
 "Aplicar no projeto" abaixo.
 
 O que já existe é mais forte do que "escrito": elas rodam contra um Postgres 18
-de verdade e passam em 111 testes, incluindo os de isolamento entre tenants.
+de verdade e passam em 114 testes, incluindo os de isolamento entre tenants.
 
 O que ainda não foi exercido: `auth.uid()` real vindo de um JWT, e o
 comportamento sob concorrência real. O harness simula `auth.uid()` com uma
@@ -38,7 +38,7 @@ supabase/
     ├── harness.mjs             sobe Postgres em WASM e simula o que o Supabase oferece
     ├── core.test.mjs           32 testes: esquema, RLS, isolamento, integridade
     ├── provisioning.test.mjs   18 testes: o fluxo, a retomada e a compensação
-    ├── contracts.test.mjs      13 testes: TypeScript × catálogo SQL
+    ├── contracts.test.mjs      16 testes: TypeScript × catálogo e constraints
     ├── viewer.test.mjs         17 testes: contexto de acesso e vazamento
     ├── integrity.test.mjs      21 testes: tentativas de burlar, não de usar
     └── blueprint-provisioning.test.mjs  10 testes: provisionar por nicho
@@ -146,6 +146,17 @@ dois lados duplicam: `isActive()` contra o predicado do índice parcial, e
 `isTerminal()` contra a constraint de `finished_at`. Se divergirem, a aplicação
 diz "pode começar outra execução" e o banco recusa com violação de unicidade —
 que chega ao usuário como falha genérica, no pior momento possível.
+
+O do subdomínio é de forma diferente, e vale entender por quê. A propriedade
+não é "os dois aceitam as mesmas entradas": o Core **normaliza** antes de
+validar, então `CAFE` vira `cafe` e é `cafe` que chega ao banco. O que precisa
+valer é mais fraco e mais útil:
+
+> O Core nunca produz um slug que o banco recusaria.
+
+Ser mais rígido que o banco é aceitável — é uma recusa mais cedo, com mensagem
+melhor. Ser mais frouxo é o que produz violação de constraint no meio do
+provisionamento, com o tenant já criado.
 
 **Tentativas de burlar** — `integrity.test.mjs` não pergunta se o RLS funciona;
 pergunta o que ele **não** cobre. Foi assim que seis falhas apareceram, uma

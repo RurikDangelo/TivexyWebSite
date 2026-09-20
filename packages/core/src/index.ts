@@ -57,6 +57,15 @@ export {
 } from './blueprint.ts';
 
 export {
+  planProvisioning,
+  previewOf,
+  type ProvisioningInput,
+  type ProvisioningOperation,
+  type ProvisioningPlan,
+  type ProvisioningPreview,
+} from './provisioning-plan.ts';
+
+export {
   PROVISIONING_STATUSES,
   PROVISIONING_STEP_STATUSES,
   PROVISIONING_STEPS,

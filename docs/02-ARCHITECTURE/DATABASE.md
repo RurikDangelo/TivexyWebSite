@@ -3,7 +3,7 @@
 > Esquema da fundação. Entidades de CRM, ERP, estoque e financeiro vêm depois,
 > sobre esta base. Migrations e testes em `supabase/` — ver [[../../supabase/README|supabase/README]].
 >
-> **Estado:** migrations escritas e verificadas contra Postgres 18 (111 testes
+> **Estado:** migrations escritas e verificadas contra Postgres 18 (114 testes
 > passando). O projeto Supabase já existe (`tivexy-core`); as migrations ainda
 > **não foram aplicadas nele**.
 
