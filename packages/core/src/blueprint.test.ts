@@ -92,22 +92,24 @@ describe('a fronteira do ADR-003', () => {
    * então mexer na lista de módulos faz o resto reclamar junto. Para afirmar
    * algo **sobre módulos**, o resto sai do caminho.
    */
-  const soModulos = { ...base, roles: [], terms: {}, settings: {} };
+  const soModulos = { ...base, roles: [], terms: {}, settings: {}, seeds: [] };
 
   it('recusa módulo que não existe no catálogo', () => {
     assert.deepEqual(problemas({ ...soModulos, modules: ['core', 'veterinaria'] }), ['modules[1]']);
   });
 
   it('tirar um módulo denuncia tudo que dependia dele', () => {
-    // A cascata é de propósito. Quem remove `erp` precisa ver as três coisas
-    // que ficaram órfãs — rótulos, permissões de papel — e não só o módulo
-    // que sumiu. Relatar apenas a causa esconderia o trabalho que ainda falta.
+    // A cascata é de propósito, e é a lista inteira: rótulos, permissões de
+    // papel e sementes. Relatar só o módulo que sumiu esconderia o trabalho
+    // que ainda falta — e é justamente esse trabalho que, esquecido, produz
+    // um tenant com configuração pendente para sempre.
     assert.deepEqual(problemas({ ...base, modules: ['core', 'inventory'] }), [
       'terms.erp.customers',
       'terms.erp.products',
       'roles[0].permissions[0]',
       'roles[0].permissions[1]',
       'roles[0].permissions[2]',
+      'seeds[0].entity',
     ]);
   });
 
@@ -328,5 +330,35 @@ describe('as configurações precisam existir', () => {
       const r = { ...base, settings: { 'core.timezone': fuso } };
       assert.equal(checkBlueprint(r).valid, true, `${fuso} deveria ser aceito`);
     }
+  });
+});
+
+describe('sementes', () => {
+  const semente = (entity: string, values: Record<string, unknown> = { name: 'X' }) => ({
+    ...base,
+    seeds: [{ entity, values }],
+  });
+
+  it('recusa alvo fora da forma "modulo.entidade"', () => {
+    for (const ruim of ['produtos', 'ERP.products', 'erp.', '.products', 'erp-products']) {
+      assert.deepEqual(problemas(semente(ruim)), ['seeds[0].entity'], `${ruim} passou`);
+    }
+  });
+
+  it('recusa semear em módulo que o blueprint não habilita', () => {
+    // Pendente é estado normal para semente hoje — os módulos de negócio não
+    // têm tabela. Por isso uma semente no módulo errado nunca chamaria
+    // atenção: ficaria pendente para sempre, esperando uma tabela que este
+    // tenant jamais vai ter.
+    assert.deepEqual(problemas(semente('crm.pipelines')), ['seeds[0].entity']);
+  });
+
+  it('recusa semente sem valor nenhum', () => {
+    assert.deepEqual(problemas(semente('erp.product_categories', {})), ['seeds[0].values']);
+  });
+
+  it('aceita entidade com underscore, que é como as tabelas se chamam', () => {
+    assert.equal(checkBlueprint(semente('erp.product_categories')).valid, true);
+    assert.equal(checkBlueprint(semente('erp.payment_methods')).valid, true);
   });
 });

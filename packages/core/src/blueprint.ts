@@ -116,6 +116,17 @@ export type BlueprintCheck =
 const CODE_FORMAT = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const ROLE_CODE_FORMAT = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/;
 
+/**
+ * `modulo.entidade` — o alvo de uma semente.
+ *
+ * Não dá para conferir se a entidade **existe**: as tabelas de CRM e ERP ainda
+ * não foram construídas. Dá para conferir a forma e o módulo, e é isso que
+ * impede um `crm.pipelines` num nicho sem CRM de ficar pendente para sempre.
+ * Quando as tabelas existirem, a lista de entidades entra aqui do mesmo jeito
+ * que `TERM_KEYS` entrou.
+ */
+const ENTITY_FORMAT = /^[a-z][a-z0-9]*\.[a-z][a-z0-9_]*$/;
+
 const MODULES = new Set<string>(MODULE_CODES);
 const PERMISSIONS = new Set<string>(PERMISSION_CODES);
 const PLANS = new Set<string>(PLAN_CODES);
@@ -303,8 +314,28 @@ export function checkBlueprint(raw: unknown): BlueprintCheck {
           erro(`seeds[${i}]`, 'precisa ser um objeto');
           return;
         }
-        if (texto(semente.entity) === null) erro(`seeds[${i}].entity`, 'obrigatório');
+
+        const entidade = texto(semente.entity);
+        if (entidade === null) {
+          erro(`seeds[${i}].entity`, 'obrigatório');
+        } else if (!ENTITY_FORMAT.test(entidade)) {
+          erro(`seeds[${i}].entity`, `"${entidade}" precisa ter a forma "modulo.entidade"`);
+        } else if (habilitados.size > 0 && !habilitados.has(moduleOfTerm(entidade))) {
+          /*
+           * Semear no módulo errado é silencioso do pior jeito: o registro
+           * fica pendente para sempre, esperando uma tabela que este tenant
+           * nunca vai ter, e ninguém repara porque pendente é estado normal.
+           */
+          erro(
+            `seeds[${i}].entity`,
+            `pertence ao módulo "${moduleOfTerm(entidade)}", que este blueprint não habilita`,
+          );
+        }
+
         if (!isRecord(semente.values)) erro(`seeds[${i}].values`, 'precisa ser um objeto');
+        else if (Object.keys(semente.values).length === 0) {
+          erro(`seeds[${i}].values`, 'semente sem valor nenhum não cria nada');
+        }
       });
     }
   }
