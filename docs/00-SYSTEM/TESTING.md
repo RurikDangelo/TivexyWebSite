@@ -20,7 +20,7 @@ O CI roda `validate` a cada push e pull request.
 | --------- | --------------------------------- | --------------------------------------------------------- | ------------- |
 | Domínio   | `packages/core/src/*.test.ts`     | Decisão de acesso, casamento de rota, leitura do contexto | milissegundos |
 | Aplicação | `apps/web/src/**/*.test.ts`       | Navegação e regras de rota não divergem                   | milissegundos |
-| Banco     | `supabase/tests/*.test.mjs`       | Esquema, RLS, isolamento, provisionamento, contratos      | ~2 s          |
+| Banco     | `supabase/tests/*.test.mjs`       | Esquema, RLS, isolamento, provisionamento, contratos      | ~20 s         |
 | Navegador | manual, durante o desenvolvimento | Renderização, tema, responsividade, acessibilidade        | minutos       |
 
 Os três primeiros rodam sem Docker, sem servidor e sem credencial nenhuma. Isso
@@ -101,6 +101,29 @@ Dois defeitos reais, achados por teste antes de existir aplicação:
 E um diagnóstico corrigido: "90 arquivos fora do padrão de formatação" era, em
 boa parte, **final de linha** — ausência de `.gitattributes` com
 `core.autocrlf=true` no Windows.
+
+## O custo da suíte é um requisito, não uma métrica
+
+"Teste caro é teste que ninguém roda" está escrito no `supabase/README.md` desde
+o começo — e quase se cumpriu contra nós.
+
+Os testes de provisionamento precisam de um banco novo **por teste**: dois
+testes criando um tenant com o mesmo endereço colidiriam. Com 55 testes assim,
+rodando as dez migrations a cada um, a suíte de banco tinha ido para **62 s** —
+crescendo um segundo e meio a cada teste novo. Ninguém decide parar de rodar o
+teste: as pessoas simplesmente rodam menos.
+
+O harness passou a restaurar um **retrato** do banco já migrado. 62 s → 20 s,
+medido na mesma máquina, sem mudar um teste sequer.
+
+A alternativa mais rápida — truncar tabelas entre testes — foi rejeitada por um
+motivo específico: exigiria manter à mão a lista do que limpar, e esquecer uma
+tabela **não dá erro**. Deixa dado de um teste aparecer no outro, e o sintoma é
+um teste que passa sozinho e falha em conjunto. Ganhar segundos ao custo de
+instabilidade seria trocar o problema por um pior.
+
+Três testes guardam o mecanismo, porque uma otimização de teste que quebra em
+silêncio é pior que a lentidão que ela resolvia.
 
 ## O que não foi pego, e por que vale registrar
 

@@ -13,7 +13,7 @@ região `sa-east-1`. As migrations ainda **não foram aplicadas nele** — ver
 "Aplicar no projeto" abaixo.
 
 O que já existe é mais forte do que "escrito": elas rodam contra um Postgres 18
-de verdade e passam em 143 testes, incluindo os de isolamento entre tenants.
+de verdade e passam em 146 testes, incluindo os de isolamento entre tenants.
 
 O que ainda não foi exercido: `auth.uid()` real vindo de um JWT, e o
 comportamento sob concorrência real. O harness simula `auth.uid()` com uma
@@ -37,7 +37,7 @@ supabase/
 │   └── 20260920010000_core_mirror_auth_users.sql     o perfil nasce com a identidade
 └── tests/
     ├── harness.mjs             sobe Postgres em WASM e simula o que o Supabase oferece
-    ├── core.test.mjs           32 testes: esquema, RLS, isolamento, integridade
+    ├── core.test.mjs           35 testes: esquema, RLS, isolamento, e o próprio harness
     ├── provisioning.test.mjs   18 testes: o fluxo, a retomada e a compensação
     ├── contracts.test.mjs      18 testes: TypeScript × catálogo, constraints e docs
     ├── viewer.test.mjs         17 testes: contexto de acesso e vazamento
@@ -52,8 +52,31 @@ npm run test:db
 ```
 
 Rodam em **PGlite**: Postgres compilado para WASM, dentro do Node. Sem Docker,
-sem servidor, cerca de 1,7 s. Isso importa porque torna barato rodar o teste de
-isolamento a cada mudança — e teste caro é teste que ninguém roda.
+sem servidor, cerca de **20 s** para a suíte inteira. Isso importa porque torna
+barato rodar o teste de isolamento a cada mudança — e teste caro é teste que
+ninguém roda.
+
+### Por que 20 s e não 62 s
+
+O harness restaura um **retrato** do banco já migrado em vez de rodar as
+migrations a cada chamada. Rodar as dez migrations custa ~1,5 s; restaurar o
+retrato custa ~0,4 s.
+
+Isso importou quando os testes de provisionamento chegaram. Eles precisam de um
+banco novo **por teste** — dois testes criando um tenant com o mesmo slug
+colidiriam —, e com 55 testes assim a suíte tinha ido para 62 s, crescendo um
+segundo e meio a cada teste novo. O aviso desta mesma seção estava prestes a
+se cumprir contra nós.
+
+A alternativa seria truncar as tabelas entre testes. Mais rápido ainda, e
+rejeitada: exigiria manter à mão a lista do que limpar, e esquecer uma tabela
+não dá erro — deixa dado de um teste aparecer no outro. O sintoma seria um
+teste que passa sozinho e falha em conjunto, que é o pior tipo de instabilidade
+para diagnosticar. O retrato é tirado depois das migrations, então traz o
+catálogo e não traz sujeira, **por construção**.
+
+Três testes em `core.test.mjs` guardam isso: dois bancos não se enxergam, todo
+banco novo vem com o catálogo, e nenhum vem com dado de teste.
 
 O harness recria o que o Supabase já entrega pronto: o schema `auth`, a função
 `auth.uid()` e os papéis `anon`, `authenticated` e `service_role`. Todo o resto

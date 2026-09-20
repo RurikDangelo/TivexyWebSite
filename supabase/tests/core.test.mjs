@@ -492,3 +492,75 @@ describe('restrições de integridade', () => {
     );
   });
 });
+
+/*
+ * O harness passou a restaurar um retrato do banco já migrado em vez de rodar
+ * as migrations a cada chamada — 62 s de suíte viraram 20 s. Estes testes
+ * guardam o que essa otimização poderia quebrar em silêncio.
+ *
+ * Silêncio é a palavra: um retrato mal restaurado não dá erro, ele deixa dado
+ * de um teste aparecer no outro. O sintoma seria um teste que passa sozinho e
+ * falha em conjunto — o pior tipo de instabilidade para se diagnosticar.
+ */
+describe('o harness entrega bancos isolados', () => {
+  it('dois bancos não se enxergam', async () => {
+    const a = await createDatabase();
+    const b = await createDatabase();
+    try {
+      await a.query(`insert into public.tenants (slug, name) values ('so-no-a', 'Só no A')`);
+
+      const noB = await b.query(`select count(*)::int as c from public.tenants`);
+      assert.equal(noB.rows[0].c, 0, 'o tenant criado em A apareceu em B');
+
+      const noA = await a.query(`select count(*)::int as c from public.tenants`);
+      assert.equal(noA.rows[0].c, 1);
+    } finally {
+      await a.close();
+      await b.close();
+    }
+  });
+
+  it('todo banco novo já vem com o catálogo', async () => {
+    // O retrato é tirado DEPOIS das migrations, então o catálogo vem junto.
+    // Se viesse antes, cada teste começaria sem módulo nem permissão e o
+    // provisionamento falharia por um motivo que não é o testado.
+    const novo = await createDatabase();
+    try {
+      const { rows } = await novo.query(`
+        select
+          (select count(*)::int from public.modules) as modulos,
+          (select count(*)::int from public.permissions) as permissoes,
+          (select count(*)::int from public.plans) as planos,
+          (select count(*)::int from public.roles where tenant_id is null) as papeis
+      `);
+      const [c] = rows;
+      assert.equal(c.modulos, 9);
+      assert.equal(c.permissoes, 51);
+      assert.equal(c.planos, 3);
+      assert.equal(c.papeis, 3);
+    } finally {
+      await novo.close();
+    }
+  });
+
+  it('e vem sem dado de teste nenhum', async () => {
+    // O retrato é tirado antes de qualquer teste escrever. Se fosse depois,
+    // todo banco "limpo" nasceria com a sujeira do primeiro teste que rodou.
+    const novo = await createDatabase();
+    try {
+      const { rows } = await novo.query(`
+        select
+          (select count(*)::int from public.tenants) as tenants,
+          (select count(*)::int from public.users) as usuarios,
+          (select count(*)::int from auth.users) as identidades,
+          (select count(*)::int from public.provisioning_runs) as execucoes,
+          (select count(*)::int from public.audit_logs) as auditoria
+      `);
+      for (const [nome, quantos] of Object.entries(rows[0])) {
+        assert.equal(quantos, 0, `banco novo veio com ${quantos} em ${nome}`);
+      }
+    } finally {
+      await novo.close();
+    }
+  });
+});

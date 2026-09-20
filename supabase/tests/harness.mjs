@@ -69,10 +69,24 @@ export async function migrationFiles() {
 }
 
 /**
- * Sobe um banco limpo com todas as migrations aplicadas na ordem.
- * @returns {Promise<import('@electric-sql/pglite').PGlite>}
+ * O banco já migrado, guardado como retrato para ser restaurado depois.
+ *
+ * Existe porque o custo estava crescendo de um jeito que o próprio projeto
+ * avisa contra: "teste caro é teste que ninguém roda". Os arquivos que recriam
+ * o banco a cada teste levavam ~1,5 s por teste — 55 testes viravam 63 s, e
+ * cada teste novo somava mais um segundo e meio.
+ *
+ * Rodar as migrations é o caro; restaurar um retrato custa ~0,4 s. Como o
+ * retrato é tirado **depois** das migrations, ele já traz o catálogo — não há
+ * lista de tabelas a limpar, e portanto não há como esquecer uma e deixar dado
+ * vazar de um teste para o outro.
+ *
+ * Fica por processo. O runner do Node roda cada arquivo no seu, então cada um
+ * paga a migração uma vez e restaura o resto.
  */
-export async function createDatabase() {
+let retrato = null;
+
+async function migrarDoZero() {
   const db = await PGlite.create();
   await db.exec(SUPABASE_STUB);
 
@@ -86,6 +100,35 @@ export async function createDatabase() {
   }
 
   return db;
+}
+
+/**
+ * Sobe um banco limpo com todas as migrations aplicadas na ordem.
+ *
+ * Cada chamada devolve uma instância **própria e isolada** — dois bancos
+ * criados aqui não se enxergam. É o que permite um teste criar um tenant com
+ * `slug = 'cafe-do-centro'` sem colidir com o teste ao lado.
+ *
+ * @returns {Promise<import('@electric-sql/pglite').PGlite>}
+ */
+export async function createDatabase() {
+  if (retrato === null) {
+    const primeiro = await migrarDoZero();
+    retrato = await primeiro.dumpDataDir();
+    return primeiro;
+  }
+
+  return PGlite.create({ loadDataDir: retrato });
+}
+
+/**
+ * Força a próxima criação a rodar as migrations de novo.
+ *
+ * Para quem mexe em migration durante a sessão de teste. Não é usado pela
+ * suíte: cada arquivo roda no seu processo e já começa sem retrato.
+ */
+export function forgetSnapshot() {
+  retrato = null;
 }
 
 /**
