@@ -33,6 +33,17 @@ export const SUPABASE_KEY_VAR = 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY';
 type Env = Record<string, string | undefined>;
 
 /**
+ * Prefixos do formato novo de chave do Supabase.
+ *
+ * O formato antigo era JWT dos dois lados — `anon` e `service_role` eram
+ * indistinguíveis a olho nu, e a única forma de saber qual era qual era
+ * decodificar. O novo diz no prefixo, e é isso que torna possível recusar uma
+ * chave que está na variável errada.
+ */
+const PREFIXO_PUBLICAVEL = 'sb_publishable_';
+const PREFIXO_SECRETO = 'sb_secret_';
+
+/**
  * Valor útil, ou nada.
  *
  * String vazia e espaço em branco contam como ausência: é o que a Vercel grava
@@ -75,7 +86,15 @@ export function readSupabaseConfig(env: Env = process.env): SupabaseConfigState 
 
   const missing: string[] = [];
   if (url === null || !urlValida(url)) missing.push(SUPABASE_URL_VAR);
-  if (publishableKey === null) missing.push(SUPABASE_KEY_VAR);
+  /*
+   * Uma chave secreta aqui não é "configuração incompleta", é vazamento: esta
+   * variável carrega o prefixo NEXT_PUBLIC_, então o valor vai inteiro para o
+   * pacote do navegador. Tratá-la como ausente é o que impede o app de subir
+   * servindo a chave que abre todos os tenants de uma vez.
+   */
+  if (publishableKey === null || publishableKey.startsWith(PREFIXO_SECRETO)) {
+    missing.push(SUPABASE_KEY_VAR);
+  }
 
   if (url === null || publishableKey === null || missing.length > 0) {
     return { configured: false, missing };
@@ -104,4 +123,58 @@ export function requireSupabaseConfig(env: Env = process.env): SupabaseConfig {
       'Em desenvolvimento, copie apps/web/.env.example para .env.local. ' +
       'Em produção, cadastre as variáveis no projeto da Vercel.',
   );
+}
+
+/* ── A chave secreta ──────────────────────────────────────────────────── */
+
+export const SUPABASE_SECRET_VAR = 'SUPABASE_SECRET_KEY';
+
+/**
+ * A chave secreta, para o que precisa ignorar o RLS.
+ *
+ * **Dois enganos trocam de lugar com facilidade, e os dois são silenciosos.**
+ * Esta função existe para transformar os dois em erro na inicialização:
+ *
+ * **1. A publicável no lugar da secreta.** O cliente administrativo nasceria
+ * sujeito ao RLS. Provisionar falharia com "linha não encontrada" em vez de
+ * "sem permissão", e a causa não estaria em lugar nenhum da mensagem.
+ *
+ * **2. A secreta no lugar da publicável.** Esta é a grave: a chave iria para o
+ * pacote do navegador com o prefixo `NEXT_PUBLIC_`, e qualquer visitante
+ * leria o banco inteiro — todos os tenants, todos os clientes. Por isso
+ * `readSupabaseConfig()` também recusa uma chave secreta, logo abaixo.
+ *
+ * Nenhuma das mensagens repete o valor lido. Erro de inicialização vai parar
+ * em log de build, e log de build é lido por gente que não deveria ver a chave.
+ */
+export function requireSecretKey(env: Env = process.env): string {
+  const valor = ler(env, SUPABASE_SECRET_VAR);
+
+  if (valor === null) {
+    throw new Error(
+      `${SUPABASE_SECRET_VAR} não está definida. Ela ignora o RLS e só existe no ` +
+        'servidor — em desenvolvimento vem do .env.local; em produção, das ' +
+        'variáveis da Vercel, sem o prefixo NEXT_PUBLIC_.',
+    );
+  }
+
+  if (valor.startsWith(PREFIXO_PUBLICAVEL)) {
+    throw new Error(
+      `${SUPABASE_SECRET_VAR} contém a chave publicável (${PREFIXO_PUBLICAVEL}…). ` +
+        `Ela é sujeita ao RLS e não serve para provisionar. A secreta começa com ` +
+        `${PREFIXO_SECRETO} e está em Project Settings → API.`,
+    );
+  }
+
+  return valor;
+}
+
+/** A chave secreta está configurada? Para painel de diagnóstico, não para fluxo. */
+export function hasSecretKey(env: Env = process.env): boolean {
+  try {
+    requireSecretKey(env);
+    return true;
+  } catch {
+    return false;
+  }
 }

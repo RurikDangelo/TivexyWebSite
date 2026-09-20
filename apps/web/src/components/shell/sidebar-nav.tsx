@@ -3,7 +3,8 @@
 import { Lock } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { navigation, statusLabel, type NavItem } from '@/config/navigation';
+import type { Viewer } from '@tivexy/core';
+import { navigation, statusLabel, type NavGroup, type NavItem } from '@/config/navigation';
 import { cn } from '@/lib/utils';
 
 const itemBase =
@@ -60,10 +61,37 @@ function Item({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) 
   );
 }
 
-export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+/**
+ * O que esta pessoa vê no menu.
+ *
+ * A regra de hoje é uma só, e é a que tem consequência: **o grupo de
+ * administração da plataforma não existe para quem não é Super Admin.** Não
+ * desabilitado, não com cadeado — ausente. Um item "Super Admin" acinzentado
+ * no menu de um cliente conta a ele que existe um painel acima do dele e
+ * convida a tentar o endereço. A guarda negaria, e o RLS também, mas a
+ * informação já teria sido dada.
+ *
+ * Esconder por módulo desabilitado virá quando houver módulo pronto para
+ * esconder. Hoje todos estão em construção e nenhum abre tela: filtrar agora
+ * seria escrever uma regra sem como conferir se ela acerta.
+ */
+function visiveis(viewer: Viewer): NavGroup[] {
+  return navigation.flatMap((group) => {
+    if (group.label !== 'Administração') return [group];
+    if (!viewer.isSuperAdmin) return [];
+    return [
+      {
+        ...group,
+        items: group.items.map((item) => ({ ...item, status: 'ready' as const })),
+      },
+    ];
+  });
+}
+
+export function SidebarNav({ viewer, onNavigate }: { viewer: Viewer; onNavigate?: () => void }) {
   return (
     <nav aria-label="Navegação principal" className="flex flex-col gap-5 px-3 py-4">
-      {navigation.map((group, index) => (
+      {visiveis(viewer).map((group, index) => (
         <div key={group.label ?? `group-${index}`} className="flex flex-col gap-0.5">
           {group.label && (
             <h2 className="px-2.5 pb-1 font-mono text-[0.6875rem] font-medium uppercase tracking-wider text-content-subtle">

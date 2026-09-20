@@ -90,17 +90,26 @@ describe('dentro do app', () => {
   });
 
   it('quem não tem tenant vai para o onboarding', () => {
-    assert.deepEqual(decidir('/painel', semTenant), { kind: 'redirect', location: '/onboarding' });
+    assert.deepEqual(decidir('/painel', semTenant), {
+      kind: 'redirect',
+      location: '/onboarding',
+      reason: 'no-tenant',
+    });
   });
 
   it('convite pendente vai para o convite, não para o painel', () => {
-    assert.deepEqual(decidir('/painel', convidado), { kind: 'redirect', location: '/convite' });
+    assert.deepEqual(decidir('/painel', convidado), {
+      kind: 'redirect',
+      location: '/convite',
+      reason: 'membership-inactive',
+    });
   });
 
   it('tenant ainda em provisionamento vai para "preparando"', () => {
     assert.deepEqual(decidir('/painel', tenantPreparando), {
       kind: 'redirect',
       location: '/preparando',
+      reason: 'tenant-not-operational',
     });
   });
 
@@ -108,6 +117,7 @@ describe('dentro do app', () => {
     assert.deepEqual(decidir('/painel', tenantSuspenso), {
       kind: 'redirect',
       location: '/preparando',
+      reason: 'tenant-not-operational',
     });
   });
 

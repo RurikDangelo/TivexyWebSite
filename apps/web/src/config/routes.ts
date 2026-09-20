@@ -18,6 +18,19 @@ export const routeRules: readonly RouteMatcher[] = [
   { prefix: '/recuperar', rule: { kind: 'public' } },
 
   /*
+   * Onde o link do e-mail vira sessão. Público porque quem clica ainda não
+   * tem sessão — é justamente isto que vai criá-la.
+   */
+  { prefix: '/auth', rule: { kind: 'public' } },
+
+  /*
+   * A senha nova. Quem vem do link chega aqui já com sessão, mas quem chega
+   * com o link vencido não tem nenhuma — e precisa ler o motivo em vez de ser
+   * mandado para o login sem explicação.
+   */
+  { prefix: '/definir-senha', rule: { kind: 'public' } },
+
+  /*
    * Saída do limbo. Exigem sessão, mas não vínculo ativo: é para cá que
    * `redirectFor` manda quem o `member` negou. Exigir mais criaria laço.
    */
@@ -25,6 +38,11 @@ export const routeRules: readonly RouteMatcher[] = [
   { prefix: '/onboarding', rule: { kind: 'authenticated' } },
   { prefix: '/preparando', rule: { kind: 'authenticated' } },
   { prefix: '/conta', rule: { kind: 'authenticated' } },
+  /* Escolher entre as empresas de que participa. Quem chega aqui tem vínculo
+     com mais de uma e ainda não escolheu qual — exigir empresa ativa seria o
+     laço de sempre. */
+  { prefix: '/empresas', rule: { kind: 'authenticated' } },
+  { prefix: '/sair', rule: { kind: 'authenticated' } },
 
   /*
    * A página que explica a negação. `authenticated` de propósito, e não

@@ -3,13 +3,28 @@
 import { Menu, X } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import type { Viewer } from '@tivexy/core';
+import type { TenantOption } from '@/lib/auth/active-tenant';
 import { Logo } from '@/components/brand/logo';
 import { SidebarNav } from '@/components/shell/sidebar-nav';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { UserMenu } from '@/components/shell/user-menu';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  viewer,
+  email,
+  empresa,
+  empresas,
+}: {
+  children: ReactNode;
+  viewer: Viewer;
+  email: string | null;
+  empresa: TenantOption | null;
+  empresas: readonly TenantOption[];
+}) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -69,8 +84,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           Em construção
         </Badge>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1">
           <ThemeToggle />
+          <UserMenu email={email} empresa={empresa} empresas={empresas} />
         </div>
       </header>
 
@@ -78,7 +94,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {/* Desktop: coluna fixa. Mobile: escondida, vira gaveta. */}
         <aside className="hidden w-64 shrink-0 border-r border-line-subtle bg-surface-subtle lg:block">
           <div className="sticky top-14 max-h-[calc(100dvh-3.5rem)] overflow-y-auto">
-            <SidebarNav />
+            <SidebarNav viewer={viewer} />
           </div>
         </aside>
 
@@ -110,7 +126,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <X aria-hidden />
                 </Button>
               </div>
-              <SidebarNav onNavigate={() => setOpen(false)} />
+              <SidebarNav viewer={viewer} onNavigate={() => setOpen(false)} />
             </div>
           </div>
         )}
