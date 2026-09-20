@@ -13,7 +13,7 @@ região `sa-east-1`. As migrations ainda **não foram aplicadas nele** — ver
 "Aplicar no projeto" abaixo.
 
 O que já existe é mais forte do que "escrito": elas rodam contra um Postgres 18
-de verdade e passam em 101 testes, incluindo os de isolamento entre tenants.
+de verdade e passam em 111 testes, incluindo os de isolamento entre tenants.
 
 O que ainda não foi exercido: `auth.uid()` real vindo de um JWT, e o
 comportamento sob concorrência real. O harness simula `auth.uid()` com uma
@@ -40,7 +40,8 @@ supabase/
     ├── provisioning.test.mjs   18 testes: o fluxo, a retomada e a compensação
     ├── contracts.test.mjs      13 testes: TypeScript × catálogo SQL
     ├── viewer.test.mjs         17 testes: contexto de acesso e vazamento
-    └── integrity.test.mjs      21 testes: tentativas de burlar, não de usar
+    ├── integrity.test.mjs      21 testes: tentativas de burlar, não de usar
+    └── blueprint-provisioning.test.mjs  10 testes: provisionar por nicho
 ```
 
 ## Testes
@@ -107,6 +108,26 @@ sai dele, então o cliente cujo provisionamento falhou pode tentar de novo.
 > A mesma armadilha da retomada reaparece aqui, e há um teste só para ela:
 > vindo de `failed`, entrar em `compensating` sem limpar `finished_at` é
 > recusado pela constraint. `compensating` está desfazendo — ainda não terminou.
+
+**Provisionamento por nicho** — `blueprint-provisioning.test.mjs` prova o marco
+do ADR-003: provisionar a partir dos blueprints **reais** do repositório, e o
+resultado diferir só no que o blueprint declara. Cafeteria e clínica nascem com
+módulos e papéis diferentes; o mesmo nicho provisionado duas vezes nasce igual
+(se divergisse, haveria decisão fora do documento).
+
+Duas garantias que só aparecem aqui:
+
+- **O blueprint não passa por cima do comercial.** Pedir módulo fora do plano é
+  recusado, e recusado **antes** de criar o tenant — cortesia existe, mas é
+  decisão comercial explícita, não algo que um nicho concede em silêncio para
+  todos os clientes dele.
+- **O papel do nicho pertence ao tenant.** `roles.tenant_id` nulo é papel de
+  sistema, disponível para todo mundo; um papel de nicho vazando para lá daria
+  "Barista" a uma clínica.
+
+As sementes de negócio ficam **registradas como pendentes**, com o motivo: as
+tabelas de CRM e ERP não existem ainda, e fingir que foram semeadas é
+exatamente o que este projeto proíbe.
 
 **Integridade** — formato de slug, documento só com dígitos, consistência de
 data de entrada, pessoa não entra duas vezes no mesmo tenant, papel de sistema

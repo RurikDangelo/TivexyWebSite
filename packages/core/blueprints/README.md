@@ -64,6 +64,38 @@ com a permissão no bolso. A validação recusa.
 **`version` é do documento, não do formato.** Serve para responder depois
 "este tenant nasceu com qual configuração?".
 
+### Os módulos precisam caber no plano
+
+`checkBlueprint` valida contra o catálogo, mas não sabe qual plano inclui quais
+módulos — isso é dado do banco. O provisionamento **recusa** um blueprint que
+peça módulo fora do plano declarado:
+
+| Plano          | Módulos                                                                  |
+| -------------- | ------------------------------------------------------------------------ |
+| `essencial`    | core, crm                                                                |
+| `profissional` | core, crm, erp, inventory, finance, automation                           |
+| `avancado`     | core, crm, erp, inventory, finance, automation, fiscal, ai, integrations |
+
+Declarar **menos** que o plano é normal e esperado: `cafeteria` usa
+`profissional` e fica sem CRM e sem automação, porque uma cafeteria não precisa
+deles.
+
+Declarar **mais** é recusado. O esquema permite um tenant ter módulo além do
+plano — cortesia, piloto, migração —, mas isso é decisão comercial explícita e
+auditada, não algo que um documento de nicho concede em silêncio para todo
+cliente daquele nicho. Se um blueprint precisa de um módulo, o plano dele é
+outro.
+
+### As sementes ainda não são aplicadas
+
+Os módulos de negócio não têm tabela: `crm.pipelines` e
+`erp.product_categories` não existem. As sementes ficam **registradas como
+pendentes** no resultado da etapa `seed_defaults`, com o motivo — não são
+aplicadas, e o provisionamento não finge que foram.
+
+Vale escrevê-las mesmo assim: são a especificação do que o nicho precisa, e
+quando as tabelas existirem elas já estarão lá para serem aplicadas.
+
 ## Adicionar um nicho
 
 1. Copie o JSON mais próximo e **revise rótulo por rótulo**. Copiar sem revisar
