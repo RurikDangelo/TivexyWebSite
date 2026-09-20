@@ -72,6 +72,8 @@ export {
 export {
   planProvisioning,
   previewOf,
+  stepOf,
+  stepPosition,
   type ProvisioningInput,
   type ProvisioningOperation,
   type ProvisioningPlan,

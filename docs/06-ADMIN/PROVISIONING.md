@@ -4,8 +4,38 @@
 > verdade: sem ele, não existe cliente. Vem antes de qualquer módulo de negócio
 > (ver [[../16-DECISIONS/ADR-002-ordem-de-construcao|ADR-002]]).
 >
-> **Estado:** esquema pronto e provado por teste; implementação na aplicação
-> ainda não existe. Ver [[../PROJECT_STATE|PROJECT_STATE]].
+> **Estado:** o fluxo existe e roda contra Postgres. `planProvisioning()` decide
+> e `apps/web/src/server/provisioning/execute.ts` escreve — os dois são código
+> de produção, e o teste importa os mesmos módulos que o servidor vai importar.
+> Falta o gatilho da interface, que depende de autenticação.
+> Ver [[../PROJECT_STATE|PROJECT_STATE]].
+
+## As duas metades
+
+**Decidir** é puro e mora no Core: o que fazer, em que ordem, e o que recusar.
+Testável sem banco, e conferido contra as constraints que o banco tem.
+
+**Fazer** é o executor: só escreve, não decide. Não há um `if` de regra de
+negócio nele. Recebe o cliente de banco por parâmetro, e é por isso que o teste
+consegue rodar o **código de produção** contra um Postgres em WASM, sem
+Supabase e sem credencial.
+
+Enquanto as duas viviam juntas, o que rodava no teste era uma segunda
+implementação que a produção teria que escrever de novo — e as duas podiam
+divergir sem aviso.
+
+### A identidade vem de fora
+
+`IdentityPort` é a fronteira, e ela existe porque **não dá para criar usuário
+por SQL**: a identidade vive em `auth.users`, que é do Supabase, e criá-la
+envolve senha, confirmação e convite. Em produção isto é a Auth Admin API.
+
+`public.users` é espelho, preenchido pelo gatilho `mirror_auth_user` — sem ele,
+quem se cadastrasse existiria para a autenticação e não para a aplicação.
+
+O método é `ensureUser`, não `createUser`: quem administra dois clientes é a
+mesma pessoa, e criar um segundo usuário com o mesmo e-mail partiria a
+identidade dela em duas.
 
 ## O fluxo
 
@@ -29,14 +59,28 @@ Super Admin autentica
 A execução é dividida em etapas nomeadas, uma linha por etapa em
 `provisioning_steps`. É isso que permite retomar de onde parou.
 
-| #   | Etapa            | O que faz                                        | O que a compensação desfaz |
-| --- | ---------------- | ------------------------------------------------ | -------------------------- |
-| 1   | `create_tenant`  | Cria o tenant em `status = 'provisioning'`       | Remove o tenant            |
-| 2   | `apply_plan`     | Vincula o plano contratado                       | Desvincula                 |
-| 3   | `enable_modules` | Habilita em `tenant_modules` os módulos do plano | Desabilita                 |
-| 4   | `create_admin`   | Cria o usuário e o vínculo como `invited`        | Remove vínculo e usuário   |
-| 5   | `seed_defaults`  | Configurações e equipe inicial                   | Remove o que criou         |
-| 6   | `send_invite`    | Dispara o convite e registra auditoria           | Invalida o convite         |
+| #   | Etapa            | O que faz                                       | O que a compensação desfaz |
+| --- | ---------------- | ----------------------------------------------- | -------------------------- |
+| 1   | `create_tenant`  | Cria o tenant em `status = 'provisioning'`      | Remove o tenant            |
+| 2   | `apply_plan`     | Vincula o plano contratado                      | Desvincula                 |
+| 3   | `enable_modules` | Habilita em `tenant_modules` o que o nicho pede | Desabilita                 |
+| 4   | `create_roles`   | Cria os papéis do nicho e suas permissões       | Remove os papéis           |
+| 5   | `create_admin`   | Garante a identidade e cria o vínculo `invited` | Remove vínculo e usuário   |
+| 6   | `seed_defaults`  | Dados iniciais do nicho                         | Remove o que criou         |
+| 7   | `send_invite`    | Dispara o convite e registra auditoria          | Invalida o convite         |
+
+### Por que `create_roles` é etapa própria
+
+Ela entrou quando o Blueprint passou a trazer papéis do nicho. Criá-los dentro
+de `seed_defaults` faria uma falha ao criar papel aparecer como "falha ao semear
+padrões" — o que manda quem está investigando olhar no lugar errado.
+
+**Cada etapa existe para ser o nome de um problema.** Quando uma delas deixa de
+distinguir dois problemas diferentes, é hora de separar.
+
+`apply_plan` é o caso oposto e continua junto: o plano entra na mesma escrita
+que cria o tenant. A etapa fica registrada como `skipped` — não rodou, e não era
+para rodar. Deixá-la `pending` diria "faltou fazer" sobre algo já feito.
 
 **O tenant só passa para `active` quando todas as etapas concluem.** Um tenant
 que falhou no meio fica em `provisioning` — visível no painel, não operacional,
@@ -141,13 +185,22 @@ disso, `user_tenant_ids()` não o retorna e o RLS não libera nada.
 
 ## O que já está provado
 
-`supabase/tests/provisioning.test.mjs` roda um **modelo** do fluxo contra
-Postgres de verdade e prova que o esquema sustenta as garantias: caminho feliz,
-idempotência, falha no meio, retomada sem repetir etapa, e dados de compensação.
+**Com o código de produção.** `supabase/tests/blueprint-provisioning.test.mjs`
+importa `planProvisioning` e `executeProvisioning` — os mesmos módulos que o
+servidor vai importar — e os roda contra Postgres de verdade:
 
-O modelo não é a implementação de produção — não envia e-mail, não chama
-serviço externo. Mas a ordem das etapas e as garantias são exatamente estas, e
-a implementação real vai poder ser conferida contra ele.
+- cada nicho do repositório provisiona, e o resultado é o que o blueprint declara
+- a mesma chave devolve a execução existente e não escreve de novo
+- uma linha por etapa, inclusive as que nem chegaram a rodar
+- falha no meio deixa o cliente em `provisioning` e o que já foi escrito fica
+- a mesma pessoa administrando dois clientes é uma pessoa só
+
+**Com um modelo.** `supabase/tests/provisioning.test.mjs` continua exercitando
+retomada e compensação, que o executor ainda não implementa. O modelo prova que
+o esquema as sustenta; quando o executor as ganhar, os testes migram para ele.
+
+**O que ainda não foi exercido:** envio de e-mail de verdade, a Auth Admin API
+do Supabase por trás do `IdentityPort`, e concorrência real.
 
 ## Dependências externas 🔒
 

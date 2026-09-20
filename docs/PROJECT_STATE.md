@@ -26,10 +26,10 @@
 | Identidade de marca          | ✅     | 4 SVGs oficiais em `apps/site/src/assets/brand/`                   |
 | Monorepo (npm workspaces)    | ✅     | `npm install` + build dos dois apps na nova estrutura              |
 | Casca do SaaS (`apps/web`)   | ✅     | `npm run validate:web` — 0 erros; conferido no navegador           |
-| Esquema do Core              | 🟡     | `npm run test:db` — 117 testes em Postgres 18; **não aplicado**    |
+| Esquema do Core              | 🟡     | `npm run test:db` — 126 testes em Postgres 18; **não aplicado**    |
 | Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
 | Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
-| Contratos (`packages/core`)  | ✅     | `npm run validate` — 374 testes; contratos conferidos contra o SQL |
+| Contratos (`packages/core`)  | ✅     | `npm run validate` — 387 testes; contratos conferidos contra o SQL |
 | CI (GitHub Actions)          | 🟡     | Escrito e no remoto; roda na abertura do PR, não em push de branch |
 | Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado       |
 
@@ -54,7 +54,7 @@ identidade e RBAC (usuários, papéis, permissões, vínculos, equipes), auditor
 provisionamento. Mais RLS em todas elas e o catálogo da plataforma
 (9 módulos, 51 permissões, 3 papéis de sistema, 3 planos).
 
-**Verificado por execução** — `npm run test:db`, 117 testes contra Postgres 18:
+**Verificado por execução** — `npm run test:db`, 126 testes contra Postgres 18:
 
 - Isolamento entre tenants nas quatro operações (ler, inserir, atualizar, excluir)
 - Nenhuma tabela sem RLS; nenhuma tabela sem política; `search_path` fixo em
@@ -79,7 +79,7 @@ depende de autorizar o conector ou rodar `npm run db:push` com o CLI 🔒.
 
 **Estado:** 🟡 PARCIAL · **Docs:** `packages/core/README.md` · **Trello:** `CORE`
 
-Existe e é consumido por `apps/web`. **185 testes.**
+Existe e é consumido por `apps/web`. **189 testes.**
 
 **O catálogo e os estados** — módulos, permissões, papéis, planos, e os estados
 de tenant, vínculo e provisionamento. Espelham o SQL, e é o teste de contratos
@@ -108,10 +108,27 @@ estes três ainda não têm nem tabela.
 
 ### Provisionamento — **prioridade zero**
 
-**Estado:** ⬜ NÃO EXISTE · **Docs:** [[ARCHITECTURE#4. Provisionamento — prioridade zero]] · **Trello:** `ADMIN`
+**Estado:** 🟡 PARCIAL · **Docs:** [[06-ADMIN/PROVISIONING]] · **Trello:** `ADMIN`
 
-É o que transforma a plataforma em SaaS de verdade. Vem antes de qualquer módulo
-de negócio. Depende de: banco 🔒, auth, multi-tenancy.
+É o que transforma a plataforma em SaaS de verdade.
+
+**Existe e roda contra Postgres:** `planProvisioning()` decide e
+`apps/web/src/server/provisioning/execute.ts` escreve. Os dois são código de
+produção — o teste importa os mesmos módulos que o servidor vai importar, sem
+uma terceira versão parecida no meio.
+
+As garantias, verificadas: a mesma chave de idempotência devolve a execução
+existente sem escrever de novo; uma linha por etapa do fluxo, inclusive as que
+nem chegaram a rodar; falha no meio deixa o cliente em `provisioning`, que é
+honesto — existe e não opera; e a mesma pessoa administrando dois clientes é
+uma pessoa só.
+
+**Não existe:** o gatilho da interface. Criar cliente pelo painel Super Admin
+depende de autenticação, que depende do Supabase aplicado 🔒.
+
+**A fronteira nomeada:** `IdentityPort`. Identidade não se cria por SQL — em
+produção é a Auth Admin API. Fingir que uma escrita em SQL cria uma conta é o
+tipo de atalho que passa no teste e falha na primeira pessoa real.
 
 ### Aplicação SaaS — `apps/web`
 
@@ -399,7 +416,7 @@ corporativa, e nenhum projeto Tivexy vive nela. Sair e entrar com a conta certa
 resolve os dois de uma vez, Supabase e Vercel.
 
 Depois de aplicar, **rodar o teste de isolamento contra o projeto real**. Os
-117 testes de banco rodam em Postgres WASM: fiéis ao contrato, não ao
+126 testes de banco rodam em Postgres WASM: fiéis ao contrato, não ao
 transporte.
 
 ### 3. 🔴 Abrir o PR

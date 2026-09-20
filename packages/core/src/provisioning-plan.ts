@@ -18,6 +18,7 @@
 
 import type { ModuleCode, PermissionCode, PlanCode, SystemRoleCode } from './catalog.ts';
 import type { Blueprint, BlueprintProblem } from './blueprint.ts';
+import { PROVISIONING_STEPS, type ProvisioningStep } from './provisioning.ts';
 import { isReservedSubdomain } from './tenant-host.ts';
 
 /* ── As operações ─────────────────────────────────────────────────────── */
@@ -40,6 +41,37 @@ export type ProvisioningOperation =
 export type ProvisioningPlan =
   | { ok: true; operations: readonly ProvisioningOperation[] }
   | { ok: false; problems: readonly BlueprintProblem[] };
+
+/**
+ * A que etapa cada operação pertence.
+ *
+ * Existe para o executor **não adivinhar**. Sem isto, ele agruparia operações
+ * por conta própria — uma segunda regra, em outro lugar, que pode discordar
+ * desta sem ninguém notar. Com o mapa aqui, quem falha numa operação sabe
+ * exatamente qual etapa marcar como falha, e quem retoma sabe o que pular.
+ *
+ * `apply_plan` não tem operação própria: o plano entra junto com o tenant, numa
+ * escrita só. A etapa existe mesmo assim porque o fluxo documentado a tem, e
+ * porque separar "criar a empresa" de "aplicar o pacote contratado" é o que
+ * permitirá trocar um sem refazer o outro.
+ */
+const STEP_OF: Record<ProvisioningOperation['kind'], ProvisioningStep> = {
+  create_tenant: 'create_tenant',
+  enable_module: 'enable_modules',
+  create_role: 'create_roles',
+  create_admin: 'create_admin',
+  seed: 'seed_defaults',
+  invite: 'send_invite',
+};
+
+export function stepOf(operation: ProvisioningOperation): ProvisioningStep {
+  return STEP_OF[operation.kind];
+}
+
+/** A posição de uma etapa na ordem oficial. */
+export function stepPosition(step: ProvisioningStep): number {
+  return PROVISIONING_STEPS.indexOf(step) + 1;
+}
 
 export interface ProvisioningInput {
   blueprint: Blueprint;

@@ -10,11 +10,11 @@
  * teste: um nicho que quebrasse o provisionamento precisa falhar aqui, não em
  * produção com um tenant pela metade.
  *
- * **A decisão não é modelo — é o Core.** `planProvisioning`, de `@tivexy/core`,
- * diz o que fazer; este arquivo só executa a lista. O que ainda é modelo é o
- * executor: a produção vai escrever com `service_role` e falar com serviços que
- * o teste não tem. Mas a regra — a ordem, a validação, a recusa por plano — é a
- * mesma que vai rodar em produção, e é isso que este teste exercita.
+ * **Nada aqui é modelo.** `planProvisioning` decide, `executeProvisioning`
+ * escreve — os dois são o código de produção, importados como estão. Este
+ * arquivo só liga um ao outro e confere o resultado. Enquanto o executor vivia
+ * aqui dentro, o que rodava no teste era uma segunda implementação que a
+ * produção teria que escrever de novo, e as duas podiam divergir sem aviso.
  *
  *   npm run test:db
  */
@@ -23,8 +23,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { after, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { executeProvisioning } from '../../apps/web/src/server/provisioning/execute.ts';
 import { checkBlueprint } from '../../packages/core/src/blueprint.ts';
 import { planProvisioning } from '../../packages/core/src/provisioning-plan.ts';
+import { PROVISIONING_STEPS } from '../../packages/core/src/provisioning.ts';
 import { createDatabase, createUser } from './harness.mjs';
 
 const DIR = fileURLToPath(new URL('../../packages/core/blueprints/', import.meta.url));
@@ -43,8 +45,6 @@ const nichos = Object.fromEntries(
 let db;
 let superAdmin;
 
-// ─────────────────────────────────────────────────────────────────────────
-// Modelo do provisionador guiado por blueprint
 // ─────────────────────────────────────────────────────────────────────────
 
 /**
@@ -67,125 +67,13 @@ async function modulosDoPlano(db, planCode) {
 }
 
 /**
- * Provisiona um tenant a partir de um blueprint.
+ * Planeja com o Core e executa com o executor de produção.
  *
- * O que decide **o que** fazer é `planProvisioning`, de `@tivexy/core`. Esta
- * função só **executa** a lista que ele devolve — não tem regra própria, nem
- * ordem própria, nem validação própria.
- *
- * Essa separação é o ponto. Enquanto a lógica vivia aqui dentro, o que rodava
- * no teste era um modelo paralelo ao que a produção teria que escrever de novo,
- * e os dois podiam divergir sem ninguém notar. Agora o teste prova que **o
- * plano do Core** funciona contra Postgres de verdade.
+ * Nenhuma linha de lógica de provisionamento mora neste arquivo. O que decide
+ * é `planProvisioning`; o que escreve é `executeProvisioning`, o mesmo módulo
+ * que vai rodar no servidor. O teste existe para provar **esses dois**, não uma
+ * terceira versão parecida com eles.
  */
-async function executarPlano(db, operacoes, { blueprint, idempotencyKey }) {
-  let tenantId = null;
-  let runId = null;
-  const pendentes = [];
-
-  for (const op of operacoes) {
-    switch (op.kind) {
-      case 'create_tenant': {
-        const { rows } = await db.query(
-          `insert into public.tenants (slug, name, status, plan_id, settings)
-           values ($1, $2, 'provisioning', (select id from public.plans where code = $3), $4)
-           returning id`,
-          [op.slug, op.name, op.plan, JSON.stringify(op.settings)],
-        );
-        tenantId = rows[0].id;
-
-        const run = await db.query(
-          `insert into public.provisioning_runs (tenant_id, idempotency_key, payload, requested_by, status, started_at)
-           values ($1, $2, $3, $4, 'running', now())
-           returning id`,
-          [
-            tenantId,
-            idempotencyKey,
-            // De qual blueprint e versão este tenant nasceu. Sem isto, a
-            // pergunta "com que configuração ele foi criado?" vira adivinhação
-            // assim que o documento mudar.
-            JSON.stringify({ blueprint: { code: blueprint.code, version: blueprint.version } }),
-            superAdmin,
-          ],
-        );
-        runId = run.rows[0].id;
-        break;
-      }
-
-      case 'enable_module':
-        await db.query(
-          `insert into public.tenant_modules (tenant_id, module_id, is_enabled, enabled_at)
-           select $1, m.id, true, now() from public.modules m where m.code = $2`,
-          [tenantId, op.module],
-        );
-        break;
-
-      case 'create_role': {
-        const { rows } = await db.query(
-          `insert into public.roles (tenant_id, code, name, is_system)
-           values ($1, $2, $3, false) returning id`,
-          [tenantId, op.code, op.name],
-        );
-        await db.query(
-          `insert into public.role_permissions (role_id, permission_id)
-           select $1, p.id from public.permissions p where p.code = any($2::text[])`,
-          [rows[0].id, [...op.permissions]],
-        );
-        break;
-      }
-
-      case 'create_admin': {
-        const userId = await createUser(db, { email: op.email, fullName: op.fullName });
-        await db.query(
-          `insert into public.tenant_users (tenant_id, user_id, role_id, status)
-           values ($1, $2, (select id from public.roles where code = $3 and tenant_id is null), 'invited')`,
-          [tenantId, userId, op.role],
-        );
-        break;
-      }
-
-      case 'seed':
-        // Não aplicada: `crm.pipelines` e `erp.product_categories` não
-        // existem, porque os módulos de negócio não foram construídos.
-        // Fingir que semeou é exatamente o que este projeto proíbe.
-        pendentes.push({ entity: op.entity, values: op.values });
-        break;
-
-      case 'invite':
-        await db.query(
-          `insert into public.audit_logs (tenant_id, action, resource_type, resource_id, metadata)
-           values ($1, 'tenant.provisioned', 'tenant', $2, $3)`,
-          [tenantId, tenantId, JSON.stringify({ email: op.email, blueprint: blueprint.code })],
-        );
-        break;
-
-      default:
-        throw new Error(`operação desconhecida no plano: ${op.kind}`);
-    }
-  }
-
-  await db.query(
-    `insert into public.provisioning_steps (run_id, step, position, status, result, finished_at)
-     values ($1, 'seed_defaults', 1, 'skipped', $2, now())`,
-    [
-      runId,
-      JSON.stringify({
-        pending: pendentes,
-        reason: 'módulos de negócio ainda não têm tabela — ver docs/PROJECT_STATE.md',
-      }),
-    ],
-  );
-
-  await db.query(
-    `update public.provisioning_runs set status = 'succeeded', finished_at = now() where id = $1`,
-    [runId],
-  );
-  await db.query(`update public.tenants set status = 'active' where id = $1`, [tenantId]);
-
-  return { tenantId, runId };
-}
-
-/** Planeja com o Core e executa. A recusa acontece antes de qualquer escrita. */
 async function provisionarPorBlueprint(db, { blueprint, slug, name, admin, idempotencyKey }) {
   const plano = planProvisioning({
     blueprint,
@@ -199,7 +87,34 @@ async function provisionarPorBlueprint(db, { blueprint, slug, name, admin, idemp
     throw new Error(plano.problems.map((p) => `${p.path}: ${p.message}`).join('; '));
   }
 
-  return executarPlano(db, plano.operations, { blueprint, idempotencyKey });
+  /*
+   * A identidade vem de fora do SQL — em produção, da Auth Admin API do
+   * Supabase. Aqui ela vem do harness, que insere em `auth.users` e deixa o
+   * gatilho `mirror_auth_user` criar o perfil, exatamente como em produção.
+   *
+   * `ensureUser` e não `createUser`: quem administra dois clientes é a mesma
+   * pessoa, e o segundo provisionamento precisa reaproveitar a identidade.
+   */
+  const identidade = {
+    async ensureUser({ email, fullName }) {
+      const { rows } = await db.query(
+        'select id from public.users where lower(email) = lower($1)',
+        [email],
+      );
+      if (rows.length > 0) return rows[0].id;
+      return createUser(db, { email, fullName });
+    },
+  };
+
+  const r = await executeProvisioning(db, identidade, {
+    operations: plano.operations,
+    blueprint: { code: blueprint.code, version: blueprint.version },
+    idempotencyKey,
+    requestedBy: superAdmin,
+  });
+
+  if (!r.ok) throw new Error(`${r.failedStep}: ${r.error}`);
+  return { tenantId: r.tenantId, runId: r.runId, pendingSeeds: r.pendingSeeds, reused: r.reused };
 }
 
 /** O que um tenant de fato recebeu, para comparar entre nichos. */
@@ -445,5 +360,249 @@ describe('o que não foi aplicado fica registrado, não escondido', () => {
       runId,
     ]);
     assert.deepEqual(rows[0].payload.blueprint, { code: bp.code, version: bp.version });
+  });
+});
+
+describe('o executor: garantias que só aparecem escrevendo', () => {
+  it('a mesma chave devolve a execução existente e não escreve de novo', async () => {
+    const bp = nichos['cafeteria'];
+    const primeira = await provisionarPorBlueprint(db, {
+      blueprint: bp,
+      slug: 'cafe-idem',
+      name: 'Café',
+      admin: admin(1),
+      idempotencyKey: 'req-mesma-chave',
+    });
+    assert.equal(primeira.reused, false);
+
+    const segunda = await provisionarPorBlueprint(db, {
+      blueprint: bp,
+      slug: 'cafe-idem-2',
+      name: 'Outro nome',
+      admin: admin(2),
+      idempotencyKey: 'req-mesma-chave',
+    });
+
+    assert.equal(segunda.reused, true);
+    assert.equal(segunda.tenantId, primeira.tenantId);
+
+    const { rows } = await db.query('select count(*)::int as c from public.tenants');
+    assert.equal(rows[0].c, 1, 'repetir a requisição não pode criar outro cliente');
+  });
+
+  it('registra uma linha por etapa do fluxo, sem faltar nenhuma', async () => {
+    // É o que permite responder "onde parou?" sem ler log, e o que a retomada
+    // consulta para saber o que pular.
+    const { runId } = await provisionarPorBlueprint(db, {
+      blueprint: nichos['cafeteria'],
+      slug: 'cafe-etapas',
+      name: 'Café',
+      admin: admin(1),
+      idempotencyKey: 'req-etapas',
+    });
+
+    const { rows } = await db.query(
+      'select step from public.provisioning_steps where run_id = $1 order by position',
+      [runId],
+    );
+    assert.deepEqual(
+      rows.map((r) => r.step),
+      [...PROVISIONING_STEPS],
+    );
+  });
+
+  it('a etapa sem operação própria fica "skipped", não "pending" para sempre', async () => {
+    // `apply_plan` entra junto com o tenant, numa escrita só. Deixá-la
+    // `pending` diria "faltou fazer" sobre algo que já está feito.
+    const { runId } = await provisionarPorBlueprint(db, {
+      blueprint: nichos['cafeteria'],
+      slug: 'cafe-plano',
+      name: 'Café',
+      admin: admin(1),
+      idempotencyKey: 'req-plano',
+    });
+
+    const { rows } = await db.query(
+      `select status::text as status from public.provisioning_steps
+       where run_id = $1 and step = 'apply_plan'`,
+      [runId],
+    );
+    assert.equal(rows[0].status, 'skipped');
+
+    const pendentes = await db.query(
+      `select count(*)::int as c from public.provisioning_steps
+       where run_id = $1 and status = 'pending'`,
+      [runId],
+    );
+    assert.equal(pendentes.rows[0].c, 0, 'execução concluída não deixa etapa pendente');
+  });
+
+  it('uma falha no meio para o fluxo e o cliente não vira ativo', async () => {
+    // A identidade falhando é o caso realista: a Auth API fora do ar, e-mail
+    // recusado. O tenant já existe a essa altura — e precisa ficar em
+    // `provisioning`, que é honesto: existe e não opera.
+    const bp = nichos['cafeteria'];
+    const plano = planProvisioning({
+      blueprint: bp,
+      planModules: [...(await modulosDoPlano(db, bp.plan))],
+      slug: 'cafe-falha',
+      name: 'Café',
+      admin: { email: 'dono@cafe.com.br', fullName: 'Dono' },
+    });
+    assert.equal(plano.ok, true);
+
+    const identidadeQuebrada = {
+      async ensureUser() {
+        throw new Error('Auth indisponível');
+      },
+    };
+
+    const r = await executeProvisioning(db, identidadeQuebrada, {
+      operations: plano.operations,
+      blueprint: { code: bp.code, version: bp.version },
+      idempotencyKey: 'req-falha-auth',
+      requestedBy: superAdmin,
+    });
+
+    assert.equal(r.ok, false);
+    assert.equal(r.failedStep, 'create_admin');
+    assert.match(r.error, /Auth indisponível/);
+
+    const { rows } = await db.query(
+      `select
+         (select t.status::text from public.tenants t where t.id = $1) as tenant,
+         (select pr.status::text from public.provisioning_runs pr where pr.id = $2) as execucao,
+         (select ps.status::text from public.provisioning_steps ps
+           where ps.run_id = $2 and ps.step = 'create_admin') as etapa,
+         (select ps.status::text from public.provisioning_steps ps
+           where ps.run_id = $2 and ps.step = 'send_invite') as depois`,
+      [r.tenantId, r.runId],
+    );
+    const [c] = rows;
+    assert.equal(c.tenant, 'provisioning', 'cliente que falhou não pode operar');
+    assert.equal(c.execucao, 'failed');
+    assert.equal(c.etapa, 'failed');
+    assert.equal(c.depois, 'pending', 'o que veio depois nem chegou a rodar');
+  });
+
+  it('o que já tinha sido escrito antes da falha continua lá', async () => {
+    // Não é sujeira: é o que a retomada aproveita e o que a compensação
+    // desfaz. Apagar no meio perderia a evidência de onde parou.
+    const bp = nichos['cafeteria'];
+    const plano = planProvisioning({
+      blueprint: bp,
+      planModules: [...(await modulosDoPlano(db, bp.plan))],
+      slug: 'cafe-parcial',
+      name: 'Café',
+      admin: { email: 'dono@cafe.com.br', fullName: 'Dono' },
+    });
+    assert.equal(plano.ok, true);
+
+    const r = await executeProvisioning(
+      db,
+      {
+        async ensureUser() {
+          throw new Error('parou aqui');
+        },
+      },
+      {
+        operations: plano.operations,
+        blueprint: { code: bp.code, version: bp.version },
+        idempotencyKey: 'req-parcial',
+        requestedBy: superAdmin,
+      },
+    );
+    assert.equal(r.ok, false);
+
+    const { rows } = await db.query(
+      `select
+         (select count(*)::int from public.tenant_modules where tenant_id = $1) as modulos,
+         (select count(*)::int from public.roles where tenant_id = $1) as papeis,
+         (select count(*)::int from public.tenant_users where tenant_id = $1) as membros`,
+      [r.tenantId],
+    );
+    const [c] = rows;
+    assert.equal(c.modulos, bp.modules.length, 'os módulos já habilitados ficam');
+    assert.equal(c.papeis, bp.roles.length, 'os papéis já criados ficam');
+    assert.equal(c.membros, 0, 'o vínculo é o que não chegou a existir');
+  });
+
+  it('a mesma pessoa administrando dois clientes é uma pessoa só', async () => {
+    // `ensureUser`, não `createUser`. Criar um segundo usuário com o mesmo
+    // e-mail partiria a identidade dela em duas — e ela entraria vendo só uma
+    // das empresas, sem entender por quê.
+    const mesmo = { email: 'dono@grupo.com.br', name: 'Dono do Grupo' };
+
+    await provisionarPorBlueprint(db, {
+      blueprint: nichos['cafeteria'],
+      slug: 'unidade-um',
+      name: 'Unidade Um',
+      admin: mesmo,
+      idempotencyKey: 'req-u1',
+    });
+    await provisionarPorBlueprint(db, {
+      blueprint: nichos['mercado'],
+      slug: 'unidade-dois',
+      name: 'Unidade Dois',
+      admin: mesmo,
+      idempotencyKey: 'req-u2',
+    });
+
+    const { rows } = await db.query(
+      `select
+         (select count(*)::int from public.users where lower(email) = lower($1)) as pessoas,
+         (select count(*)::int from public.tenant_users tu
+            join public.users u on u.id = tu.user_id
+           where lower(u.email) = lower($1)) as vinculos`,
+      [mesmo.email],
+    );
+    assert.equal(rows[0].pessoas, 1, 'uma pessoa, não duas');
+    assert.equal(rows[0].vinculos, 2, 'com dois vínculos');
+  });
+});
+
+describe('o espelho de auth.users', () => {
+  it('criar a identidade cria o perfil', async () => {
+    // Sem o gatilho, quem se cadastrasse existiria para a autenticação e não
+    // para a aplicação: entraria e o sistema diria que não a conhece.
+    const { rows } = await db.query(
+      `insert into auth.users (email, raw_user_meta_data)
+       values ('nova@pessoa.com.br', '{"full_name": "Nova Pessoa"}'::jsonb)
+       returning id`,
+    );
+    const id = rows[0].id;
+
+    const perfil = await db.query(
+      'select email, full_name, is_super_admin from public.users where id = $1',
+      [id],
+    );
+    assert.equal(perfil.rows.length, 1, 'o perfil precisa nascer junto');
+    assert.equal(perfil.rows[0].email, 'nova@pessoa.com.br');
+    assert.equal(perfil.rows[0].full_name, 'Nova Pessoa');
+    assert.equal(perfil.rows[0].is_super_admin, false);
+  });
+
+  it('metadado de cadastro não promove ninguém a Super Admin', async () => {
+    // O metadado vem do cliente. Se o gatilho o copiasse inteiro, bastaria
+    // mandar `is_super_admin: true` no cadastro para virar plataforma.
+    const { rows } = await db.query(
+      `insert into auth.users (email, raw_user_meta_data)
+       values ('esperto@pessoa.com.br', '{"is_super_admin": true, "full_name": "Esperto"}'::jsonb)
+       returning id`,
+    );
+
+    const perfil = await db.query('select is_super_admin from public.users where id = $1', [
+      rows[0].id,
+    ]);
+    assert.equal(perfil.rows[0].is_super_admin, false);
+  });
+
+  it('identidade sem nome no metadado não quebra', async () => {
+    const { rows } = await db.query(
+      `insert into auth.users (email) values ('sem.nome@pessoa.com.br') returning id`,
+    );
+    const perfil = await db.query('select full_name from public.users where id = $1', [rows[0].id]);
+    assert.equal(perfil.rows.length, 1);
+    assert.equal(perfil.rows[0].full_name, null);
   });
 });

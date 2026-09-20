@@ -13,7 +13,7 @@ região `sa-east-1`. As migrations ainda **não foram aplicadas nele** — ver
 "Aplicar no projeto" abaixo.
 
 O que já existe é mais forte do que "escrito": elas rodam contra um Postgres 18
-de verdade e passam em 117 testes, incluindo os de isolamento entre tenants.
+de verdade e passam em 126 testes, incluindo os de isolamento entre tenants.
 
 O que ainda não foi exercido: `auth.uid()` real vindo de um JWT, e o
 comportamento sob concorrência real. O harness simula `auth.uid()` com uma
@@ -33,7 +33,8 @@ supabase/
 │   ├── 20260919020500_core_catalog.sql           catálogo da plataforma
 │   ├── 20260919030000_core_viewer.sql            contexto de acesso da requisição
 │   ├── 20260919040000_core_integrity_hardening.sql  privilégio de coluna e gatilhos
-│   └── 20260919050000_core_tenant_column_privileges.sql  colunas da plataforma
+│   ├── 20260919050000_core_tenant_column_privileges.sql  colunas da plataforma
+│   └── 20260920010000_core_mirror_auth_users.sql     o perfil nasce com a identidade
 └── tests/
     ├── harness.mjs             sobe Postgres em WASM e simula o que o Supabase oferece
     ├── core.test.mjs           32 testes: esquema, RLS, isolamento, integridade
@@ -41,7 +42,7 @@ supabase/
     ├── contracts.test.mjs      18 testes: TypeScript × catálogo, constraints e docs
     ├── viewer.test.mjs         17 testes: contexto de acesso e vazamento
     ├── integrity.test.mjs      21 testes: tentativas de burlar, não de usar
-    └── blueprint-provisioning.test.mjs  10 testes: provisionar por nicho
+    └── blueprint-provisioning.test.mjs  20 testes: provisionar por nicho
 ```
 
 ## Testes

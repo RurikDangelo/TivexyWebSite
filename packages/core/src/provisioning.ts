@@ -27,11 +27,20 @@ export const PROVISIONING_STEP_STATUSES = [
 
 export type ProvisioningStepStatus = (typeof PROVISIONING_STEP_STATUSES)[number];
 
-/** As etapas, na ordem em que executam. A ordem é parte do contrato. */
+/**
+ * As etapas, na ordem em que executam. A ordem é parte do contrato.
+ *
+ * `create_roles` entrou quando o Blueprint passou a trazer papéis próprios do
+ * nicho. Antes, criá-los ficaria escondido dentro de `seed_defaults`, e uma
+ * falha ao criar papel apareceria como "falha ao semear padrões" — que manda
+ * quem está investigando olhar no lugar errado. Cada etapa existe para ser o
+ * nome de um problema.
+ */
 export const PROVISIONING_STEPS = [
   'create_tenant',
   'apply_plan',
   'enable_modules',
+  'create_roles',
   'create_admin',
   'seed_defaults',
   'send_invite',

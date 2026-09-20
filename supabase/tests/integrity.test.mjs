@@ -69,12 +69,29 @@ after(async () => {
  * coluna sensível nova sem pensar no privilégio —, aqui falha.
  */
 describe('colunas que o papel authenticated pode atualizar', () => {
+  /**
+   * As colunas de uma tabela de `public` que `authenticated` pode atualizar.
+   *
+   * O `offset 0` na subconsulta não é enfeite: ele é uma **barreira de
+   * otimização**. Sem ela, o Postgres pode avaliar `has_column_privilege` antes
+   * dos filtros de schema e de tabela — e aí pergunta sobre uma coluna que
+   * existe em `auth.users` contra `public.users`, o que estoura com
+   * "column does not exist".
+   *
+   * Aconteceu de verdade: bastou `auth.users` ganhar `raw_user_meta_data` para
+   * este teste quebrar sem que nada de privilégio tivesse mudado. O defeito era
+   * do teste, não do esquema.
+   */
   async function colunasAtualizaveis(tabela) {
     const { rows } = await db.query(
-      `select c.column_name
-       from information_schema.columns c
-       where c.table_schema = 'public' and c.table_name = $1
-         and has_column_privilege('authenticated', 'public.' || $1, c.column_name, 'UPDATE')
+      `select column_name
+       from (
+         select c.column_name
+         from information_schema.columns c
+         where c.table_schema = 'public' and c.table_name = $1
+         offset 0
+       ) cols
+       where has_column_privilege('authenticated', 'public.' || $1, column_name, 'UPDATE')
        order by 1`,
       [tabela],
     );

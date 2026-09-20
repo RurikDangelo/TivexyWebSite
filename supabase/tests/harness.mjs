@@ -27,7 +27,10 @@ const SUPABASE_STUB = `
 
   create table auth.users (
     id    uuid primary key default gen_random_uuid(),
-    email text not null unique
+    email text not null unique,
+    -- Onde o Supabase guarda o que veio do cadastro ou do OAuth. O gatilho que
+    -- espelha para public.users lê daqui, então o harness precisa ter.
+    raw_user_meta_data jsonb not null default '{}'::jsonb
   );
 
   -- No Supabase o id vem do JWT. Aqui vem de uma configuração de sessão,
@@ -120,14 +123,23 @@ export async function asAnon(db, fn) {
  * @returns {Promise<string>} o id
  */
 export async function createUser(db, { email, fullName = null, isSuperAdmin = false }) {
-  const { rows } = await db.query('insert into auth.users (email) values ($1) returning id', [
-    email,
-  ]);
-  const id = rows[0].id;
-  await db.query(
-    'insert into public.users (id, email, full_name, is_super_admin) values ($1, $2, $3, $4)',
-    [id, email, fullName, isSuperAdmin],
+  // Só a identidade. O perfil em `public.users` nasce pelo gatilho
+  // `mirror_auth_user`, como em produção — inserir os dois à mão aqui
+  // esconderia um gatilho quebrado atrás de um teste que passa.
+  const { rows } = await db.query(
+    `insert into auth.users (email, raw_user_meta_data)
+     values ($1, jsonb_build_object('full_name', $2::text))
+     returning id`,
+    [email, fullName],
   );
+  const id = rows[0].id;
+
+  // Plataforma é decisão da plataforma: o gatilho não escreve isto, de
+  // propósito. Metadado de cadastro não pode promover ninguém.
+  if (isSuperAdmin) {
+    await db.query('update public.users set is_super_admin = true where id = $1', [id]);
+  }
+
   return id;
 }
 

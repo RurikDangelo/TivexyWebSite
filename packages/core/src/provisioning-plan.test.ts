@@ -14,11 +14,14 @@ import { describe, it } from 'node:test';
 import type { Blueprint, BlueprintProblem } from './blueprint.ts';
 import { checkBlueprint } from './blueprint.ts';
 import type { ModuleCode } from './catalog.ts';
+import { PROVISIONING_STEPS } from './provisioning.ts';
 import {
   type ProvisioningOperation,
   type ProvisioningPlan,
   planProvisioning,
   previewOf,
+  stepOf,
+  stepPosition,
 } from './provisioning-plan.ts';
 
 const blueprint: Blueprint = (() => {
@@ -207,5 +210,40 @@ describe('prévia', () => {
     const p = previewOf(ops);
     assert.equal(p.modules.length, ops.filter((o) => o.kind === 'enable_module').length);
     assert.equal(p.roles.length, ops.filter((o) => o.kind === 'create_role').length);
+  });
+});
+
+describe('a que etapa cada operação pertence', () => {
+  it('toda operação do plano sabe sua etapa', () => {
+    // Sem isto, o executor agruparia por conta própria — uma segunda regra, em
+    // outro lugar, capaz de discordar desta sem ninguém notar.
+    for (const op of ok(planProvisioning(entrada()))) {
+      assert.ok(
+        PROVISIONING_STEPS.includes(stepOf(op)),
+        `${op.kind} aponta para uma etapa que não existe`,
+      );
+    }
+  });
+
+  it('as operações saem na ordem das etapas, nunca voltando', () => {
+    // É o invariante que o executor depende: ele marca a etapa como concluída
+    // quando a próxima operação muda de etapa. Se a lista voltasse atrás, ele
+    // marcaria concluída uma etapa que ainda tem trabalho.
+    const posicoes = ok(planProvisioning(entrada())).map((o) => stepPosition(stepOf(o)));
+    const ordenadas = [...posicoes].sort((a, b) => a - b);
+    assert.deepEqual(posicoes, ordenadas, 'o plano volta a uma etapa anterior');
+  });
+
+  it('create_roles vem entre enable_modules e create_admin', () => {
+    // A permissão do papel pertence a um módulo; o vínculo do administrador
+    // aponta para um papel. A ordem não é estética.
+    const p = (s: (typeof PROVISIONING_STEPS)[number]) => stepPosition(s);
+    assert.ok(p('enable_modules') < p('create_roles'));
+    assert.ok(p('create_roles') < p('create_admin'));
+  });
+
+  it('toda etapa do fluxo tem posição, e elas são únicas', () => {
+    const posicoes = PROVISIONING_STEPS.map(stepPosition);
+    assert.deepEqual(posicoes, [1, 2, 3, 4, 5, 6, 7]);
   });
 });

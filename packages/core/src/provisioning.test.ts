@@ -86,6 +86,7 @@ describe('etapas', () => {
         'create_tenant',
         'apply_plan',
         'enable_modules',
+        'create_roles',
         'create_admin',
         'seed_defaults',
         'send_invite',
