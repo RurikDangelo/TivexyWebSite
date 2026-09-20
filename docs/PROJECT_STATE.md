@@ -233,19 +233,19 @@ aplicadas em `tivexy-core` (🔒 externo).
 
 Ordenadas por urgência:
 
-| #   | Tarefa                                             | Bloqueia                 | Urgência    |
-| --- | -------------------------------------------------- | ------------------------ | ----------- |
-| 1   | **Aplicar as migrations em `tivexy-core`**         | Todo o SaaS              | 🔴 Imediata |
-| 2   | **Abrir o PR** da branch `monorepo-tivexy-core`    | Primeira execução do CI  | 🔴 Imediata |
-| 3   | **Reautorizar o conector Vercel no escopo Tivexy** | Qualquer coisa na Vercel | 🟠 Alta     |
-| 4   | Conferir o destino do formulário de contato        | Leads da landing         | 🟠 Alta     |
-| 5   | Projeto Vercel do `apps/web` + variáveis           | Deploy do SaaS           | 🟡 Depois   |
-| 6   | Domínio `tivexy.com.br` + DNS                      | SEO, e-mail              | 🟠 Média    |
-| 7   | E-mail corporativo + SPF/DKIM/DMARC                | Convites do SaaS         | 🟠 Média    |
-| 8   | Credenciais OpenAI                                 | AI Engine                | 🟡 Depois   |
-| 9   | Meta Business + WhatsApp Business API              | Atendimento              | 🟡 Depois   |
-| 10  | Provedor fiscal + certificado digital              | Fiscal                   | 🟡 Depois   |
-| 11  | CNPJ, contador, conta PJ, contratos                | Venda formal             | 🟡 Paralelo |
+| #   | Tarefa                                          | Bloqueia                | Urgência    |
+| --- | ----------------------------------------------- | ----------------------- | ----------- |
+| 1   | **Aplicar as migrations em `tivexy-core`**      | Todo o SaaS             | 🔴 Imediata |
+| 2   | **Abrir o PR** da branch `monorepo-tivexy-core` | Primeira execução do CI | 🔴 Imediata |
+| 3   | **Trocar a conta dos conectores** desta máquina | Supabase e Vercel daqui | 🟠 Alta     |
+| 4   | Conferir o destino do formulário de contato     | Leads da landing        | 🟠 Alta     |
+| 5   | Projeto Vercel do `apps/web` + variáveis        | Deploy do SaaS          | 🟡 Depois   |
+| 6   | Domínio `tivexy.com.br` + DNS                   | SEO, e-mail             | 🟠 Média    |
+| 7   | E-mail corporativo + SPF/DKIM/DMARC             | Convites do SaaS        | 🟠 Média    |
+| 8   | Credenciais OpenAI                              | AI Engine               | 🟡 Depois   |
+| 9   | Meta Business + WhatsApp Business API           | Atendimento             | 🟡 Depois   |
+| 10  | Provedor fiscal + certificado digital           | Fiscal                  | 🟡 Depois   |
+| 11  | CNPJ, contador, conta PJ, contratos             | Venda formal            | 🟡 Paralelo |
 
 A ordem importa: o Supabase é o que **produz as chaves** que a variável de
 ambiente da Vercel vai precisar. Cadastrar env antes é preencher campo com valor
@@ -254,10 +254,22 @@ que ainda não existe.
 O item 5 é deliberadamente "depois": sem autenticação, o SaaS não tem o que
 servir. Criar o projeto agora seria estrutura vazia. Ver ADR-002.
 
-### Os dois conectores estão fora de alcance — verificado em 19/09/2026
+### Os dois conectores estão logados na conta errada — verificado em 19/09/2026
 
-Ambos foram autorizados antes de o alvo existir, e nenhum dos dois se resolve
-daqui: `reconnect` só serve para conector com falha, e os dois estão saudáveis.
+**Diagnóstico corrigido.** A primeira leitura foi "o conector precisa ser
+reautorizado no projeto". Está errado: o problema não é escopo, é **conta**.
+Esta máquina é a das contas pessoais, e os dois conectores desta sessão estão
+autenticados na conta **corporativa**, que é a do notebook. Nenhum projeto
+Tivexy vive lá.
+
+Isso muda a ação, e para melhor: é sair e entrar com a conta certa, não
+reconfigurar permissão. E não se resolve daqui — `reconnect` só serve para
+conector com falha, e os dois estão saudáveis.
+
+> Quais contas hospedam o quê está registrado fora do repositório, de
+> propósito: este repositório é **público**, e mapear serviço → e-mail de login
+> é entregar ao atacante metade do trabalho. Identificador de projeto (`ref`,
+> `team_…`) é público por desenho e pode ficar aqui.
 
 | Conector | Alcança                                           | Precisa alcançar                                  |
 | -------- | ------------------------------------------------- | ------------------------------------------------- |
@@ -281,10 +293,9 @@ existir trabalho que só vive nesta máquina.
 
 **Resolvido em 19/09/2026:** o projeto Supabase existe — `tivexy-core`, ref
 `lddpqizqjvtimxmorxux`, `sa-east-1`. O que restou é menor e está no topo desta
-tabela: o conector Supabase desta sessão foi autorizado antes do projeto
-existir, e responde `You do not have permission` nele. Sem isso, as migrations
-só entram pelo CLI — que já está configurado (`npm run db:link && npm run
-db:push`).
+tabela: o conector responde `You do not have permission` nele, porque está
+logado na conta errada. Enquanto isso, as migrations entram pelo CLI — que já
+está configurado (`npm run db:link && npm run db:push`).
 
 **Resolvido em 19/09/2026:** Root Directory da landing na Vercel → `apps/site`,
 verificado por deploy de preview real (build READY, home servida corretamente).
@@ -343,36 +354,35 @@ npm run db:push
 npm run db:types
 ```
 
-**Pelo conector** — precisa de reautorização: Configurações → Conectores →
-Supabase → reconectar, incluindo o projeto novo no escopo. O conector desta
-sessão foi autorizado antes de `tivexy-core` existir e responde
-`You do not have permission` nele.
+**Pelo conector** — os conectores desta sessão estão logados na conta
+corporativa, e nenhum projeto Tivexy vive nela. Sair e entrar com a conta certa
+resolve os dois de uma vez, Supabase e Vercel.
 
 Depois de aplicar, **rodar o teste de isolamento contra o projeto real**. Os
 101 testes de banco rodam em Postgres WASM: fiéis ao contrato, não ao
 transporte.
 
-### Depois, na ordem do ADR-002
-
-3. **Autenticação** — Supabase Auth: login, convite, recuperação, sessão. A
-   decisão de acesso já existe e está testada; falta a camada de sessão que
-   chama `current_viewer()` e alimenta `parseViewer()`.
-4. **Middleware** — `guard()` já existe e está testada; falta o `middleware.ts`
-   que a chama e a camada de sessão que monta o `Viewer` a partir dos cookies e
-   de `current_viewer()`. Esta é a parte que precisa do Supabase aplicado.
-5. **Provisionamento** — o esquema sustenta e há um modelo do fluxo provado em
-   teste. Falta a implementação no backend, com `service_role`.
-6. **Painel Super Admin**, e só então CRM e ERP.
-
-### 2b. 🔴 Abrir o PR
+### 3. 🔴 Abrir o PR
 
 O push aconteceu, mas **o CI nunca rodou** — e isso está certo: o workflow
 dispara em `push` para `main`, em `pull_request` e manualmente. Push de branch
 de trabalho não dispara nada, de propósito.
 
-Abrir o PR é o que faz os 27 commits serem validados em máquina limpa, não só
-nesta. O `gh` aqui não está autenticado, então é pela interface do GitHub — ou
-`gh auth login` para destravar e eu abrir.
+Abrir o PR é o que faz todos os commits serem validados em máquina limpa, não
+só nesta. O `gh` aqui não está autenticado, então é pela interface do GitHub —
+ou `gh auth login` para destravar e eu abrir.
+
+### Depois, na ordem do ADR-002
+
+4. **Autenticação** — Supabase Auth: login, convite, recuperação, sessão. A
+   decisão de acesso já existe e está testada; falta a camada de sessão que
+   chama `current_viewer()` e alimenta `parseViewer()`.
+5. **Middleware** — `guard()` já existe e está testada; falta o `middleware.ts`
+   que a chama e a camada de sessão que monta o `Viewer` a partir dos cookies e
+   de `current_viewer()`. Esta é a parte que precisa do Supabase aplicado.
+6. **Provisionamento** — o esquema sustenta e há um modelo do fluxo provado em
+   teste. Falta a implementação no backend, com `service_role`.
+7. **Painel Super Admin**, e só então CRM e ERP.
 
 ### O que dá para fazer sem esperar nada
 
