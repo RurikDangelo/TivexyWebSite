@@ -18,6 +18,7 @@
 
 import type { ModuleCode, PermissionCode, PlanCode, SystemRoleCode } from './catalog.ts';
 import type { Blueprint, BlueprintProblem } from './blueprint.ts';
+import { isReservedSubdomain } from './tenant-host.ts';
 
 /* ── As operações ─────────────────────────────────────────────────────── */
 
@@ -90,6 +91,16 @@ export function planProvisioning(input: ProvisioningInput): ProvisioningPlan {
     erro('slug', `precisa ter entre ${SLUG_MIN} e ${SLUG_MAX} caracteres`);
   } else if (!SLUG_FORMAT.test(endereco)) {
     erro('slug', `"${endereco}" vira subdomínio: só minúsculas, números e hífen no meio`);
+  } else if (isReservedSubdomain(endereco)) {
+    /*
+     * Um tenant chamado `www` ou `api` nasceria **inalcançável**: o endereço
+     * dele já pertence à plataforma, e `tenantSlugFromHost` nunca o
+     * devolveria. O cliente seria criado, cobrado, e simplesmente não abriria.
+     *
+     * A lista precisa valer nos dois sentidos. Reservar só na leitura deixaria
+     * a armadilha armada exatamente aqui, do lado da escrita.
+     */
+    erro('slug', `"${endereco}" é um endereço da plataforma e não pode ser de um cliente`);
   }
 
   if (name.trim().length === 0) erro('name', 'obrigatório');

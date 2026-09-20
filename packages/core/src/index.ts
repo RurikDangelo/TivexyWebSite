@@ -46,6 +46,8 @@ export {
   type Viewer,
 } from './access.ts';
 
+export { RESERVED_SUBDOMAINS, isReservedSubdomain, tenantSlugFromHost } from './tenant-host.ts';
+
 export {
   TENANT_SETTINGS,
   checkSettingValue,
