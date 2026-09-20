@@ -5,12 +5,13 @@ pasta (`docs/`). É versionada em git: documentação e código andam no mesmo c
 
 ## Comece por aqui
 
-| Documento                | Responde                                                   |
-| ------------------------ | ---------------------------------------------------------- |
-| [[PROJECT_STATE]]        | **Qual é o estado atual de cada módulo**                   |
-| [[PROJECT_AUDIT]]        | O que foi encontrado na auditoria inicial                  |
-| [[ARCHITECTURE]]         | Como as peças se encaixam e o que não pode depender de quê |
-| [[REPOSITORY_STRUCTURE]] | O que cada diretório é, e o que não é                      |
+| Documento                                  | Responde                                                   |
+| ------------------------------------------ | ---------------------------------------------------------- |
+| [[PROJECT_STATE]]                          | **Qual é o estado atual de cada módulo**                   |
+| [[PROJECT_AUDIT]]                          | O que foi encontrado na auditoria inicial                  |
+| [[ARCHITECTURE]]                           | Como as peças se encaixam e o que não pode depender de quê |
+| [[REPOSITORY_STRUCTURE]]                   | O que cada diretório é, e o que não é                      |
+| [[03-CORE/AUTHENTICATION\|AUTHENTICATION]] | Como uma requisição vira um `Viewer`                       |
 
 ## As quatro fontes de verdade
 
@@ -62,6 +63,7 @@ sem implementação atrás vira ficção.
 | `DATABASE.md`                          | `02-ARCHITECTURE/` | ✅ escrito                       |
 | `MULTI_TENANCY.md`                     | `12-SECURITY/`     | ✅ escrito                       |
 | `AUTHORIZATION.md`                     | `12-SECURITY/`     | ✅ escrito                       |
+| `AUTHENTICATION.md`                    | `03-CORE/`         | ✅ escrito                       |
 | `PROVISIONING.md`                      | `06-ADMIN/`        | ✅ especificado                  |
 | `CRM.md`                               | `04-CRM/`          | ⬜ com o CRM                     |
 | `ERP.md`, `INVENTORY.md`, `FINANCE.md` | `05-ERP/`          | ⬜ com o ERP                     |

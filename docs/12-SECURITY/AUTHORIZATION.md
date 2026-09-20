@@ -1,6 +1,7 @@
 # Autorização e RBAC
 
-> Quem pode o quê. Isolamento entre tenants em
+> Quem pode o quê. Quem **é** — de cookie a `Viewer` — está em
+> [[../03-CORE/AUTHENTICATION|AUTHENTICATION]]. Isolamento entre tenants em
 > [[MULTI_TENANCY]]; esquema em [[../02-ARCHITECTURE/DATABASE|DATABASE]].
 
 ## Duas camadas, uma regra
