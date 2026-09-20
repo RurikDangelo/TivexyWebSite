@@ -25,7 +25,9 @@ export default async function AcessoNegadoPage({ searchParams }: PageProps<'/ace
   );
 
   return (
-    <div className="mx-auto flex max-w-lg flex-col items-center gap-6 py-16 text-center">
+    // `<main>` não tem padding: cada página dá o seu. Sem `px-6` o texto
+    // encosta nas bordas a 375px.
+    <div className="mx-auto flex max-w-lg flex-col items-center gap-6 px-6 py-16 text-center">
       <div className="flex size-12 items-center justify-center rounded-full bg-surface-muted">
         <ShieldX className="size-6 text-content-subtle" aria-hidden />
       </div>
