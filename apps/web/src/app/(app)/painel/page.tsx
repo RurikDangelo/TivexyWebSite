@@ -7,33 +7,35 @@ export const metadata: Metadata = { title: 'Visão geral' };
 
 /*
  * Esta NÃO é a dashboard do produto. É o estado real da plataforma enquanto o
- * Core não existe. Nenhum número aqui é de negócio — não há banco conectado.
+ * Core não tem módulo de negócio. Há banco, há sessão e há provisionamento —
+ * o que não há é dado de negócio, porque CRM e ERP ainda não existem.
  * A fonte de verdade é docs/PROJECT_STATE.md; esta tela é um resumo dela.
  */
 
 const pronto = [
   'Monorepo com apps/site e apps/web independentes',
-  'Esquema do Core: 15 tabelas, RLS e isolamento entre tenants',
-  'Decisão de acesso, plano de provisionamento e leitura de tenant pelo endereço',
+  'Esquema do Core aplicado: 15 tabelas, RLS e isolamento entre tenants',
+  'Autenticação, sessão e guarda de rota ligadas à requisição',
+  'Provisionamento de cliente pela tela: criar, retomar e desfazer',
   'Blueprint de nicho: contrato, validação e três nichos',
   'Design system, casca da aplicação e componentes base',
 ];
 
 const emConstrucao = [
-  'Autenticação e sessão',
-  'Middleware ligando a guarda de rota à requisição',
-  'Provisionamento no backend, com service_role',
-  'Painel Super Admin',
+  'Aceitar convite pela própria tela',
+  'Editar cliente: suspender, trocar plano, convidar usuário',
+  'Módulos de negócio — CRM e ERP',
 ];
 
 const bloqueado = [
-  { item: 'Aplicar as migrations', porque: 'Acesso ao projeto tivexy-core' },
-  { item: 'Autenticação e sessão', porque: 'Migrations aplicadas' },
+  {
+    item: 'Entrega de convite por e-mail',
+    porque: 'SMTP próprio no Supabase — a conta é criada, o e-mail não sai',
+  },
   { item: 'WhatsApp e Instagram', porque: 'Meta Business + WhatsApp Business API' },
   { item: 'Emissão fiscal', porque: 'Provedor fiscal + certificado digital' },
   { item: 'Camada de IA', porque: 'Credenciais OpenAI' },
 ];
-
 export default function PainelPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
@@ -50,12 +52,14 @@ export default function PainelPage() {
       >
         <AlertTriangle className="mt-0.5 size-5 shrink-0 text-content-accent" aria-hidden />
         <div className="text-sm">
-          <p className="font-medium text-content">Esta é a casca da aplicação, não o produto.</p>
+          <p className="font-medium text-content">
+            Esta tela mostra o estado da plataforma, não dados do seu negócio.
+          </p>
           <p className="mt-1 text-content-muted">
-            Não há banco de dados conectado, autenticação nem dado real. Nenhum número nesta tela é
-            métrica de negócio. O esquema do Core existe e passa nos testes contra um Postgres de
-            verdade, mas ainda <strong className="font-medium">não foi aplicado</strong> no projeto.
-            O estado completo de cada módulo está em{' '}
+            O Core está de pé: banco aplicado, sessão, permissões e provisionamento de cliente. O
+            que ainda não existe são os módulos de negócio —{' '}
+            <strong className="font-medium">nenhum número aqui é métrica</strong>, porque não há CRM
+            nem ERP para medir. O estado completo de cada módulo está em{' '}
             <code className="rounded bg-surface-muted px-1 py-0.5 font-mono text-xs">
               docs/PROJECT_STATE.md
             </code>

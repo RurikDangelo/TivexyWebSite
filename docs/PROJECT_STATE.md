@@ -2,7 +2,7 @@
 
 > Estado real do ecossistema Tivexy. **Atualize junto com a entrega, não depois.**
 >
-> Última atualização: **19/09/2026**
+> Última atualização: **20/09/2026**
 
 ## Legenda
 
@@ -29,7 +29,9 @@
 | Esquema do Core              | ✅     | **Aplicado** em `tivexy-core`; 146 testes em Postgres 18           |
 | Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
 | Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
-| Contratos (`packages/core`)  | ✅     | `npm run validate` — 407 testes; contratos conferidos contra o SQL |
+| Contratos (`packages/core`)  | ✅     | `npm run validate` — 447 testes; contratos conferidos contra o SQL |
+| Autenticação e sessão        | ✅     | Login, proxy e `current_viewer()` exercitados no banco real        |
+| Provisionamento pela tela    | ✅     | Cliente criado, retomado e desfeito contra o Postgres do projeto   |
 | CI (GitHub Actions)          | 🟡     | Escrito e no remoto; roda na abertura do PR, não em push de branch |
 | Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado       |
 
@@ -136,8 +138,59 @@ A garantia mais delicada, e a que tem o teste mais importante: **a compensação
 não apaga a identidade de quem já administrava outro cliente.** Ela perderia o
 acesso a um cliente que nada tinha a ver com a falha.
 
-**Não existe:** o gatilho da interface. Criar cliente pelo painel Super Admin
-depende de autenticação, que depende do Supabase aplicado 🔒.
+**O gatilho da interface existe, e foi exercitado de ponta a ponta contra o
+Postgres do projeto** em 20/09/2026 — criar, falhar no meio, retomar e desfazer,
+tudo pela tela.
+
+A prévia do formulário roda `planProvisioning`, a **mesma** função que o
+servidor executa. Não é uma descrição paralela do que deveria acontecer: é o
+próprio plano, e por isso não tem como divergir dele.
+
+`/admin` mostra os provisionamentos parados no meio com as duas saídas lado a
+lado. Nenhuma é a padrão: retomar serve para falha passageira, desfazer para
+entrada errada, e o executor não escolhe sozinho.
+
+**A entrada da execução passou a ser guardada** em `provisioning_runs.payload`.
+Sem ela não há como retomar: o e-mail de quem administraria não está em tabela
+nenhuma enquanto `create_admin` não concluir, que é justamente a etapa que
+falha. As **operações** continuam fora de propósito — o plano é recalculado a
+cada retomada, com o blueprint de hoje.
+
+#### Dois defeitos que só apareceram contra o banco real
+
+Os 148 testes de banco rodam em PGlite, que normaliza uma diferença que o driver
+de produção não normaliza. Foi por ali que estes dois passaram:
+
+**1. JSON gravado como string dentro de `jsonb`.** Uma string destinada a coluna
+`jsonb` é _analisada_ pelo PGlite e _serializada de novo_ pelo driver de
+produção. `result` virava texto, não objeto. Corrigido com `$n::text::jsonb` em
+toda escrita de JSON.
+
+**2. O estrago do primeiro não era um erro, era silêncio.** A leitura não achava
+`effects`, a compensação desfazia zero efeitos, marcava cada etapa como
+`compensated` e respondia sucesso. Módulos e papéis continuavam no banco com a
+tela dizendo que tinham saído. Agora `lerEfeitos` distingue "nada a desfazer" de
+"não dá para saber o que foi feito", e o segundo caso **recusa**.
+
+Os dois têm teste de regressão, e a regressão foi conferida quebrando o código
+de propósito para ver o teste falhar.
+
+#### A entrega do convite continua pendente 🔒
+
+**Criar a conta não precisa de SMTP; entregar o convite precisa.** O projeto
+ainda usa o servidor de e-mail embutido do Supabase, que só escreve para membros
+da equipe e para poucas mensagens por hora.
+
+A primeira versão usava `inviteUserByEmail`, que recusa o endereço quando não
+consegue enviar — e responde `Email address "…" is invalid`. O provisionamento
+inteiro parava em `create_admin` com uma mensagem que falava de e-mail inválido
+enquanto o e-mail estava certo e o que faltava era o servidor de envio.
+
+O plano já separava as duas coisas — `create_admin` cria, `send_invite` entrega
+—, e o executor passou a respeitar essa separação. A conta é criada sem enviar
+nada, e a tela **não diz que mandou e-mail**: diz que não mandou, e oferece o
+link de acesso para o Super Admin repassar. Quando houver SMTP próprio, o envio
+volta para dentro de `send_invite`.
 
 **A fronteira nomeada:** `IdentityPort`. Identidade não se cria por SQL — em
 produção é a Auth Admin API. Fingir que uma escrita em SQL cria uma conta é o
@@ -179,14 +232,65 @@ módulo de negócio. A navegação declara essas rotas como `pending`/`blocked` 
 renderiza desabilitadas, de propósito — a estrutura aparece sem prometer tela
 que não há.
 
-**A guarda não está ligada a requisição nenhuma.** Ela existe, é pura e tem
-teste; falta o `middleware.ts` que a chama e a camada de sessão que monta o
-`Viewer`. Ligar antes de existir `/entrar` trocaria uma página que funciona por
-um 404 — e `/entrar` depende de Supabase aplicado.
+**A guarda está ligada, e o fio inteiro foi percorrido no banco real** — não em
+modelo. Em 20/09/2026: entrar com senha, o cookie virar sessão,
+`current_viewer()` responder do Postgres do projeto, `/admin` abrir para Super
+Admin, e `/painel` sem sessão cair em `/entrar?proxima=%2Fpainel`.
+
+**Três camadas, e nenhuma delas sozinha:**
+
+| Camada            | O que decide                              | Por que não basta                                            |
+| ----------------- | ----------------------------------------- | ------------------------------------------------------------ |
+| `src/proxy.ts`    | renova o cookie; tira quem não tem sessão | middleware já foi contornável por cabeçalho (CVE-2025-29927) |
+| `requireAccess()` | tudo o mais, **dentro** da renderização   | não cobre o que o RLS cobre                                  |
+| RLS               | a consulta                                | não sabe redirecionar                                        |
+
+O proxy decide **um** caso — falta de sessão. `lib/auth/edge.ts` tem teste para
+o invariante de que ele nunca nega por um motivo que não consultou: agir sobre
+a ausência aparente de empresa mandaria um administrador legítimo para o
+onboarding.
+
+**O caminho é literal em quem chama**, nunca lido de cabeçalho: `'/admin'` está
+escrito no layout. Cabeçalho vem da requisição, e quem pedisse `/admin`
+anunciando `/painel` seria avaliado pela regra mais fraca.
+
+**Telas de sessão:** `/entrar`, `/recuperar`, `/definir-senha`,
+`/auth/callback`, mais as quatro saídas do limbo — `/onboarding`, `/convite`,
+`/preparando` e `/empresas`. Nenhuma existia, e `redirectFor` já apontava para
+três delas: ligar a guarda antes teria trocado negação por 404.
+
+**Não dizem quem existe.** Erro de credencial é sempre o mesmo texto, e a
+recuperação responde igual tenha o endereço conta ou não. Distinguir entregaria
+a lista de e-mails cadastrados a quem tentasse um por um.
+
+**Não existe ainda:** aceitar convite pela tela — exige uma função
+`SECURITY DEFINER`, porque o RLS nega essa escrita a quem ainda não é membro,
+que é exatamente quem está naquela página. Ela diz isso, em vez de mostrar um
+botão que falharia.
 
 ### Admin / Super Admin
 
-**Estado:** ⬜ NÃO EXISTE · **Trello:** `ADMIN` · **Depende de:** Core, Auth, RBAC
+**Estado:** 🟡 PARCIAL · **Trello:** `ADMIN`
+
+`/admin` lista os clientes da plataforma e `/admin/clientes/novo` cria um. A
+lista é lida com a sessão, **passando pelo RLS** — não com a chave de serviço:
+a política já libera tudo para `is_super_admin()`, e usar a chave secreta ali
+contornaria a verificação em vez de exercitá-la. Se a política quebrar, a tela
+fica vazia, que é o sintoma que se quer.
+
+O grupo de administração **não aparece** no menu de quem não é Super Admin.
+Ausente, não acinzentado: um item com cadeado conta ao cliente que existe um
+painel acima do dele e convida a tentar o endereço.
+
+`requireAccess('/admin')` é chamado de novo **dentro** da Server Action. O
+layout guardar a página não basta — Server Action é endpoint, e quem descobrir
+o identificador dela pode chamá-la sem nunca abrir a tela.
+
+**O primeiro Super Admin nasce de fora**, por `node scripts/super-admin.mjs`.
+`is_super_admin` só pode ser escrito por quem já é Super Admin, e a política não
+abre exceção para o primeiro — nem deve.
+
+**Não existe:** editar cliente, suspender, trocar plano, convidar usuário.
 
 ### CRM
 
@@ -284,11 +388,17 @@ o teste de escalada teria passado por engano.
 
 ## 4. O que está em desenvolvimento
 
-Nada em andamento. O que dava para avançar sem credencial foi entregue:
-`packages/core` com os contratos e a decisão de acesso, o CI, e o CLI do
-Supabase configurado no monorepo (`npm run db:link` / `db:push` / `db:types`).
-A autenticação, próximo passo de verdade, depende das migrations estarem
-aplicadas em `tivexy-core` (🔒 externo).
+Nada em andamento.
+
+Em 20/09/2026 a autenticação deixou de ser pendência: sessão, proxy, telas de
+entrada e provisionamento pela tela foram construídos e exercitados contra o
+projeto `tivexy-core`. O que a verificação criou — dois tenants e três contas —
+foi removido depois, e o banco voltou a zero.
+
+O próximo passo depende de uma decisão de produto, não de código: **qual módulo
+de negócio primeiro**, CRM ou ERP. Os dois estão em ⬜, e o Blueprint já
+descreve sementes para ambos que ficam registradas como pendentes porque as
+tabelas não existem.
 
 ## 5. Decisões tomadas
 
@@ -306,9 +416,10 @@ Ordenadas por urgência:
 | #   | Tarefa                                          | Bloqueia                 | Urgência    |
 | --- | ----------------------------------------------- | ------------------------ | ----------- |
 | 1   | **Abrir o PR** da branch `monorepo-tivexy-core` | Primeira execução do CI  | 🔴 Imediata |
-| 2   | Conferir o destino do formulário de contato     | Leads da landing         | 🟠 Alta     |
-| 3   | **Trocar a conta do conector Vercel**           | Qualquer coisa na Vercel | 🟠 Alta     |
-| 4   | Projeto Vercel do `apps/web` + variáveis        | Deploy do SaaS           | 🟡 Depois   |
+| 2   | **SMTP próprio no Supabase**                    | Convite e recuperação    | 🔴 Imediata |
+| 3   | Conferir o destino do formulário de contato     | Leads da landing         | 🟠 Alta     |
+| 4   | **Trocar a conta do conector Vercel**           | Qualquer coisa na Vercel | 🟠 Alta     |
+| 5   | Projeto Vercel do `apps/web` + variáveis        | Deploy do SaaS           | 🟡 Depois   |
 | 6   | Domínio `tivexy.com.br` + DNS                   | SEO, e-mail              | 🟠 Média    |
 | 7   | E-mail corporativo + SPF/DKIM/DMARC             | Convites do SaaS         | 🟠 Média    |
 | 8   | Credenciais OpenAI                              | AI Engine                | 🟡 Depois   |
@@ -316,12 +427,30 @@ Ordenadas por urgência:
 | 10  | Provedor fiscal + certificado digital           | Fiscal                   | 🟡 Depois   |
 | 11  | CNPJ, contador, conta PJ, contratos             | Venda formal             | 🟡 Paralelo |
 
+### O SMTP é o que separa "conta criada" de "cliente atendido"
+
+O provisionamento **cria** a conta do administrador sem depender de e-mail —
+isso funciona hoje. O que não funciona é **entregar** o convite: o servidor
+embutido do Supabase só escreve para membros da equipe da organização, com
+limite de poucas mensagens por hora.
+
+Enquanto isso, a tela de sucesso diz que nenhum e-mail foi enviado e gera um
+link de acesso para o Super Admin repassar pelo canal que já usa com o cliente.
+É funcional e é honesto — mas não escala para venda.
+
+Resolver é cadastrar um provedor em Project Settings → Authentication → SMTP.
+Depende do domínio `tivexy.com.br` e do e-mail corporativo, ambos nesta mesma
+tabela.
+
 A ordem importa: o Supabase é o que **produz as chaves** que a variável de
 ambiente da Vercel vai precisar. Cadastrar env antes é preencher campo com valor
 que ainda não existe.
 
-O item 5 é deliberadamente "depois": sem autenticação, o SaaS não tem o que
-servir. Criar o projeto agora seria estrutura vazia. Ver ADR-002.
+O projeto Vercel do `apps/web` era "depois" porque sem autenticação o SaaS não
+teria o que servir. **Isso mudou em 20/09/2026**: há o que servir. O que falta
+para publicar é a conta certa no conector, logo acima nesta lista, e cadastrar
+as mesmas variáveis que `apps/web/.env.local` já tem — inclusive `DATABASE_URL`,
+que o provisionamento usa.
 
 ### Os dois conectores estão logados na conta errada — verificado em 19/09/2026
 
@@ -437,20 +566,31 @@ Abrir o PR é o que faz todos os commits serem validados em máquina limpa, não
 só nesta. O `gh` aqui não está autenticado, então é pela interface do GitHub —
 ou `gh auth login` para destravar e eu abrir.
 
-### Depois, na ordem do ADR-002
+### ✅ Autenticação, middleware, provisionamento e painel — 20/09/2026
 
-4. **Autenticação** — Supabase Auth: login, convite, recuperação, sessão. A
-   decisão de acesso já existe e está testada; falta a camada de sessão que
-   chama `current_viewer()` e alimenta `parseViewer()`.
-5. **Middleware** — `guard()` já existe e está testada; falta o `middleware.ts`
-   que a chama e a camada de sessão que monta o `Viewer` a partir dos cookies e
-   de `current_viewer()`. Esta é a parte que precisa do Supabase aplicado.
-6. **Provisionamento** — o esquema sustenta e há um modelo do fluxo provado em
-   teste. Falta a implementação no backend, com `service_role`.
-7. **Painel Super Admin**, e só então CRM e ERP.
+Os itens 4 a 7 do ADR-002 foram construídos e exercitados contra o banco real.
+Ver as seções de `apps/web`, Provisionamento e Admin acima.
+
+Para usar, uma vez:
+
+```bash
+node scripts/super-admin.mjs seu@email.com "Seu Nome"
+```
+
+Ele imprime um link de acesso. Depois de entrar, defina a senha em
+`/definir-senha` e `/admin` abre.
+
+### Agora: escolher o primeiro módulo de negócio
+
+CRM ou ERP. É decisão de produto, não de código — e é a única coisa entre o
+estado de hoje e um sistema que um cliente usa para trabalhar. O Core, o
+provisionamento e o Blueprint já sustentam os dois.
 
 ### O que dá para fazer sem esperar nada
 
+- Escolher entre CRM e ERP, e construir o primeiro módulo de negócio
+- Aceitar convite pela tela (falta a função `SECURITY DEFINER` que confere o
+  convite — o RLS nega essa escrita a quem ainda não é membro)
 - Conferir se o destino do formulário de contato da landing ainda responde
 - Revisar as variáveis de outro projeto no ambiente Vercel (`DATABASE_URL`,
   `AUTH_SECRET`, `STORE_TIMEZONE` e outras) — a landing não usa nenhuma, mas
