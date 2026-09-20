@@ -1,0 +1,74 @@
+{
+  "code": "mercado",
+  "name": "Mercado",
+  "description": "Mercados e mercearias com frente de caixa ligada ao estoque.",
+  "version": 1,
+  "plan": "profissional",
+  "modules": ["core", "erp", "inventory", "finance"],
+  "terms": {
+    "erp.purchases": { "singular": "pedido ao fornecedor", "plural": "pedidos ao fornecedor" },
+    "inventory.movements": { "singular": "entrada e saída", "plural": "entradas e saídas" }
+  },
+  "roles": [
+    {
+      "code": "operador_de_caixa",
+      "name": "Operador de caixa",
+      "permissions": ["erp.products.read", "erp.sales.read", "erp.sales.write"]
+    },
+    {
+      "code": "repositor",
+      "name": "Repositor",
+      "permissions": [
+        "erp.products.read",
+        "erp.suppliers.read",
+        "inventory.stock.read",
+        "inventory.movements.read",
+        "inventory.movements.write"
+      ]
+    },
+    {
+      "code": "encarregado",
+      "name": "Encarregado",
+      "permissions": [
+        "core.users.read",
+        "erp.products.read",
+        "erp.products.write",
+        "erp.suppliers.read",
+        "erp.suppliers.write",
+        "erp.sales.read",
+        "erp.purchases.read",
+        "erp.purchases.write",
+        "inventory.stock.read",
+        "inventory.movements.read",
+        "inventory.movements.write",
+        "finance.cashflow.read",
+        "finance.payables.read"
+      ]
+    }
+  ],
+  "seeds": [
+    { "entity": "erp.product_categories", "values": { "name": "Hortifruti", "position": 1 } },
+    { "entity": "erp.product_categories", "values": { "name": "Mercearia", "position": 2 } },
+    {
+      "entity": "erp.product_categories",
+      "values": { "name": "Frios e laticínios", "position": 3 }
+    },
+    { "entity": "erp.product_categories", "values": { "name": "Bebidas", "position": 4 } },
+    { "entity": "erp.product_categories", "values": { "name": "Limpeza", "position": 5 } },
+    { "entity": "erp.product_categories", "values": { "name": "Higiene", "position": 6 } },
+    { "entity": "erp.payment_methods", "values": { "name": "Dinheiro", "code": "cash" } },
+    { "entity": "erp.payment_methods", "values": { "name": "Pix", "code": "pix" } },
+    { "entity": "erp.payment_methods", "values": { "name": "Cartão de débito", "code": "debit" } },
+    {
+      "entity": "erp.payment_methods",
+      "values": { "name": "Cartão de crédito", "code": "credit" }
+    },
+    { "entity": "erp.payment_methods", "values": { "name": "Vale-alimentação", "code": "voucher" } }
+  ],
+  "settings": {
+    "core.currency": "BRL",
+    "core.timezone": "America/Sao_Paulo",
+    "erp.sales_requires_customer": false,
+    "inventory.deduct_on_sale": true
+  }
+}

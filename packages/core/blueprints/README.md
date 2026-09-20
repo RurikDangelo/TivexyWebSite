@@ -139,9 +139,9 @@ quando as tabelas existirem elas já estarão lá para serem aplicadas.
 
 ## Adicionar um nicho
 
-1. Copie o JSON mais próximo e **revise rótulo por rótulo**. Copiar sem revisar
-   é o erro mais comum, e há um teste que o pega: se todos os rótulos forem
-   genéricos, o nicho não está sendo configurado.
+1. Copie o JSON mais próximo e **revise seção por seção**. Copiar sem revisar é
+   o erro mais comum, e há um teste que o pega: duas seções idênticas entre
+   nichos diferentes reprovam.
 2. O nome do arquivo precisa ser igual ao `code`.
 3. `npm run test:core` — a validação roda sobre todos os arquivos da pasta,
    então o seu é coberto por existir, sem registro em lista nenhuma.
@@ -150,16 +150,32 @@ A validação relata **todos** os problemas de uma vez, com o caminho dentro do
 documento (`roles[1].permissions[3]`). Escrever blueprint não deveria ser um
 jogo de tentativa e erro com um ciclo por engano.
 
+### Nem todo nicho renomeia coisas
+
+Um mercado chama produto de "produto" e cliente de "cliente" — ele **é** o caso
+genérico. O que o configura são as categorias, os papéis e os ajustes, não os
+rótulos. Uma clínica é o oposto: quase todo o valor dela está em falar
+"paciente", "convênio" e "tratamento".
+
+Os dois são blueprints legítimos. O teste cobra que o nicho configure **pelo
+menos duas** das quatro dimensões — rótulos, papéis, sementes, configurações —
+em qualquer combinação. Exigir vocabulário próprio bloquearia o mercado por não
+ter a forma que a clínica tem.
+
 ## Nichos existentes
 
-| Arquivo                     | Módulos                       | O que caracteriza                         |
-| --------------------------- | ----------------------------- | ----------------------------------------- |
-| `cafeteria.json`            | core, erp, inventory, finance | Venda no balcão, baixa de insumo, sem CRM |
-| `clinica-odontologica.json` | core, crm, finance            | Paciente, convênio, funil de tratamento   |
+| Arquivo                     | Módulos                       | O que caracteriza                               |
+| --------------------------- | ----------------------------- | ----------------------------------------------- |
+| `cafeteria.json`            | core, erp, inventory, finance | Cardápio, venda no balcão, baixa de insumo      |
+| `mercado.json`              | core, erp, inventory, finance | Frente de caixa, reposição, pedido a fornecedor |
+| `clinica-odontologica.json` | core, crm, finance            | Paciente, convênio, funil de tratamento         |
 
-Os dois diferem em módulo **e** em vocabulário — é isso que um teste verifica,
-porque se todos os nichos habilitassem o mesmo, o Blueprint não estaria
-configurando nada.
+Cafeteria e mercado habilitam **os mesmos módulos** e ainda assim são nichos
+diferentes: mudam os papéis, as categorias e o vocabulário de compras. Isso é
+esperado — se o módulo bastasse para distinguir, o plano já resolveria.
+
+Os três cobrem o que a landing promete hoje (`apps/site/src/data/systems.ts`),
+tirando "ERP" e "CRM", que não são nichos: são os planos.
 
 ## Onde eles vão morar
 

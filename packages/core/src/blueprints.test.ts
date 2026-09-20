@@ -78,12 +78,11 @@ describe('o conjunto', () => {
     assert.equal(new Set(codigos).size, codigos.length);
   });
 
-  it('todo nicho semeia alguma coisa e nomeia alguma coisa', () => {
-    // Um blueprint que só liga módulos não configura nicho nenhum: seria um
-    // plano com outro nome. O valor está em nascer com dado e vocabulário.
+  it('todo nicho semeia alguma coisa', () => {
+    // O cliente precisa encontrar dado no primeiro acesso, não uma tela vazia.
+    // É a parte do valor que independe do nicho renomear coisas ou não.
     for (const { arquivo, bp } of validos) {
       assert.ok(bp.seeds.length > 0, `${arquivo} não semeia nada`);
-      assert.ok(Object.keys(bp.terms).length > 0, `${arquivo} não traduz nada`);
     }
   });
 
@@ -112,17 +111,52 @@ describe('o conjunto', () => {
     );
   });
 
-  it('nenhum nicho usa vocabulário genérico onde o Core já é genérico', () => {
-    // Traduzir "cliente" para "cliente" é ruído: a chave existe para o caso em
-    // que o nicho chama diferente. Rótulo igual ao padrão sugere copiar e colar.
-    const generico = new Set(['cliente', 'clientes', 'contato', 'contatos', 'item', 'itens']);
+  it('nenhum nicho é cópia de outro', () => {
+    /*
+     * A versão anterior deste teste exigia que todo nicho tivesse vocabulário
+     * próprio, e estava errada: **nem todo nicho renomeia coisas.** Um mercado
+     * chama produto de "produto" e cliente de "cliente" — ele é o caso
+     * genérico, e o que o configura são as categorias, os papéis e as
+     * configurações, não os rótulos. A regra antiga bloquearia um nicho
+     * legítimo por não ter a forma que eu imaginei.
+     *
+     * O que o teste quer de fato é pegar **copiar e colar**: alguém duplica um
+     * JSON, troca o nome e esquece de revisar o miolo. Então é isso que ele
+     * mede — duas seções idênticas entre nichos diferentes.
+     */
+    for (const dimensao of ['terms', 'roles', 'seeds'] as const) {
+      const vistos = new Map<string, string>();
+      for (const { arquivo, bp } of validos) {
+        const conteudo = JSON.stringify(bp[dimensao]);
+        // Seção vazia é uma escolha legítima, não uma cópia.
+        if (conteudo === '{}' || conteudo === '[]') continue;
+
+        const anterior = vistos.get(conteudo);
+        assert.equal(
+          anterior,
+          undefined,
+          `${arquivo} tem "${dimensao}" idêntico a ${anterior} — copiado sem revisar?`,
+        );
+        vistos.set(conteudo, arquivo);
+      }
+    }
+  });
+
+  it('todo nicho difere do genérico em pelo menos duas dimensões', () => {
+    // Um blueprint que só escolhe módulos seria um plano com outro nome. O
+    // valor está em nascer configurado — e configurar acontece por rótulo,
+    // papel, semente ou ajuste, em qualquer combinação.
     for (const { arquivo, bp } of validos) {
-      const traduzidos = Object.entries(bp.terms).filter(
-        ([, t]) => !generico.has(t.singular.toLowerCase()),
-      );
+      const dimensoes = [
+        Object.keys(bp.terms).length > 0,
+        bp.roles.length > 0,
+        bp.seeds.length > 0,
+        Object.keys(bp.settings).length > 0,
+      ].filter(Boolean).length;
+
       assert.ok(
-        traduzidos.length > 0,
-        `${arquivo}: todos os rótulos são genéricos — o nicho não está sendo configurado`,
+        dimensoes >= 2,
+        `${arquivo} quase não configura nada — seria um plano com outro nome`,
       );
     }
   });
