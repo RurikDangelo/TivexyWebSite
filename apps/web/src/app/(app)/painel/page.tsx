@@ -18,13 +18,15 @@ const pronto = [
   'Autenticação, sessão e guarda de rota ligadas à requisição',
   'Provisionamento de cliente pela tela: criar, retomar e desfazer',
   'Blueprint de nicho: contrato, validação e três nichos',
+  'CRM: esquema completo e a tela de leads, com o vocabulário do nicho',
   'Design system, casca da aplicação e componentes base',
 ];
 
 const emConstrucao = [
   'Aceitar convite pela própria tela',
   'Editar cliente: suspender, trocar plano, convidar usuário',
-  'Módulos de negócio — CRM e ERP',
+  'CRM: conversão de lead, contatos, contas e funil',
+  'ERP — não começou',
 ];
 
 const bloqueado = [
