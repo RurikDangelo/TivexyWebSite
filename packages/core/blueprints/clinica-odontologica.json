@@ -100,7 +100,17 @@
       "values": {
         "pipeline": "Tratamentos",
         "name": "Concluído",
-        "position": 5
+        "position": 5,
+        "kind": "won"
+      }
+    },
+    {
+      "entity": "crm.pipeline_stages",
+      "values": {
+        "pipeline": "Tratamentos",
+        "name": "Não aprovado",
+        "kind": "lost",
+        "position": 6
       }
     },
     {

@@ -384,14 +384,25 @@ describe('semente que cita outra semente', () => {
 
   const funil = { entity: 'crm.pipelines', values: { name: 'Vendas' } };
   const etapa = { entity: 'crm.pipeline_stages', values: { pipeline: 'Vendas', name: 'Início' } };
+  /*
+   * O funil precisa de saída, senão a regra de `conferirSaidas` reprova o
+   * documento por outro motivo e este teste deixaria de falar sobre ordem.
+   */
+  const saidas = [
+    { entity: 'crm.pipeline_stages', values: { pipeline: 'Vendas', name: 'Fechado', kind: 'won' } },
+    {
+      entity: 'crm.pipeline_stages',
+      values: { pipeline: 'Vendas', name: 'Perdido', kind: 'lost' },
+    },
+  ];
 
   it('aceita quando o funil vem antes', () => {
-    const r = comSementes([funil, etapa]);
+    const r = comSementes([funil, etapa, ...saidas]);
     assert.equal(r.valid, true, r.valid ? '' : JSON.stringify(r.problems));
   });
 
   it('recusa quando a etapa vem antes do funil', () => {
-    const r = comSementes([etapa, funil]);
+    const r = comSementes([etapa, funil, ...saidas]);
     assert.equal(r.valid, false);
     assert.ok(
       !r.valid && r.problems.some((p) => p.path === 'seeds[0].values.pipeline'),
@@ -400,7 +411,11 @@ describe('semente que cita outra semente', () => {
   });
 
   it('recusa etapa que cita funil inexistente', () => {
-    const r = comSementes([funil, { ...etapa, values: { pipeline: 'Outro', name: 'X' } }]);
+    const r = comSementes([
+      funil,
+      { ...etapa, values: { pipeline: 'Outro', name: 'X' } },
+      ...saidas,
+    ]);
     assert.equal(r.valid, false);
   });
 
@@ -411,5 +426,77 @@ describe('semente que cita outra semente', () => {
     ]);
     assert.equal(r.valid, false);
     assert.ok(!r.valid && r.problems.some((p) => /funil/.test(p.message)));
+  });
+});
+
+describe('todo funil precisa de por onde sair', () => {
+  /*
+   * Os dois erros abaixo são de **dado**, não de código, e nenhum deles
+   * quebra nada: o funil funciona, recebe negócio, e o relatório nunca fecha.
+   * Recusar o documento é o único momento em que dá para avisar.
+   */
+  function comEtapas(etapas: { name: string; kind?: string }[]) {
+    return checkBlueprint({
+      code: 'teste-saida',
+      name: 'Teste',
+      description: 'Documento mínimo para exercitar as saídas do funil.',
+      version: 1,
+      plan: 'profissional',
+      modules: ['core', 'crm'],
+      seeds: [
+        { entity: 'crm.pipelines', values: { name: 'Vendas' } },
+        ...etapas.map((e) => ({
+          entity: 'crm.pipeline_stages',
+          values: { pipeline: 'Vendas', ...e },
+        })),
+      ],
+    });
+  }
+
+  const completo = [
+    { name: 'Início' },
+    { name: 'Fechado', kind: 'won' },
+    { name: 'Perdido', kind: 'lost' },
+  ];
+
+  it('aceita o funil com ganho e perda', () => {
+    const r = comEtapas(completo);
+    assert.equal(r.valid, true, r.valid ? '' : JSON.stringify(r.problems));
+  });
+
+  it('recusa funil sem etapa de ganho', () => {
+    const r = comEtapas([{ name: 'Início' }, { name: 'Perdido', kind: 'lost' }]);
+    assert.equal(r.valid, false);
+    assert.ok(!r.valid && r.problems.some((p) => /ganho/.test(p.message)));
+  });
+
+  it('recusa funil sem etapa de perda', () => {
+    const r = comEtapas([{ name: 'Início' }, { name: 'Fechado', kind: 'won' }]);
+    assert.equal(r.valid, false);
+    assert.ok(!r.valid && r.problems.some((p) => /perda/.test(p.message)));
+  });
+
+  it('recusa funil só com etapas abertas', () => {
+    const r = comEtapas([{ name: 'Início' }, { name: 'Meio' }]);
+    assert.equal(r.valid, false);
+    assert.equal(r.valid === false && r.problems.length, 2, 'falta ganho e falta perda');
+  });
+
+  /*
+   * `kind: "ganho"` — em português, ou com erro de digitação — viraria `open`
+   * em silêncio, e o funil ficaria sem saída sem que nada reclamasse.
+   */
+  it('recusa tipo de etapa que não existe', () => {
+    const r = comEtapas([
+      { name: 'Fechado', kind: 'ganho' },
+      { name: 'Perdido', kind: 'lost' },
+    ]);
+    assert.equal(r.valid, false);
+    assert.ok(!r.valid && r.problems.some((p) => p.path.endsWith('.kind')));
+  });
+
+  it('ausência de `kind` é `open`, e isso continua válido', () => {
+    const r = comEtapas(completo);
+    assert.equal(r.valid, true);
   });
 });

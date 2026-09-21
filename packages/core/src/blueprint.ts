@@ -191,6 +191,7 @@ function conferirReferencia(
   valores: Record<string, unknown>,
   i: number,
   funisDeclarados: ReadonlySet<string>,
+  saidas: Map<string, Set<string>>,
   erro: (path: string, message: string) => void,
 ): void {
   if (entidade !== 'crm.pipeline_stages') return;
@@ -205,6 +206,67 @@ function conferirReferencia(
       `seeds[${i}].values.pipeline`,
       `"${funil}" não foi declarado antes desta etapa — o funil precisa vir primeiro na lista`,
     );
+    return;
+  }
+
+  /*
+   * O tipo da etapa, e o que acontece quando ele está errado.
+   *
+   * `kind` ausente vira `open`, que é o padrão certo. `kind: "ganho"` — em
+   * português, ou com um erro de digitação — **também** viraria `open`, e o
+   * funil ficaria sem saída sem que nada reclamasse. É o defeito sem sintoma
+   * de sempre: a etapa aparece na tela, recebe negócio, e nenhum deles fecha.
+   */
+  const kind = valores.kind === undefined ? 'open' : texto(valores.kind);
+  if (kind === null || !(STAGE_KINDS as readonly string[]).includes(kind)) {
+    erro(
+      `seeds[${i}].values.kind`,
+      `"${String(valores.kind)}" não é tipo de etapa. Use ${STAGE_KINDS.join(', ')}.`,
+    );
+    return;
+  }
+
+  const saida = saidas.get(funil);
+  if (saida !== undefined) saida.add(kind);
+}
+
+/**
+ * Os tipos de etapa, repetidos aqui de propósito.
+ *
+ * `packages/core/src/crm.ts` tem a mesma lista, e importá-la faria o contrato
+ * do Blueprint — que é sobre documentos de nicho — depender do módulo CRM.
+ * O teste de contratos compara as duas com o enum do banco, então divergir
+ * falha; e este arquivo continua não sabendo o que é um CRM.
+ */
+const STAGE_KINDS = ['open', 'won', 'lost'] as const;
+
+/**
+ * Todo funil precisa de por onde sair.
+ *
+ * Sem etapa `won`, nenhum negócio jamais fecha: `closed_at` nunca é carimbado
+ * e não há como somar o que foi vendido. Sem `lost`, não há onde registrar
+ * quem não comprou — os negócios ficam abertos para sempre e a taxa de
+ * conversão é incalculável.
+ *
+ * Os dois são erros de **dado**, não de código, e nenhum deles quebra nada: o
+ * funil funciona, recebe negócio, e o relatório nunca fecha. Recusar o
+ * documento é o único momento em que dá para avisar.
+ */
+function conferirSaidas(
+  saidas: ReadonlyMap<string, Set<string>>,
+  erro: (path: string, message: string) => void,
+): void {
+  for (const [funil, tipos] of saidas) {
+    if (tipos.size === 0) continue; // funil sem etapa nenhuma: outro problema
+    if (!tipos.has('won')) {
+      erro('seeds', `o funil "${funil}" não tem etapa de ganho — nenhum negócio nele fecharia`);
+    }
+    if (!tipos.has('lost')) {
+      erro(
+        'seeds',
+        `o funil "${funil}" não tem etapa de perda — não haveria onde registrar quem não comprou`,
+      );
+    }
   }
 }
 
@@ -342,6 +404,8 @@ export function checkBlueprint(raw: unknown): BlueprintCheck {
   /* Sementes */
   // Os funis já declarados, na ordem em que aparecem. Ver `conferirReferencia`.
   const funisDeclarados = new Set<string>();
+  // E os tipos de etapa que cada um recebeu, para conferir que há saída.
+  const saidasPorFunil = new Map<string, Set<string>>();
   if (raw.seeds !== undefined) {
     if (!Array.isArray(raw.seeds)) {
       erro('seeds', 'precisa ser uma lista');
@@ -373,13 +437,18 @@ export function checkBlueprint(raw: unknown): BlueprintCheck {
         else if (Object.keys(semente.values).length === 0) {
           erro(`seeds[${i}].values`, 'semente sem valor nenhum não cria nada');
         } else if (entidade !== null) {
-          conferirReferencia(entidade, semente.values, i, funisDeclarados, erro);
+          conferirReferencia(entidade, semente.values, i, funisDeclarados, saidasPorFunil, erro);
           if (entidade === 'crm.pipelines') {
             const nome = texto(semente.values.name);
-            if (nome !== null) funisDeclarados.add(nome);
+            if (nome !== null) {
+              funisDeclarados.add(nome);
+              saidasPorFunil.set(nome, new Set());
+            }
           }
         }
       });
+
+      conferirSaidas(saidasPorFunil, erro);
     }
   }
 

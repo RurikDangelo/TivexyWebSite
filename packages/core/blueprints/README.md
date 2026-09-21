@@ -127,15 +127,47 @@ auditada, não algo que um documento de nicho concede em silêncio para todo
 cliente daquele nicho. Se um blueprint precisa de um módulo, o plano dele é
 outro.
 
-### As sementes ainda não são aplicadas
+### As sementes de CRM são aplicadas; as de ERP, ainda não
 
-Os módulos de negócio não têm tabela: `crm.pipelines` e
-`erp.product_categories` não existem. As sementes ficam **registradas como
-pendentes** no resultado da etapa `seed_defaults`, com o motivo — não são
-aplicadas, e o provisionamento não finge que foram.
+`crm.pipelines`, `crm.pipeline_stages` e `crm.activity_types` viram linha de
+verdade desde 20/09/2026.
+
+`erp.product_categories` e `erp.payment_methods` continuam **registradas como
+pendentes** no resultado da etapa `seed_defaults`, com o motivo: o ERP não tem
+tabela. Não são aplicadas, e o provisionamento não finge que foram.
 
 Vale escrevê-las mesmo assim: são a especificação do que o nicho precisa, e
-quando as tabelas existirem elas já estarão lá para serem aplicadas.
+quando as tabelas existirem elas já estarão lá.
+
+### A etapa cita o funil pelo nome, então a ordem importa
+
+`crm.pipeline_stages` referencia o funil por `values.pipeline`, com o nome —
+o documento é escrito à mão e não tem como conhecer um uuid.
+
+O funil precisa vir **antes** na lista. Trocar as duas linhas de lugar passaria
+na validação antiga e quebraria no meio de um provisionamento real, com o
+cliente já criado — e o erro apareceria para quem está criando o cliente, não
+para quem editou o documento. Hoje `checkBlueprint()` recusa.
+
+### Todo funil precisa de por onde sair
+
+Cada etapa tem um `kind`: `open` (o padrão), `won` ou `lost`. É dele que sai a
+situação da oportunidade — ela não guarda status próprio.
+
+Um funil precisa de **ao menos uma etapa de cada** tipo terminal:
+
+- sem `won`, nenhum negócio jamais fecha. `closed_at` nunca é carimbado, e não
+  há como somar o que foi vendido.
+- sem `lost`, não há onde registrar quem não comprou. Os negócios ficam
+  abertos para sempre, e a taxa de conversão é incalculável.
+
+Os dois são erros de **dado**, e nenhum deles quebra nada: o funil funciona,
+recebe negócio, e o relatório nunca fecha. Recusar o documento é o único
+momento em que dá para avisar.
+
+`kind` escrito errado — `"ganho"`, em português — cairia em `open` em silêncio
+e produziria exatamente esse funil sem saída. Por isso o valor é validado
+contra a lista, e não só lido.
 
 ## Adicionar um nicho
 

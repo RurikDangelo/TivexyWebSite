@@ -5,7 +5,8 @@ import { type CrmLeadStatus, nextLeadStatuses } from '@tivexy/core';
 import { Badge } from '@/components/ui/badge';
 
 import { moverLead } from './actions';
-import { LEAD_STATUS_LABEL, LEAD_STATUS_TONE } from './state';
+import { ConvertForm } from './convert-form';
+import { type EtapaOferecida, LEAD_STATUS_LABEL, LEAD_STATUS_TONE } from './state';
 
 export interface LeadListado {
   id: string;
@@ -29,11 +30,24 @@ export interface LeadListado {
  * Cada transição é um `form` com Server Action, não um link: mudar estado por
  * GET seria disparado por pré-carregamento do navegador.
  */
-export function LeadRow({ lead }: { lead: LeadListado }) {
+export function LeadRow({
+  lead,
+  etapas,
+}: {
+  lead: LeadListado;
+  etapas: readonly EtapaOferecida[];
+}) {
   const destinos = nextLeadStatuses(lead.status);
 
+  /*
+   * Converter é oferecido em qualquer estado vivo, não só no qualificado.
+   * Quem liga dizendo que quer fechar não deveria precisar passar por dois
+   * cliques de etiqueta antes — e a função no banco recusa o que não pode.
+   */
+  const podeConverter = destinos.length > 0 && lead.status !== 'disqualified';
+
   return (
-    <li className="flex flex-col gap-3 border-b border-line-subtle p-4 last:border-b-0 sm:flex-row sm:items-center">
+    <li className="flex flex-col gap-3 border-b border-line-subtle p-4 last:border-b-0 sm:flex-row sm:flex-wrap sm:items-center">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium text-content">{lead.name}</span>
@@ -48,6 +62,8 @@ export function LeadRow({ lead }: { lead: LeadListado }) {
           <p className="mt-0.5 text-xs text-content-subtle">Veio de {lead.source}</p>
         )}
       </div>
+
+      {podeConverter && <ConvertForm leadId={lead.id} leadNome={lead.name} etapas={etapas} />}
 
       {destinos.length > 0 && (
         <div className="flex flex-wrap gap-1.5">

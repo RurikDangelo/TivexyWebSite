@@ -17,6 +17,22 @@ export interface LeadFormState {
 
 export const LEAD_INICIAL: LeadFormState = { erro: null, campos: {}, criado: null };
 
+/** O resultado de converter. */
+export interface ConversaoState {
+  erro: string | null;
+  /** O nome de quem virou cliente, para a confirmação. */
+  convertido: string | null;
+}
+
+export const CONVERSAO_INICIAL: ConversaoState = { erro: null, convertido: null };
+
+/** Uma etapa oferecida na conversão. */
+export interface EtapaOferecida {
+  id: string;
+  nome: string;
+  funil: string;
+}
+
 /** O que cada estado de lead se chama na tela. */
 export const LEAD_STATUS_LABEL: Record<CrmLeadStatus, string> = {
   new: 'Novo',

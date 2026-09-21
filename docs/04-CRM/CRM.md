@@ -146,7 +146,54 @@ oportunidade numa transação, e quem faz isso é o servidor — oferecer como
 transição solta deixaria o lead marcado como convertido sem nada do outro lado,
 e o relatório de origem passaria a contar clientes que não existem.
 
-**A conversão ainda não existe.** É o próximo passo do módulo.
+### `crm_convert_lead()`, no banco
+
+São quatro escritas que só fazem sentido juntas, e o cliente PostgREST **não
+tem transação**: cada chamada é a sua. Quatro chamadas seguidas significam
+quatro pontos onde a rede pode cair, e cada um deixa um estrago diferente:
+
+| Cai depois de… | O que fica                                         |
+| -------------- | -------------------------------------------------- |
+| a conta        | conta órfã, sem pessoa e sem oportunidade          |
+| a pessoa       | pessoa sem oportunidade, lead ainda "qualificado"  |
+| o negócio      | oportunidade real, lead que não sabe que converteu |
+
+O terceiro é o pior, porque **não parece defeito**: a oportunidade aparece no
+funil, e o lead continua na fila esperando alguém ligar de novo.
+
+Dentro de uma função, o corpo inteiro é uma transação. Há teste que faz a
+conversão falhar **no meio** — com um papel que escreve conta e não escreve
+pessoa — e confere que a conta não ficou.
+
+### `SECURITY INVOKER`, e por quê
+
+Diferente das funções auxiliares do RLS, que precisam de `DEFINER` para não
+recorrer. Com `INVOKER`, cada `insert` passa pela política da tabela como se
+a aplicação o tivesse escrito.
+
+Uma função `DEFINER` aqui seria um buraco com nome amigável: capaz de criar
+conta, pessoa e oportunidade para quem só podia ler lead. Trocar uma palavra
+por outra quebra dois testes — o de isolamento entre tenants e o de
+atomicidade.
+
+A checagem de permissão logo no começo **não é a garantia** — a garantia é o
+RLS. É a mensagem: sem ela, quem não tem `crm.deals.write` também não tem
+`crm.deals.read`, a política esconde a etapa, e a função responderia "etapa não
+encontrada". A pessoa procuraria a etapa, que está lá.
+
+### Conta existente é reaproveitada
+
+Por nome, ignorando caixa, **a mais antiga**. É troca consciente: reaproveitar
+pode grudar o negócio na empresa errada quando há duas homônimas, e não
+reaproveitar enche a base de duplicatas — o defeito clássico de CRM e o mais
+caro de limpar. Os dois enganos são visíveis na tela da conta; duplicata é o
+que ninguém percebe até ter trezentas.
+
+`order by created_at` e não `limit 1` solto: sem ordem, qual homônima leva o
+negócio depende do plano de execução, e mudaria sozinho quando a tabela
+crescesse.
+
+Lead sem nome de empresa não cria conta nenhuma. Pessoa física é caso normal.
 
 ## Dinheiro
 
@@ -159,10 +206,22 @@ Lido ao contrário, `1.234` vira R$ 1,23 — um erro de mil vezes que passa
 despercebido porque o número continua plausível na tela. Entrada inválida vira
 `null`, nunca zero: zero grava uma oportunidade de R$ 0,00 que ninguém pediu.
 
+## Todo funil precisa de por onde sair
+
+Cada etapa tem um `kind`: `open`, `won` ou `lost`. Um funil sem `won` nunca
+fecha negócio; sem `lost`, não há onde registrar quem não comprou.
+
+Os dois são erros de **dado** e nenhum quebra nada — o funil funciona, recebe
+negócio, e o relatório nunca fecha. `checkBlueprint()` recusa o documento, que
+é o único momento em que dá para avisar.
+
+Isso apareceu na verificação: a clínica odontológica tinha cinco etapas, todas
+`open`. O funil estava lá, bonito na tela, e nenhum tratamento teria como ser
+dado por concluído.
+
 ## O que falta
 
 - Telas de contatos, contas, funil e atividades
-- Conversão de lead
 - Busca e filtro (hoje a listagem traz as 200 mais recentes)
 - Importação
 - Atendimento e conversas — dependem das credenciais Meta/WhatsApp 🔒

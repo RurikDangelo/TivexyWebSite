@@ -149,6 +149,37 @@ export async function asUser(db, userId, fn) {
   }
 }
 
+/**
+ * Como `asUser`, mas **confirma** a transação.
+ *
+ * `asUser` desfaz no fim, e esse é o padrão certo: a maioria dos testes
+ * pergunta o que alguém enxerga, ou prova que uma escrita é recusada — e em
+ * nenhum dos dois o estado deve sobrar para o teste seguinte.
+ *
+ * Escrita que **precisa** persistir é outro caso. Converter um lead cria
+ * conta, pessoa e oportunidade, e o que se quer verificar é justamente que
+ * elas ficaram lá e ligadas entre si. Com rollback, a função devolve os ids
+ * e a leitura seguinte não acha nada — o teste falha sem que o código
+ * tenha problema, que é o pior tipo de teste vermelho.
+ *
+ * O preço é que o dado sobra para os testes seguintes do mesmo arquivo.
+ * Quem usa isto cria o próprio cenário em `beforeEach`.
+ */
+export async function asUserCommitting(db, userId, fn) {
+  await db.exec('begin');
+  try {
+    await db.query(`set local request.jwt.claim.sub = '${userId}'`);
+    await db.exec('set local role authenticated');
+    const resultado = await fn();
+    /* O papel volta sozinho: `set local` só vale até o fim da transação. */
+    await db.exec('commit');
+    return resultado;
+  } catch (erro) {
+    await db.exec('rollback');
+    throw erro;
+  }
+}
+
 /** Executa `fn` como visitante não autenticado. */
 export async function asAnon(db, fn) {
   await db.exec('begin');

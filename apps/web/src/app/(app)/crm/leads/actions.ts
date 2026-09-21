@@ -17,13 +17,18 @@
  * que nada desse erro.
  */
 
-import { type CrmLeadStatus, nextLeadStatuses } from '@tivexy/core';
+import { type CrmLeadStatus, nextLeadStatuses, parseCents } from '@tivexy/core';
 import { revalidatePath } from 'next/cache';
 
 import { requireAccess } from '@/lib/auth/require';
 import { supabaseServer } from '@/lib/supabase/server';
 
-import { LEAD_INICIAL, type LeadFormState } from './state.ts';
+import {
+  CONVERSAO_INICIAL,
+  type ConversaoState,
+  LEAD_INICIAL,
+  type LeadFormState,
+} from './state.ts';
 
 /** De onde a tela lê e escreve. Uma constante: o caminho também é a regra. */
 const ROTA = '/crm/leads';
@@ -101,6 +106,69 @@ export async function criarLead(_anterior: LeadFormState, form: FormData): Promi
 
   revalidatePath(ROTA);
   return { ...LEAD_INICIAL, criado: nome };
+}
+
+/**
+ * Converte o lead: ele vira conta, pessoa e oportunidade.
+ *
+ * Quem faz o trabalho é `crm_convert_lead()`, no banco. São quatro escritas
+ * que só fazem sentido juntas, e o cliente PostgREST não tem transação — daqui
+ * seriam quatro chamadas, com quatro pontos onde a rede pode cair. O pior
+ * desfecho parcial não parece defeito: a oportunidade aparece no funil e o
+ * lead continua na fila, esperando alguém ligar de novo.
+ *
+ * A função é `SECURITY INVOKER`, então cada escrita passa pelo RLS como se
+ * tivesse partido daqui. Isto **não** é um atalho para escrever o que a pessoa
+ * não poderia escrever.
+ */
+export async function converterLead(
+  _anterior: ConversaoState,
+  form: FormData,
+): Promise<ConversaoState> {
+  const { choice } = await requireAccess(ROTA);
+  if (choice.kind !== 'resolved') {
+    return { ...CONVERSAO_INICIAL, erro: 'Escolha uma empresa antes de converter.' };
+  }
+
+  const leadId = texto(form, 'id');
+  const etapa = texto(form, 'etapa');
+  if (leadId === '' || etapa === '') {
+    return { ...CONVERSAO_INICIAL, erro: 'Escolha a etapa do funil onde a oportunidade entra.' };
+  }
+
+  /*
+   * Valor em branco é zero, e valor torto é erro. A diferença importa: quem
+   * ainda não sabe quanto vale deixa vazio de propósito, e quem digitou
+   * `1.2.3` errou — transformar os dois em zero esconde o segundo.
+   */
+  const bruto = texto(form, 'valor');
+  const centavos = bruto === '' ? 0 : parseCents(bruto);
+  if (centavos === null) {
+    return { ...CONVERSAO_INICIAL, erro: 'O valor não parece um número. Use 1.234,56.' };
+  }
+
+  const supabase = await supabaseServer();
+  const { error } = await supabase.rpc('crm_convert_lead', {
+    p_lead_id: leadId,
+    p_stage_id: etapa,
+    p_deal_title: texto(form, 'titulo') || null,
+    p_value_cents: centavos,
+  });
+
+  if (error !== null) {
+    /*
+     * A função levanta mensagens escritas para gente — "já foi convertido",
+     * "você não tem permissão para isso". Repassar é melhor do que um texto
+     * genérico; o que não se repassa é erro de infraestrutura.
+     */
+    return {
+      ...CONVERSAO_INICIAL,
+      erro: error.message.replace(/^error:\s*/i, '') || 'Não consegui converter.',
+    };
+  }
+
+  revalidatePath(ROTA);
+  return { erro: null, convertido: texto(form, 'nome') || 'O lead' };
 }
 
 /**

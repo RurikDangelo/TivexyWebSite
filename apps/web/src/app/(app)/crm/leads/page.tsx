@@ -9,6 +9,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 
 import { LeadForm } from './lead-form';
 import { LeadRow, type LeadListado } from './lead-row';
+import type { EtapaOferecida } from './state';
 
 export const metadata: Metadata = { title: 'Leads' };
 
@@ -39,6 +40,35 @@ export default async function LeadsPage() {
   }
 
   const supabase = await supabaseServer();
+
+  /*
+   * As etapas onde uma oportunidade pode nascer.
+   *
+   * Só as `open`: converter direto para "Ganho" existe em teoria e na prática
+   * é engano de clique, e o negócio nasceria fechado sem nunca ter sido
+   * trabalhado — sujando o tempo médio de ciclo de todo mundo.
+   *
+   * Quem não tem `crm.deals.read` recebe lista vazia pelo RLS, e o botão de
+   * converter some sozinho. É a política decidindo a interface, sem um segundo
+   * `if` aqui para esquecer de atualizar.
+   */
+  const { data: etapasBrutas } = await supabase
+    .from('crm_pipeline_stages')
+    .select('id, name, position, crm_pipelines!inner(name, position)')
+    .eq('tenant_id', choice.tenant.id)
+    .eq('kind', 'open')
+    .order('position');
+
+  const etapas: EtapaOferecida[] = (etapasBrutas ?? []).map((linha) => ({
+    id: String(linha.id),
+    nome: String(linha.name),
+    funil: String(
+      (linha.crm_pipelines as { name?: unknown } | null)?.name ??
+        (Array.isArray(linha.crm_pipelines) ? linha.crm_pipelines[0]?.name : '') ??
+        '',
+    ),
+  }));
+
   const { data, error } = await supabase
     .from('crm_leads')
     .select('id, name, email, phone, company_name, source, status, created_at')
@@ -108,9 +138,12 @@ export default async function LeadsPage() {
           <Secao
             titulo="Em aberto"
             leads={abertos}
+            etapas={etapas}
             vazio={`Nenhum ${rotulo.singular} em aberto.`}
           />
-          {fechados.length > 0 && <Secao titulo="Com desfecho" leads={fechados} vazio="" />}
+          {fechados.length > 0 && (
+            <Secao titulo="Com desfecho" leads={fechados} etapas={etapas} vazio="" />
+          )}
         </div>
       )}
     </div>
@@ -120,10 +153,12 @@ export default async function LeadsPage() {
 function Secao({
   titulo,
   leads,
+  etapas,
   vazio,
 }: {
   titulo: string;
   leads: readonly LeadListado[];
+  etapas: readonly EtapaOferecida[];
   vazio: string;
 }) {
   return (
@@ -139,7 +174,7 @@ function Secao({
       ) : (
         <ul className="overflow-hidden rounded-lg border border-line-subtle bg-surface-raised">
           {leads.map((lead) => (
-            <LeadRow key={lead.id} lead={lead} />
+            <LeadRow key={lead.id} lead={lead} etapas={etapas} />
           ))}
         </ul>
       )}

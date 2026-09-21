@@ -400,8 +400,19 @@ describe('o que não foi aplicado fica registrado, não escondido', () => {
     );
     assert.deepEqual(
       etapas.rows.map((r) => r.name),
-      ['Avaliação', 'Orçamento enviado', 'Aprovado', 'Em tratamento', 'Concluído'],
+      ['Avaliação', 'Orçamento enviado', 'Aprovado', 'Em tratamento', 'Concluído', 'Não aprovado'],
     );
+
+    // O funil precisa de por onde sair: sem ganho, nenhum negócio fecha;
+    // sem perda, não há onde registrar quem não comprou.
+    const saidas = await db.query(
+      `select kind::text, count(*)::int as n from public.crm_pipeline_stages
+       where tenant_id = $1 group by kind order by kind`,
+      [tenantId],
+    );
+    const porTipo = Object.fromEntries(saidas.rows.map((r) => [r.kind, r.n]));
+    assert.equal(porTipo.won, 1, 'o funil precisa de etapa de ganho');
+    assert.equal(porTipo.lost, 1, 'o funil precisa de etapa de perda');
 
     const tipos = await db.query(
       'select name from public.crm_activity_types where tenant_id = $1 order by name',

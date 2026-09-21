@@ -29,7 +29,7 @@
 | Esquema do Core              | ✅     | **Aplicado** em `tivexy-core`; 146 testes em Postgres 18           |
 | Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
 | Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
-| Contratos (`packages/core`)  | ✅     | `npm run validate` — 498 testes; contratos conferidos contra o SQL |
+| Contratos (`packages/core`)  | ✅     | `npm run validate` — 519 testes; contratos conferidos contra o SQL |
 | Autenticação e sessão        | ✅     | Login, proxy e `current_viewer()` exercitados no banco real        |
 | Provisionamento pela tela    | ✅     | Cliente criado, retomado e desfeito contra o Postgres do projeto   |
 | CI (GitHub Actions)          | 🟡     | Escrito e no remoto; roda na abertura do PR, não em push de branch |
@@ -319,8 +319,17 @@ campo, estado vazio e 375px conferidos no navegador, contra o banco real.
 uma consultoria lê "leads" — verificado provisionando a clínica odontológica e
 abrindo a listagem. Ver abaixo.
 
-**Não existe:** contatos, contas, funil, atividades, conversão de lead, busca e
-importação.
+**A conversão de lead existe** e roda numa transação só, em
+`crm_convert_lead()`. São quatro escritas que só fazem sentido juntas, e o
+cliente PostgREST não tem transação — daqui seriam quatro chamadas, com quatro
+pontos onde a rede pode cair. `SECURITY INVOKER`: cada escrita passa pelo RLS,
+e trocar por `DEFINER` quebra dois testes.
+
+Verificada contra o banco real: um lead virou conta, pessoa e oportunidade de
+R$ 4.500,00 na etapa "Orçamento enviado" do funil "Tratamentos", com o lead
+carimbado apontando para os três.
+
+**Não existe:** contatos, contas, funil, atividades, busca e importação.
 
 ### ERP
 
@@ -436,9 +445,9 @@ foi removido depois, e o banco voltou a zero.
 **A decisão foi tomada: CRM primeiro.** O esquema, os contratos e a primeira
 tela (`/crm/leads`) estão de pé e verificados contra o banco real.
 
-O próximo passo dentro do CRM é a **conversão de lead** — o momento em que ele
-vira conta, pessoa e oportunidade. Depois dela, as telas de contatos, contas e
-funil.
+A conversão de lead entrou. O próximo passo dentro do CRM são as **telas de
+funil, contatos e contas** — hoje a conversão cria as três coisas e só a de
+leads tem onde ser vista.
 
 ## 5. Decisões tomadas
 
@@ -651,7 +660,7 @@ provisionamento e o Blueprint já sustentam os dois.
 
 ### O que dá para fazer sem esperar nada
 
-- Conversão de lead, e as telas de contatos, contas e funil
+- Telas de funil, contatos e contas — a conversão já cria as três coisas
 - Aceitar convite pela tela (falta a função `SECURITY DEFINER` que confere o
   convite — o RLS nega essa escrita a quem ainda não é membro)
 - Conferir se o destino do formulário de contato da landing ainda responde
