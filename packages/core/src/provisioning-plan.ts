@@ -30,6 +30,16 @@ export type ProvisioningOperation =
       name: string;
       plan: PlanCode;
       settings: Readonly<Record<string, unknown>>;
+      /**
+       * O vocabulário do nicho, como o Blueprint declara.
+       *
+       * Vai junto do tenant em vez de virar operação própria porque não é
+       * escrita separada: são duas colunas da mesma linha, e separar criaria
+       * uma etapa que pode falhar depois de o tenant já existir — deixando um
+       * cliente com módulos e sem vocabulário, que é pior do que nenhum dos
+       * dois.
+       */
+      terms: Readonly<Record<string, { singular: string; plural: string }>>;
     }
   | { kind: 'enable_module'; module: ModuleCode }
   | { kind: 'create_role'; code: string; name: string; permissions: readonly PermissionCode[] }
@@ -168,6 +178,7 @@ export function planProvisioning(input: ProvisioningInput): ProvisioningPlan {
       name: name.trim(),
       plan: blueprint.plan,
       settings: blueprint.settings,
+      terms: blueprint.terms,
     },
   ];
 

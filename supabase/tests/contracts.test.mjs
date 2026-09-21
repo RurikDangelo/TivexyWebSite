@@ -16,6 +16,8 @@ import { after, before, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { checkBlueprint } from '../../packages/core/src/blueprint.ts';
 import {
+  CRM_LEAD_STATUSES,
+  CRM_STAGE_KINDS,
   MEMBERSHIP_STATUSES,
   MODULE_CODES,
   PERMISSION_CODES,
@@ -118,6 +120,14 @@ describe('enums: TypeScript espelha o SQL', () => {
 
   it('provisioning_step_status', async () => {
     assert.deepEqual([...PROVISIONING_STEP_STATUSES], await enumLabels('provisioning_step_status'));
+  });
+
+  it('situação de etapa do funil', async () => {
+    assert.deepEqual([...CRM_STAGE_KINDS], await enumLabels('crm_stage_kind'));
+  });
+
+  it('ciclo do lead', async () => {
+    assert.deepEqual([...CRM_LEAD_STATUSES], await enumLabels('crm_lead_status'));
   });
 });
 

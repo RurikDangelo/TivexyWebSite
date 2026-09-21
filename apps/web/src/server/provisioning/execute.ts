@@ -360,10 +360,11 @@ async function aplicar(
   switch (op.kind) {
     case 'create_tenant': {
       const { rows } = await db.query(
-        `insert into public.tenants (slug, name, status, plan_id, settings)
-         values ($1, $2, 'provisioning', (select id from public.plans where code = $3), $4::text::jsonb)
+        `insert into public.tenants (slug, name, status, plan_id, settings, terms)
+         values ($1, $2, 'provisioning', (select id from public.plans where code = $3),
+                 $4::text::jsonb, $5::text::jsonb)
          returning id`,
-        [op.slug, op.name, op.plan, JSON.stringify(op.settings)],
+        [op.slug, op.name, op.plan, JSON.stringify(op.settings), JSON.stringify(op.terms)],
       );
       ctx.tenantId = texto(rows[0]?.id);
       return [{ kind: 'tenant', id: ctx.tenantId }];

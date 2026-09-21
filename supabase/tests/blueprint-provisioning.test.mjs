@@ -338,6 +338,31 @@ describe('os papéis do nicho valem de verdade', () => {
 });
 
 describe('o que não foi aplicado fica registrado, não escondido', () => {
+  it('o vocabulário do nicho é gravado no tenant', async () => {
+    /*
+     * O Blueprint sempre pôde traduzir rótulos, e nada gravava: o tenant
+     * nascia com módulos, papéis e sementes do nicho, e sem o vocabulário.
+     * A falta não dava erro — a interface só mostrava o nome genérico.
+     */
+    const bp = nichos['clinica-odontologica'];
+    const { tenantId } = await provisionarPorBlueprint(db, {
+      blueprint: bp,
+      slug: 'clinica-vocabulario',
+      name: 'Clínica Vocabulário',
+      admin: admin(4),
+      idempotencyKey: 'req-vocabulario',
+    });
+
+    const { rows } = await db.query('select terms from public.tenants where id = $1', [tenantId]);
+
+    assert.deepEqual(
+      rows[0].terms,
+      bp.terms,
+      'o que foi gravado precisa ser o que o nicho declara',
+    );
+    assert.ok(Object.keys(rows[0].terms).length > 0, 'a clínica declara vocabulário');
+  });
+
   it('as sementes de CRM viram linha de verdade', async () => {
     // Este teste dizia o contrário até o CRM existir: as sementes ficavam
     // pendentes porque não havia tabela. A mudança de resposta é o marco.

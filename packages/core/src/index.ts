@@ -49,6 +49,18 @@ export {
 export { RESERVED_SUBDOMAINS, isReservedSubdomain, tenantSlugFromHost } from './tenant-host.ts';
 
 export {
+  CRM_LEAD_STATUSES,
+  CRM_STAGE_KINDS,
+  formatCents,
+  isClosedStage,
+  isLeadClosed,
+  nextLeadStatuses,
+  parseCents,
+  type CrmLeadStatus,
+  type CrmStageKind,
+} from './crm.ts';
+
+export {
   TENANT_SETTINGS,
   checkSettingValue,
   resolveSettings,
