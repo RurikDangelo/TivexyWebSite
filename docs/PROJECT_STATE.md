@@ -29,7 +29,7 @@
 | Esquema do Core              | ✅     | **Aplicado** em `tivexy-core`; 146 testes em Postgres 18           |
 | Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
 | Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
-| Contratos (`packages/core`)  | ✅     | `npm run validate` — 447 testes; contratos conferidos contra o SQL |
+| Contratos (`packages/core`)  | ✅     | `npm run validate` — 498 testes; contratos conferidos contra o SQL |
 | Autenticação e sessão        | ✅     | Login, proxy e `current_viewer()` exercitados no banco real        |
 | Provisionamento pela tela    | ✅     | Cliente criado, retomado e desfeito contra o Postgres do projeto   |
 | CI (GitHub Actions)          | 🟡     | Escrito e no remoto; roda na abertura do PR, não em push de branch |
@@ -294,7 +294,33 @@ abre exceção para o primeiro — nem deve.
 
 ### CRM
 
-**Estado:** ⬜ NÃO EXISTE · **Trello:** `CRM` · **Depende de:** Core, Auth, RBAC, provisionamento
+**Estado:** 🟡 PARCIAL · **Docs:** [[04-CRM/CRM]] · **Trello:** `CRM`
+
+O primeiro módulo de negócio. Oito tabelas — contas, pessoas, leads, funis,
+etapas, oportunidades, tipos de atividade e atividades — com RLS, permissão por
+tabela e privilégio de coluna em `tenant_id`. **27 testes de esquema.**
+
+**A decisão estrutural é a chave estrangeira composta.** Os três defeitos que a
+revisão adversarial do Core encontrou eram todos da mesma família: uma linha
+apontando para outra de um tenant diferente. Aqui cada tabela tem
+`unique (tenant_id, id)` e cada referência leva o tenant junto — apontar para
+outro tenant deixa de ser defeito a testar e passa a ser impossível de escrever.
+Há teste provando que a recusa vale **fora do RLS**, que é o caminho do
+provisionamento.
+
+**A oportunidade não guarda situação própria.** Ela é a da etapa. Guardar as
+duas seria manter duas verdades que divergem no dia em que alguém mover a etapa
+por SQL — sem erro, só relatório errado.
+
+**Tela pronta: `/crm/leads`.** Cadastro, transições de estado, validação por
+campo, estado vazio e 375px conferidos no navegador, contra o banco real.
+
+**O vocabulário do nicho chegou na tela.** Uma clínica lê "interessados" onde
+uma consultoria lê "leads" — verificado provisionando a clínica odontológica e
+abrindo a listagem. Ver abaixo.
+
+**Não existe:** contatos, contas, funil, atividades, conversão de lead, busca e
+importação.
 
 ### ERP
 
@@ -329,9 +355,21 @@ declarativa de provisionamento**.
 **Não existe:** o motor de esquema em tempo de execução — entidades e
 formulários definidos por dado. Continua adiado pelo ADR-002, e com razão.
 
-**Aplicado pela metade, de propósito:** as sementes de negócio ficam
-registradas como pendentes, porque as tabelas de CRM e ERP não existem. O
-provisionamento não finge que semeou.
+**As sementes de CRM viram linha de verdade** desde 20/09/2026. As de ERP
+continuam registradas como pendentes, porque as tabelas do ERP não existem — e
+a diferença entre as duas é o que prova que "pendente" não é preguiça.
+
+As etapas citam o funil **pelo nome**, então o funil precisa vir antes na lista.
+`checkBlueprint()` recusa o documento em que não vem: sem isso, trocar duas
+linhas de lugar no JSON passa na validação e quebra no meio de um
+provisionamento real, com o cliente já criado.
+
+**O vocabulário passou a ser gravado.** O Blueprint sempre pôde traduzir
+rótulos e `checkBlueprint()` sempre validou cada chave — mas nada gravava, e o
+tenant nascia com módulos, papéis e sementes do nicho e sem o vocabulário. A
+promessa do produto ficava dois terços verdadeira, e a parte que faltava não
+dava erro: a interface só mostrava o nome genérico. Hoje vai para
+`tenants.terms` junto do tenant.
 
 ### AI Engine
 
@@ -395,10 +433,12 @@ entrada e provisionamento pela tela foram construídos e exercitados contra o
 projeto `tivexy-core`. O que a verificação criou — dois tenants e três contas —
 foi removido depois, e o banco voltou a zero.
 
-O próximo passo depende de uma decisão de produto, não de código: **qual módulo
-de negócio primeiro**, CRM ou ERP. Os dois estão em ⬜, e o Blueprint já
-descreve sementes para ambos que ficam registradas como pendentes porque as
-tabelas não existem.
+**A decisão foi tomada: CRM primeiro.** O esquema, os contratos e a primeira
+tela (`/crm/leads`) estão de pé e verificados contra o banco real.
+
+O próximo passo dentro do CRM é a **conversão de lead** — o momento em que ele
+vira conta, pessoa e oportunidade. Depois dela, as telas de contatos, contas e
+funil.
 
 ## 5. Decisões tomadas
 
@@ -611,7 +651,7 @@ provisionamento e o Blueprint já sustentam os dois.
 
 ### O que dá para fazer sem esperar nada
 
-- Escolher entre CRM e ERP, e construir o primeiro módulo de negócio
+- Conversão de lead, e as telas de contatos, contas e funil
 - Aceitar convite pela tela (falta a função `SECURITY DEFINER` que confere o
   convite — o RLS nega essa escrita a quem ainda não é membro)
 - Conferir se o destino do formulário de contato da landing ainda responde

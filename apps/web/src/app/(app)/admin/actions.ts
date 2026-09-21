@@ -23,7 +23,7 @@
  * é do banco — índice em `provisioning_runs` —, não de um `if` daqui.
  */
 
-import { planProvisioning, previewOf, type ModuleCode } from '@tivexy/core';
+import { planProvisioning, type ModuleCode } from '@tivexy/core';
 import { blueprintByCode } from '@tivexy/core/blueprints';
 import { revalidatePath } from 'next/cache';
 
@@ -149,7 +149,14 @@ export async function criarCliente(
       runId: resultado.runId,
       adminEmail: texto(form, 'email').toLowerCase(),
       reaproveitado: resultado.reused,
-      sementesPendentes: previewOf(plano.operations).seeds,
+      /*
+       * As que **ficaram** pendentes, não todas as declaradas.
+       * `previewOf().seeds` conta o total do plano, e enquanto nenhuma
+       * semente executava os dois números eram iguais — a tela acertava por
+       * acidente. Com o CRM semeando de verdade, ela passou a avisar sobre
+       * nove pendências que não existiam.
+       */
+      sementesPendentes: resultado.pendingSeeds.length,
     },
   };
 }

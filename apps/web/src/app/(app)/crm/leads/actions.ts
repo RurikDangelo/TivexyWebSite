@@ -1,0 +1,140 @@
+'use server';
+
+/**
+ * As escritas da tela de leads.
+ *
+ * Nenhuma delas confia na tela. `requireAccess()` roda aqui dentro, de novo:
+ * Server Action é endpoint, e quem descobrir o identificador dela pode chamá-la
+ * sem nunca ter aberto a página. Abaixo disso ainda há o RLS, que nega a
+ * escrita a quem não tem `crm.leads.write` mesmo que estas duas linhas sumam.
+ *
+ * ## O tenant vem da sessão, nunca do formulário
+ *
+ * O RLS impede escrever no tenant de outra pessoa, e **não** escolhe em qual
+ * dos tenants dela a linha vai cair — quem participa de duas empresas tem
+ * permissão nas duas. Aceitar `tenant_id` do formulário deixaria essa escolha
+ * com o navegador, e o lead do cliente A iria parar na base do cliente B sem
+ * que nada desse erro.
+ */
+
+import { type CrmLeadStatus, nextLeadStatuses } from '@tivexy/core';
+import { revalidatePath } from 'next/cache';
+
+import { requireAccess } from '@/lib/auth/require';
+import { supabaseServer } from '@/lib/supabase/server';
+
+import { LEAD_INICIAL, type LeadFormState } from './state.ts';
+
+/** De onde a tela lê e escreve. Uma constante: o caminho também é a regra. */
+const ROTA = '/crm/leads';
+
+function texto(form: FormData, campo: string): string {
+  const valor = form.get(campo);
+  return typeof valor === 'string' ? valor.trim() : '';
+}
+
+/** Vazio vira `null`, não string vazia — a coluna é opcional, não "preenchida com nada". */
+function opcional(form: FormData, campo: string): string | null {
+  const valor = texto(form, campo);
+  return valor === '' ? null : valor;
+}
+
+/**
+ * Validação de forma, antes de falar com o banco.
+ *
+ * O banco tem as suas — `name` não pode ser branco — e elas chegam como
+ * violação de constraint, que não diz a quem preencheu qual campo consertar.
+ * Isto aqui existe para a mensagem, não para a garantia.
+ */
+function conferir(form: FormData): LeadFormState['campos'] {
+  const campos: Record<string, string> = {};
+
+  if (texto(form, 'name') === '') campos.name = 'Obrigatório.';
+
+  const email = texto(form, 'email');
+  if (email !== '' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    campos.email = 'Não parece um e-mail.';
+  }
+
+  const telefone = texto(form, 'phone');
+  if (telefone !== '' && telefone.replace(/\D/g, '').length < 8) {
+    campos.phone = 'Curto demais para um telefone.';
+  }
+
+  return campos;
+}
+
+export async function criarLead(_anterior: LeadFormState, form: FormData): Promise<LeadFormState> {
+  const { choice } = await requireAccess(ROTA);
+  if (choice.kind !== 'resolved') {
+    return { ...LEAD_INICIAL, erro: 'Escolha uma empresa antes de cadastrar.' };
+  }
+
+  const campos = conferir(form);
+  if (Object.keys(campos).length > 0) return { ...LEAD_INICIAL, campos };
+
+  const nome = texto(form, 'name');
+  const supabase = await supabaseServer();
+
+  const { error } = await supabase.from('crm_leads').insert({
+    tenant_id: choice.tenant.id,
+    name: nome,
+    email: opcional(form, 'email'),
+    phone: opcional(form, 'phone'),
+    company_name: opcional(form, 'company_name'),
+    source: opcional(form, 'source'),
+  });
+
+  if (error !== null) {
+    /*
+     * `42501` é negação do RLS. Traduzir é o que separa "você não tem
+     * permissão para cadastrar" de um código que manda a pessoa abrir chamado.
+     */
+    return {
+      ...LEAD_INICIAL,
+      erro:
+        error.code === '42501'
+          ? 'Você não tem permissão para cadastrar aqui.'
+          : `Não consegui salvar: ${error.message}`,
+    };
+  }
+
+  revalidatePath(ROTA);
+  return { ...LEAD_INICIAL, criado: nome };
+}
+
+/**
+ * Move o lead de estado.
+ *
+ * A transição permitida vem de `nextLeadStatuses()`, no Core — a mesma função
+ * que a tela usa para desenhar os botões. Conferir aqui de novo não é
+ * desconfiança do próprio código: o formulário chega pela rede, e o destino é
+ * um campo que qualquer um edita.
+ */
+export async function moverLead(form: FormData): Promise<void> {
+  const { choice } = await requireAccess(ROTA);
+  if (choice.kind !== 'resolved') return;
+
+  const id = texto(form, 'id');
+  const de = texto(form, 'de') as CrmLeadStatus;
+  const para = texto(form, 'para') as CrmLeadStatus;
+
+  if (id === '' || !nextLeadStatuses(de).includes(para)) return;
+
+  const supabase = await supabaseServer();
+  await supabase
+    .from('crm_leads')
+    .update({ status: para })
+    .eq('id', id)
+    /*
+     * O tenant no `where`, mesmo com o RLS filtrando. Sem ele, um id de outra
+     * empresa em que a pessoa **também** trabalha seria atualizado a partir da
+     * tela da empresa errada — o RLS deixaria passar, porque ela tem permissão
+     * nas duas.
+     */
+    .eq('tenant_id', choice.tenant.id)
+    /* E o estado de origem: dois cliques rápidos não aplicam a transição duas vezes. */
+    .eq('status', de);
+
+  revalidatePath(ROTA);
+}

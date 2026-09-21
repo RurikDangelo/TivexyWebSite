@@ -56,7 +56,7 @@ export const navigation: NavGroup[] = [
     label: 'CRM',
     module: 'crm',
     items: [
-      { label: 'Leads', href: '/crm/leads', icon: Target, status: 'pending' },
+      { label: 'Leads', href: '/crm/leads', icon: Target, status: 'ready' },
       { label: 'Contatos', href: '/crm/contatos', icon: Contact, status: 'pending' },
       { label: 'Empresas', href: '/crm/empresas', icon: Building2, status: 'pending' },
       { label: 'Oportunidades', href: '/crm/oportunidades', icon: Workflow, status: 'pending' },

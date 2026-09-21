@@ -64,8 +64,8 @@ sem implementação atrás vira ficção.
 | `MULTI_TENANCY.md`                     | `12-SECURITY/`     | ✅ escrito                       |
 | `AUTHORIZATION.md`                     | `12-SECURITY/`     | ✅ escrito                       |
 | `AUTHENTICATION.md`                    | `03-CORE/`         | ✅ escrito                       |
+| `CRM.md`                               | `04-CRM/`          | ✅ escrito                       |
 | `PROVISIONING.md`                      | `06-ADMIN/`        | ✅ especificado                  |
-| `CRM.md`                               | `04-CRM/`          | ⬜ com o CRM                     |
 | `ERP.md`, `INVENTORY.md`, `FINANCE.md` | `05-ERP/`          | ⬜ com o ERP                     |
 | `BANKING.md`                           | `10-INTEGRATIONS/` | ⬜ quando houver provedor        |
 | `FISCAL.md`                            | `11-FISCAL/`       | ⬜ quando houver provedor        |
