@@ -90,12 +90,23 @@ export function Campo({
   placeholder,
   padrao,
   referencia,
+  aoMudar,
   ...comum
 }: Comum & {
   tipo?: string;
   placeholder?: string;
   padrao?: string;
   referencia?: RefObject<HTMLInputElement | null>;
+  /**
+   * Para a tela que precisa reagir ao que está sendo digitado — a prévia do
+   * total de um item de venda, por exemplo.
+   *
+   * Recebe o **valor**, não o evento: quem chama quase sempre só quer o
+   * texto, e passar o evento obrigaria cada chamador a lembrar de
+   * `e.target.value`. O campo continua não controlado (`defaultValue`), então
+   * isto não muda quem manda no conteúdo — o formulário continua mandando.
+   */
+  aoMudar?: (valor: string) => void;
 }) {
   return (
     <Envoltorio {...comum}>
@@ -106,6 +117,7 @@ export function Campo({
           type={tipo}
           placeholder={placeholder}
           defaultValue={padrao}
+          onChange={aoMudar === undefined ? undefined : (e) => aoMudar(e.target.value)}
         />
       )}
     </Envoltorio>
@@ -130,12 +142,26 @@ export function CampoSelecao({
   opcoes,
   vazio,
   padrao,
+  referenciaSelect,
+  aoMudar,
   ...comum
-}: Comum & { opcoes: readonly Opcao[]; vazio?: string; padrao?: string }) {
+}: Comum & {
+  opcoes: readonly Opcao[];
+  vazio?: string;
+  padrao?: string;
+  referenciaSelect?: RefObject<HTMLSelectElement | null>;
+  /** Recebe o valor escolhido. Ver `aoMudar` em `Campo`. */
+  aoMudar?: (valor: string) => void;
+}) {
   return (
     <Envoltorio {...comum}>
       {(aria) => (
-        <Select {...aria} defaultValue={padrao ?? ''}>
+        <Select
+          {...aria}
+          ref={referenciaSelect}
+          defaultValue={padrao ?? ''}
+          onChange={aoMudar === undefined ? undefined : (e) => aoMudar(e.target.value)}
+        >
           {vazio !== undefined && <option value="">{vazio}</option>}
           {opcoes.map((opcao) => (
             <option key={opcao.valor} value={opcao.valor}>
