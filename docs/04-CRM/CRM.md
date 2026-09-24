@@ -40,12 +40,31 @@ para onde ir olhar.
 | `/crm/contatos`      | Lista e cadastra pessoas, com vínculo opcional à conta |
 | `/crm/oportunidades` | O quadro do funil, e move oportunidade entre etapas    |
 
-### O quadro é de servidor, sem estado de cliente
+### O quadro é de servidor, e o arrastar veio por cima
 
-Cada movimento é um `form` com Server Action. Arrastar-e-soltar é mais bonito
-e traz duas coisas de graça que a alternativa não traz: funcionar sem
-JavaScript e ser operável pelo teclado. Quando o arrastar vier, vem por cima
-disto — não no lugar.
+Cada movimento é um `form` com Server Action. Esse é o caminho **principal**,
+não o de acessibilidade: funciona sem JavaScript, no teclado, com leitor de
+tela e no celular, onde arrastar entre colunas empilhadas é um gesto que
+ninguém acerta.
+
+Arrastar (`drag.tsx`) é o atalho de quem está no computador com o mouse na
+mão. Três decisões:
+
+- **Delegação de evento, não cartão-componente-cliente.** Transformar cada
+  cartão em componente de cliente mandaria título, valor e nome da conta para
+  o navegador duas vezes — no HTML e no payload do React. O quadro continua
+  inteiro no servidor; o cliente escuta o contêiner e lê `data-*` do alvo.
+- **O destaque da coluna é atributo no DOM, não `useState`.** `dragover`
+  dispara a cada movimento do cursor; guardar isso em estado re-renderizaria
+  o quadro dezenas de vezes por segundo.
+- **Um `form` escondido, não `fetch`.** Arrastar chama a **mesma** Server
+  Action que o `select` chama. Um segundo caminho de escrita seria um segundo
+  lugar para esquecer a checagem de permissão, o `tenant_id` no `where` e a
+  conferência da etapa de destino.
+
+> `dataTransfer.setData()` precisa ser chamado mesmo sem usar o conteúdo:
+> sem ele o Firefox não inicia o arrasto. É o detalhe que faz o recurso
+> funcionar no Chrome e simplesmente não existir no Firefox.
 
 No celular as colunas viram seções empilhadas. Quadro com rolagem horizontal
 em 375px esconde metade do funil atrás de um gesto que ninguém descobre.

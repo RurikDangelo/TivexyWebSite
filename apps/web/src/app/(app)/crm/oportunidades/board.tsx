@@ -4,6 +4,7 @@ import { formatCents } from '@tivexy/core';
 import { Badge } from '@/components/ui/badge';
 
 import { moverOportunidade } from './actions';
+import { ArrastarNoQuadro } from './drag';
 import {
   type EtapaDoFunil,
   type OportunidadeListada,
@@ -32,16 +33,18 @@ export function Board({
   oportunidades: readonly OportunidadeListada[];
 }) {
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:overflow-x-auto lg:pb-4">
-      {etapas.map((etapa) => (
-        <Coluna
-          key={etapa.id}
-          etapa={etapa}
-          etapas={etapas}
-          oportunidades={oportunidades.filter((o) => o.etapaId === etapa.id)}
-        />
-      ))}
-    </div>
+    <ArrastarNoQuadro>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:overflow-x-auto lg:pb-4">
+        {etapas.map((etapa) => (
+          <Coluna
+            key={etapa.id}
+            etapa={etapa}
+            etapas={etapas}
+            oportunidades={oportunidades.filter((o) => o.etapaId === etapa.id)}
+          />
+        ))}
+      </div>
+    </ArrastarNoQuadro>
   );
 }
 
@@ -62,7 +65,10 @@ function Coluna({
   const total = oportunidades.reduce((soma, o) => soma + o.valorCentavos, 0);
 
   return (
-    <section className="lg:w-72 lg:shrink-0">
+    <section
+      data-coluna={etapa.id}
+      className="rounded-lg transition-colors data-[sobre]:bg-surface-accent-soft lg:w-72 lg:shrink-0"
+    >
       <header className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
         <h2 className="font-mono text-[0.6875rem] font-medium uppercase tracking-wider text-content-subtle">
           {etapa.nome}
@@ -109,7 +115,18 @@ function Cartao({
   const destinos = etapas.filter((e) => e.id !== etapaAtual.id);
 
   return (
-    <li className="rounded-lg border border-line-subtle bg-surface-raised p-3">
+    <li
+      /*
+       * Os `data-*` são o contrato com `drag.tsx`: ele escuta o contêiner e
+       * lê daqui quem está sendo arrastado e de onde. É o que mantém o quadro
+       * inteiro no servidor — nenhum cartão precisa virar componente de
+       * cliente para poder ser arrastado.
+       */
+      data-oportunidade={oportunidade.id}
+      data-etapa={etapaAtual.id}
+      draggable
+      className="rounded-lg border border-line-subtle bg-surface-raised p-3 transition-opacity data-[arrastando]:opacity-40 lg:cursor-grab lg:active:cursor-grabbing"
+    >
       <p className="font-medium text-content">{oportunidade.titulo}</p>
 
       {contraparte !== '' && (

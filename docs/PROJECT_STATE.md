@@ -330,6 +330,12 @@ trabalha.
   centavos por coluna e movimento entre etapas. Sem estado de cliente: cada
   movimento é `form` com Server Action, o que dá teclado e funcionamento sem
   JavaScript de graça. Arrastar-e-soltar, quando vier, vem por cima disto.
+- **Arrastar entre etapas entrou em 24/09/2026**, por cima do que já havia: o
+  `select` continua sendo o caminho principal — sem JavaScript, no teclado, no
+  leitor de tela e no celular. O arrastar chama a **mesma** Server Action; um
+  segundo caminho de escrita seria um segundo lugar para esquecer a checagem
+  de permissão. O quadro segue inteiro no servidor: o cliente só escuta o
+  contêiner e lê `data-*`.
 - O quadro **nunca escreve `closed_at`** — quem mantém é o gatilho
   `sync_deal_closed_at`. E o funil não é campo de formulário: é lido da etapa,
   no servidor, porque `assert_deal_stage_in_pipeline` recusa a linha em que os
