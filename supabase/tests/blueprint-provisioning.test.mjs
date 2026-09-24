@@ -424,12 +424,18 @@ describe('o que não foi aplicado fica registrado, não escondido', () => {
     );
   });
 
-  it('as sementes de ERP continuam pendentes, com o motivo', async () => {
-    // O ERP ainda não tem tabela. Registrar como pendente continua sendo a
-    // única alternativa honesta a fingir que semeou — e a diferença entre
-    // este teste e o de cima é a prova de que "pendente" não é preguiça.
+  it('as sementes de ERP viram linha de verdade', async () => {
+    /*
+     * **Este teste afirmava o contrário até 24/09/2026**, e a inversão é o
+     * marco: enquanto o ERP não tinha tabela, as sementes do mercado ficavam
+     * registradas como `skipped` com o motivo escrito — que era a única
+     * alternativa honesta a fingir que semeou.
+     *
+     * As tabelas passaram a existir. Se este teste voltasse a esperar
+     * `skipped`, ele estaria protegendo uma regressão em vez de uma garantia.
+     */
     const bp = nichos['mercado'];
-    const { runId } = await provisionarPorBlueprint(db, {
+    const { runId, tenantId } = await provisionarPorBlueprint(db, {
       blueprint: bp,
       slug: 'mercado-sementes',
       name: 'Mercado Sementes',
@@ -442,9 +448,42 @@ describe('o que não foi aplicado fica registrado, não escondido', () => {
        where run_id = $1 and step = 'seed_defaults'`,
       [runId],
     );
-    assert.equal(rows[0].status, 'skipped', 'não foi executada — e diz isso');
-    assert.equal(rows[0].result.pending.length, bp.seeds.length, 'nenhuma semente se perde');
-    assert.match(rows[0].result.reason, /tabela/, 'o motivo precisa estar registrado');
+    assert.equal(rows[0].status, 'succeeded', 'a etapa executou');
+    assert.deepEqual(
+      rows[0].result.pending ?? [],
+      [],
+      'nenhuma semente do mercado deveria continuar pendente',
+    );
+
+    /* Cada semente declarada precisa ter virado linha na tabela dela. */
+    const categoriasDeclaradas = bp.seeds
+      .filter((s) => s.entity === 'erp.product_categories')
+      .map((s) => s.values.name)
+      .sort();
+    const formasDeclaradas = bp.seeds
+      .filter((s) => s.entity === 'erp.payment_methods')
+      .map((s) => s.values.name)
+      .sort();
+
+    assert.ok(categoriasDeclaradas.length > 0, 'o nicho mercado precisa declarar categorias');
+
+    const categorias = await db.query(
+      'select name from public.erp_product_categories where tenant_id = $1 order by name',
+      [tenantId],
+    );
+    assert.deepEqual(
+      categorias.rows.map((r) => r.name),
+      categoriasDeclaradas,
+    );
+
+    const formas = await db.query(
+      'select name from public.erp_payment_methods where tenant_id = $1 order by name',
+      [tenantId],
+    );
+    assert.deepEqual(
+      formas.rows.map((r) => r.name),
+      formasDeclaradas,
+    );
   });
 
   it('desfazer remove as linhas que a semente criou', async () => {
@@ -972,7 +1011,19 @@ describe('compensação', () => {
     });
 
     assert.equal(r.ok, true);
-    assert.deepEqual(r.undone, ['create_admin', 'create_roles', 'enable_modules', 'create_tenant']);
+    /*
+     * `seed_defaults` entrou nesta lista em 24/09/2026, quando as tabelas de
+     * ERP passaram a existir. Antes disso a etapa era `skipped` para a
+     * cafeteria — não tinha efeito, e portanto não tinha o que desfazer.
+     * A lista crescer aqui é o sinal de que ela passou a ter.
+     */
+    assert.deepEqual(r.undone, [
+      'seed_defaults',
+      'create_admin',
+      'create_roles',
+      'enable_modules',
+      'create_tenant',
+    ]);
     assert.equal(r.tenantId, tenantId);
   });
 
@@ -1040,7 +1091,11 @@ describe('compensação', () => {
       [runId],
     );
     const porStatus = Object.fromEntries(rows.map((r) => [r.status, r.c]));
-    assert.equal(porStatus.compensated, 4, 'as quatro que tiveram efeito');
+    assert.equal(
+      porStatus.compensated,
+      5,
+      'as cinco que tiveram efeito — seed_defaults entrou com as tabelas do ERP',
+    );
     assert.equal(porStatus.failed, 1, 'a que falhou continua registrada como falha');
   });
 
@@ -1060,7 +1115,11 @@ describe('compensação', () => {
       [tenantId],
     );
     assert.equal(rows.length, 1, 'desfazer é operação de plataforma e é auditável');
-    assert.equal(rows[0].metadata.undone.length, 4);
+    assert.equal(
+      rows[0].metadata.undone.length,
+      5,
+      'cinco etapas desfeitas desde que o ERP semeia',
+    );
   });
 
   it('NÃO apaga a identidade de quem já administrava outro cliente', async () => {

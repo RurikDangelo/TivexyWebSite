@@ -63,6 +63,27 @@ export {
 export { CNPJ_LENGTH, CPF_LENGTH, checkDocument, formatDocument, onlyDigits } from './documento.ts';
 
 export {
+  ERP_MOVEMENT_KINDS,
+  ERP_MOVEMENT_LABEL,
+  ERP_SALE_LABEL,
+  ERP_SALE_STATUSES,
+  ERP_UNITS,
+  ERP_UNIT_LABEL,
+  FINANCE_ENTRY_KINDS,
+  FINANCE_ENTRY_LABEL,
+  financeSign,
+  formatQuantity,
+  isSaleClosed,
+  lineTotalCents,
+  parseQuantity,
+  stockDelta,
+  type ErpMovementKind,
+  type ErpSaleStatus,
+  type ErpUnit,
+  type FinanceEntryKind,
+} from './erp.ts';
+
+export {
   DEFAULT_TIME_ZONE,
   calendarDaysBetween,
   clockPartsIn,

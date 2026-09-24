@@ -18,6 +18,10 @@ import { checkBlueprint } from '../../packages/core/src/blueprint.ts';
 import {
   CRM_LEAD_STATUSES,
   CRM_STAGE_KINDS,
+  ERP_MOVEMENT_KINDS,
+  ERP_SALE_STATUSES,
+  ERP_UNITS,
+  FINANCE_ENTRY_KINDS,
   MEMBERSHIP_STATUSES,
   MODULE_CODES,
   PERMISSION_CODES,
@@ -128,6 +132,22 @@ describe('enums: TypeScript espelha o SQL', () => {
 
   it('ciclo do lead', async () => {
     assert.deepEqual([...CRM_LEAD_STATUSES], await enumLabels('crm_lead_status'));
+  });
+
+  it('unidade de medida', async () => {
+    assert.deepEqual([...ERP_UNITS], await enumLabels('erp_unit'));
+  });
+
+  it('tipo de movimento de estoque', async () => {
+    assert.deepEqual([...ERP_MOVEMENT_KINDS], await enumLabels('erp_movement_kind'));
+  });
+
+  it('ciclo da venda', async () => {
+    assert.deepEqual([...ERP_SALE_STATUSES], await enumLabels('erp_sale_status'));
+  });
+
+  it('tipo de lançamento financeiro', async () => {
+    assert.deepEqual([...FINANCE_ENTRY_KINDS], await enumLabels('finance_entry_kind'));
   });
 });
 

@@ -172,6 +172,14 @@ const TABELA_DA_SEMENTE = {
   'crm.pipelines': 'crm_pipelines',
   'crm.pipeline_stages': 'crm_pipeline_stages',
   'crm.activity_types': 'crm_activity_types',
+  /*
+   * As duas do ERP entraram em 24/09/2026, junto das tabelas. Até então o
+   * Blueprint as declarava e elas ficavam registradas como **pendentes** —
+   * com motivo escrito, não caladas. A diferença entre "pendente" e "aplicada"
+   * era, e continua sendo, a tabela existir.
+   */
+  'erp.product_categories': 'erp_product_categories',
+  'erp.payment_methods': 'erp_payment_methods',
 } as const;
 
 type SeedEntity = keyof typeof TABELA_DA_SEMENTE;
@@ -234,6 +242,24 @@ async function semear(
       [tenantId, nome, inteiro(values.position, 0)],
     );
     return { kind: 'seed', table: 'crm_activity_types', id: texto(rows[0]?.id) };
+  }
+
+  if (entity === 'erp.product_categories') {
+    const { rows } = await db.query(
+      `insert into public.erp_product_categories (tenant_id, name, position)
+       values ($1, $2, $3) returning id`,
+      [tenantId, nome, inteiro(values.position, 0)],
+    );
+    return { kind: 'seed', table: 'erp_product_categories', id: texto(rows[0]?.id) };
+  }
+
+  if (entity === 'erp.payment_methods') {
+    const { rows } = await db.query(
+      `insert into public.erp_payment_methods (tenant_id, name, position)
+       values ($1, $2, $3) returning id`,
+      [tenantId, nome, inteiro(values.position, 0)],
+    );
+    return { kind: 'seed', table: 'erp_payment_methods', id: texto(rows[0]?.id) };
   }
 
   const funil = texto_opcional(values.pipeline);
