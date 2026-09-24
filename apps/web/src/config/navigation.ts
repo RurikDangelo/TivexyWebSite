@@ -11,6 +11,7 @@ import {
   Package,
   Settings,
   ShieldCheck,
+  Sparkles,
   ShoppingCart,
   Target,
   Users,
@@ -50,7 +51,10 @@ export const navigation: NavGroup[] = [
   {
     label: null,
     module: 'core',
-    items: [{ label: 'Visão geral', href: '/painel', icon: LayoutDashboard, status: 'ready' }],
+    items: [
+      { label: 'Visão geral', href: '/painel', icon: LayoutDashboard, status: 'ready' },
+      { label: 'Primeiros passos', href: '/tutorial', icon: Sparkles, status: 'ready' },
+    ],
   },
   {
     label: 'CRM',

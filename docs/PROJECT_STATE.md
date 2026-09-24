@@ -700,6 +700,33 @@ A conversão de lead entrou. O próximo passo dentro do CRM são as **telas de
 funil, contatos e contas** — hoje a conversão cria as três coisas e só a de
 leads tem onde ser vista.
 
+### Tutorial — `/tutorial`
+
+**Estado:** 🟡 PARCIAL · construído em 24/09/2026
+
+O caminho inteiro, do cliente criado até uma regra trabalhando sozinha: dez
+passos, cada um com **o que fazer** e **por quê**.
+
+**Interativo quer dizer que ele olha o banco.** Cada passo é conferido contra
+o cliente — nove contagens em paralelo, com `head: true`, então volta o número
+e não as linhas. O que já foi feito aparece feito, e o botão do topo leva ao
+primeiro que falta.
+
+"Primeiro que falta", e não "o próximo depois do último feito": quem pulou o
+passo 3 e fez o 4 é levado de volta ao 3, porque cada passo usa o que o
+anterior criou.
+
+**Ele diz o que ainda não fecha**, dentro do passo e não num rodapé: o convite
+não sai por e-mail, não há emissão fiscal, não há WhatsApp nem cobrança. **Há
+teste travando as três** — se alguém apagar a ressalva do e-mail, ele cai.
+
+Toda pendência traz um contorno, também com teste. Pendência sem saída é
+bloqueio, e dizer "o e-mail não sai" sem dizer "use o link" é a metade inútil
+da verdade.
+
+Falha de contagem vira zero, não erro: um tutorial que não abre porque uma
+consulta falhou é pior do que um que mostra um passo como pendente sem estar.
+
 ## 5. Decisões tomadas
 
 | #       | Decisão                                                                  | Data       |

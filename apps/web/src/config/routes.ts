@@ -56,6 +56,9 @@ export const routeRules: readonly RouteMatcher[] = [
 
   /* Operação do tenant. */
   { prefix: '/painel', rule: { kind: 'member' } },
+  /* O caminho guiado. `member` e não `permission`: ele ensina o sistema
+     inteiro, e cada passo já leva a uma rota que exige o que exigir. */
+  { prefix: '/tutorial', rule: { kind: 'member' } },
 
   { prefix: '/crm/leads', rule: { kind: 'permission', permission: 'crm.leads.read' } },
   { prefix: '/crm/contatos', rule: { kind: 'permission', permission: 'crm.contacts.read' } },
