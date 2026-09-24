@@ -60,7 +60,7 @@ export const navigation: NavGroup[] = [
       { label: 'Contatos', href: '/crm/contatos', icon: Contact, status: 'ready' },
       { label: 'Empresas', href: '/crm/empresas', icon: Building2, status: 'ready' },
       { label: 'Oportunidades', href: '/crm/oportunidades', icon: Workflow, status: 'ready' },
-      { label: 'Atividades', href: '/crm/atividades', icon: ClipboardList, status: 'pending' },
+      { label: 'Atividades', href: '/crm/atividades', icon: ClipboardList, status: 'ready' },
     ],
   },
   {

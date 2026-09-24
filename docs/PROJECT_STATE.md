@@ -32,7 +32,7 @@
 | Contratos (`packages/core`)  | ✅     | `npm run validate` — 566 testes; contratos conferidos contra o SQL |
 | Autenticação e sessão        | ✅     | Login, proxy e `current_viewer()` exercitados no banco real        |
 | Provisionamento pela tela    | ✅     | Cliente criado, retomado e desfeito contra o Postgres do projeto   |
-| Telas de CRM (4 rotas)       | 🟡     | Leads conferida no navegador; as outras três, **só em teste**      |
+| Telas de CRM (5 rotas)       | 🟡     | Leads conferida no navegador; as outras quatro, **só em teste**    |
 | CI (GitHub Actions)          | 🟡     | Escrito e no remoto; roda na abertura do PR, não em push de branch |
 | Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado       |
 
@@ -377,8 +377,34 @@ Verificada contra o banco real: um lead virou conta, pessoa e oportunidade de
 R$ 4.500,00 na etapa "Orçamento enviado" do funil "Tratamentos", com o lead
 carimbado apontando para os três.
 
-**Não existe:** atividades, edição, exclusão, detalhe de conta e de pessoa,
-responsável, busca e importação.
+**A agenda entrou em 24/09/2026** — `/crm/atividades`, com as cinco faixas
+(atrasadas, hoje, próximas, sem prazo, concluídas), alvo único num campo só e
+concluir/reabrir.
+
+O que ela obrigou a construir antes: **`packages/core/src/tempo.ts`**, porque
+"atrasada" depende do fuso do cliente e não do servidor. `due_at` é
+`timestamptz`, `<input type="datetime-local">` manda hora de parede sem fuso,
+e interpretar com `new Date()` usaria UTC na Vercel — a atividade das 14:30
+entraria como 11:30 e nasceria atrasada.
+
+Três defeitos que os testes daquele arquivo travam, e que quase passaram:
+
+| Armadilha                   | Sintoma sem tratamento                            |
+| --------------------------- | ------------------------------------------------- |
+| Horário de verão            | Deslocamento muda com a data; constante não serve |
+| `hour12: false`             | Runtime diz 24h, e 24h vira o dia seguinte        |
+| `Date.UTC` normaliza calado | Mês 13 vira janeiro do ano que vem, **sem erro**  |
+
+O terceiro foi encontrado **pelo teste, contra o código** — o teste estava
+certo. Quase todos usam `America/New_York`: o Brasil não tem horário de verão
+desde 2019, então um código errado passaria em todo teste brasileiro.
+
+`crm_activities` e `crm_activity_types` **estavam fora do teste de isolamento
+entre tenants**, contra a regra de `docs/00-SYSTEM/TESTING.md`. Entraram, mais
+os testes de cascata do alvo e de tipo emprestado de outro tenant.
+
+**Não existe:** edição, exclusão, detalhe de conta e de pessoa, responsável,
+busca e importação.
 
 ### ERP
 

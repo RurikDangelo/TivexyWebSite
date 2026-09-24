@@ -18,9 +18,9 @@
 | `crm_activity_types`  | Tipo de atividade — consulta, retorno, visita         |
 | `crm_activities`      | A atividade em si                                     |
 
-Telas prontas: **`/crm/leads`**, **`/crm/empresas`**, **`/crm/contatos`** e
-**`/crm/oportunidades`**. `/crm/atividades` existe em `routes.ts` e ainda não
-tem página — a navegação a mostra desabilitada, de propósito.
+Telas prontas: **`/crm/leads`**, **`/crm/empresas`**, **`/crm/contatos`**,
+**`/crm/oportunidades`** e **`/crm/atividades`**. As cinco rotas do módulo
+existem.
 
 > As três telas novas são de 24/09/2026 e estão **testadas, não verificadas
 > contra o banco real**: foram construídas em sessão de nuvem, que recebe o
@@ -286,9 +286,67 @@ Isso apareceu na verificação: a clínica odontológica tinha cinco etapas, tod
 `open`. O funil estava lá, bonito na tela, e nenhum tratamento teria como ser
 dado por concluído.
 
+## A agenda
+
+`/crm/atividades` mostra o que precisa ser feito, agrupado em **atrasadas,
+hoje, próximas, sem prazo e concluídas**.
+
+### O alvo é um campo só, porque a constraint diz que é um alvo só
+
+`crm_activities_one_target` exige exatamente uma das quatro colunas de alvo
+preenchida. Quatro campos na tela poderiam discordar entre si, e a pessoa
+descobriria no erro de constraint.
+
+A tela usa um `select` com `<optgroup>` por tipo, e o valor carrega o tipo
+junto: `lead:<uuid>`. Não há como escolher dois, nem nenhum. O servidor
+decodifica e decide a coluna — conferindo o tipo **contra a lista**, nunca
+contra o que veio, porque nome de coluna montado a partir da rede é como se
+escreve injeção sem perceber.
+
+### "Atrasada" depende do fuso do cliente, não do servidor
+
+Esta é a parte que parece detalhe e não é.
+
+`due_at` é `timestamptz`, e `<input type="datetime-local">` manda hora de
+parede sem fuso: `2026-09-24T14:30`. `new Date()` interpretaria no fuso do
+**servidor**, que na Vercel é UTC — a atividade das duas e meia da tarde
+entraria como 11:30 e **nasceria atrasada**.
+
+O fuso certo é o do tenant (`core.timezone`), e quem converte é
+`zonedToUtc()`, em `packages/core/src/tempo.ts`. Três coisas que aquele
+arquivo resolve e que uma implementação apressada erra:
+
+| Armadilha                   | O que acontece sem tratar                               |
+| --------------------------- | ------------------------------------------------------- |
+| Horário de verão            | O deslocamento **muda com a data**; constante não serve |
+| `hour12: false`             | Alguns runtimes dizem 24h, e 24h vira o dia seguinte    |
+| `Date.UTC` normaliza calado | Mês 13 vira janeiro do ano que vem, sem erro nenhum     |
+
+Os três têm teste, e quase todos usam `America/New_York` em vez de São Paulo
+— o Brasil não tem mais horário de verão desde 2019, então um código errado
+passaria em todo teste brasileiro e quebraria no primeiro cliente de fora.
+
+### "Hoje" é dia de calendário, não 24 horas
+
+`faixaDe()` classifica com `calendarDaysBetween`, não com subtração de
+milissegundos. Uma atividade marcada para hoje às 23:00 não é "amanhã" só
+porque faltam menos de 24 horas, e a de hoje às 09:00, olhada às 18:00, é
+atrasada — de hoje, mas atrasada.
+
+**Concluída ganha de tudo.** Uma atividade feita ontem com prazo de anteontem
+não é atrasada: ela foi feita. Manter no vermelho o que já foi resolvido
+treina quem usa a ignorar o vermelho.
+
+### Apagar o alvo apaga a agenda dele
+
+`on delete cascade` nas quatro colunas de alvo, e `set null` no tipo. A
+diferença é o que cada um significa: sem alvo a atividade não quer dizer nada
+— e `set null` ali produziria justamente o que a constraint de alvo único
+recusa, fazendo o `delete` do lead falhar por causa de uma atividade. Sem
+tipo, ela continua sendo "ligar para o cliente na terça".
+
 ## O que falta
 
-- Tela de atividades
 - **Editar e excluir** — as quatro telas cadastram e listam; nenhuma altera
   linha existente. Corrigir um telefone errado ainda exige SQL
 - Detalhe de conta e de pessoa — hoje não há para onde clicar a partir da

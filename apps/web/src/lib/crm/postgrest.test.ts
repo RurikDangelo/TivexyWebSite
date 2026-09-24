@@ -34,6 +34,15 @@ describe('nomeAninhado', () => {
     assert.equal(nomeAninhado({ name: '' }), null);
   });
 
+  it('lê outro campo quando pedido — a oportunidade tem título, não nome', () => {
+    assert.equal(nomeAninhado({ title: 'Reforma da fachada' }, 'title'), 'Reforma da fachada');
+    assert.equal(nomeAninhado([{ title: 'Reforma da fachada' }], 'title'), 'Reforma da fachada');
+  });
+
+  it('pedir um campo não faz o outro valer', () => {
+    assert.equal(nomeAninhado({ name: 'Padaria' }, 'title'), null);
+  });
+
   it('o que não tem a forma esperada não vira nome', () => {
     assert.equal(nomeAninhado({ name: 42 }), null);
     assert.equal(nomeAninhado('Padaria'), null);

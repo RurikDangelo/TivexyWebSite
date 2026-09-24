@@ -14,9 +14,17 @@
  * lugar só.
  */
 
-/** O campo `name` de uma relação embutida, venha ela como objeto ou como array. */
-export function nomeAninhado(bruto: unknown): string | null {
+/**
+ * O nome de uma relação embutida, venha ela como objeto ou como array.
+ *
+ * O campo é `name` na maior parte das tabelas do CRM e `title` em
+ * `crm_deals` — uma oportunidade tem título, não nome. Daí o segundo
+ * argumento, em vez de uma segunda função quase igual.
+ */
+export function nomeAninhado(bruto: unknown, campo = 'name'): string | null {
   const primeiro = Array.isArray(bruto) ? bruto[0] : bruto;
-  const objeto = primeiro as { name?: unknown } | null | undefined;
-  return typeof objeto?.name === 'string' && objeto.name !== '' ? objeto.name : null;
+  if (primeiro === null || typeof primeiro !== 'object') return null;
+
+  const valor = (primeiro as Record<string, unknown>)[campo];
+  return typeof valor === 'string' && valor !== '' ? valor : null;
 }

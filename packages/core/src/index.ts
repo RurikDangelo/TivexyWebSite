@@ -63,6 +63,18 @@ export {
 export { CNPJ_LENGTH, CPF_LENGTH, checkDocument, formatDocument, onlyDigits } from './documento.ts';
 
 export {
+  DEFAULT_TIME_ZONE,
+  calendarDaysBetween,
+  clockPartsIn,
+  dayIn,
+  formatInstant,
+  isValidTimeZone,
+  utcToZonedInput,
+  zonedToUtc,
+  type PartesDoRelogio,
+} from './tempo.ts';
+
+export {
   TENANT_SETTINGS,
   checkSettingValue,
   resolveSettings,

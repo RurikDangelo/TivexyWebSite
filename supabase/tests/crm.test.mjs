@@ -93,6 +93,17 @@ before(async () => {
       tenant_id: tenant,
       name: `Lead ${lado}`,
     });
+    fx[`tipoAtividade${lado}`] = await criar('crm_activity_types', {
+      tenant_id: tenant,
+      name: 'Ligação',
+      position: 1,
+    });
+    fx[`atividade${lado}`] = await criar('crm_activities', {
+      tenant_id: tenant,
+      type_id: fx[`tipoAtividade${lado}`],
+      subject: `Ligar para ${lado}`,
+      lead_id: fx[`lead${lado}`],
+    });
   }
 });
 
@@ -110,6 +121,8 @@ describe('isolamento entre tenants', () => {
     'crm_pipeline_stages',
     'crm_deals',
     'crm_leads',
+    'crm_activity_types',
+    'crm_activities',
   ];
 
   it('cada tabela do CRM só devolve linhas do próprio tenant', async () => {
@@ -468,6 +481,81 @@ describe('o documento aceito na tela entra na coluna', () => {
         document: '12.345.678/0001-95',
       }),
       /document_digits/,
+    );
+  });
+});
+
+/* ── 5.2 A agenda ──────────────────────────────────────────────────────── */
+
+describe('a atividade segue o alvo', () => {
+  /*
+   * `on delete cascade` nas quatro colunas de alvo. A alternativa seria
+   * `set null`, e ela produziria exatamente o que a constraint de alvo único
+   * existe para impedir: uma atividade sem alvo nenhum, que a própria
+   * constraint então recusaria — deixando o `delete` do lead falhar por causa
+   * de uma atividade. Apagar o lead precisa apagar a agenda dele.
+   */
+  it('apagar o lead leva a atividade junto', async () => {
+    const lead = await criar('crm_leads', { tenant_id: fx.tenantA, name: 'Some junto' });
+    const atividade = await criar('crm_activities', {
+      tenant_id: fx.tenantA,
+      subject: 'Ligar antes de sumir',
+      lead_id: lead,
+    });
+
+    await db.query('delete from public.crm_leads where id = $1', [lead]);
+
+    const { rows } = await db.query('select id from public.crm_activities where id = $1', [
+      atividade,
+    ]);
+    assert.equal(rows.length, 0, 'a atividade ficou órfã de um lead que não existe mais');
+  });
+
+  it('apagar o tipo de atividade preserva a atividade, sem tipo', async () => {
+    /*
+     * Aqui `set null` é o certo, e a diferença com o caso acima é o que cada
+     * um significa: sem alvo a atividade não quer dizer nada; sem tipo ela
+     * continua sendo "ligar para o cliente na terça".
+     */
+    const tipo = await criar('crm_activity_types', { tenant_id: fx.tenantA, name: 'Temporário' });
+    const atividade = await criar('crm_activities', {
+      tenant_id: fx.tenantA,
+      type_id: tipo,
+      subject: 'Sobrevive ao tipo',
+      lead_id: fx.leadA,
+    });
+
+    await db.query('delete from public.crm_activity_types where id = $1', [tipo]);
+
+    const { rows } = await db.query(
+      'select type_id, tenant_id from public.crm_activities where id = $1',
+      [atividade],
+    );
+    assert.equal(rows.length, 1, 'a atividade não deveria sumir com o tipo');
+    assert.equal(rows[0].type_id, null);
+    assert.equal(rows[0].tenant_id, fx.tenantA, 'o tenant foi anulado junto com o tipo');
+  });
+
+  it('tipo de atividade não é compartilhado entre tenants', async () => {
+    await assert.rejects(
+      criar('crm_activities', {
+        tenant_id: fx.tenantA,
+        type_id: fx.tipoAtividadeB,
+        subject: 'Tipo emprestado',
+        lead_id: fx.leadA,
+      }),
+      /type_do_tenant/,
+    );
+  });
+
+  it('o alvo precisa ser do mesmo tenant', async () => {
+    await assert.rejects(
+      criar('crm_activities', {
+        tenant_id: fx.tenantA,
+        subject: 'Espiando a agenda alheia',
+        lead_id: fx.leadB,
+      }),
+      /lead_do_tenant/,
     );
   });
 });
