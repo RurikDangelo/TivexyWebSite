@@ -638,6 +638,25 @@ exatamente o risco nº 5 desta página acontecendo. O que precisa entrar:
 | **Novo:** aceitar convite pela tela | A fazer — precisa de função SECURITY DEFINER  |
 | **Novo:** escolher CRM ou ERP       | Precisa de decisão                            |
 
+### Reconciliado em parte — 24/09/2026
+
+O conector voltou. Foi atualizado **só o que esta sessão entregou**, porque é
+só disso que ela tem conhecimento de primeira mão:
+
+| Card                                            | O que foi feito                               |
+| ----------------------------------------------- | --------------------------------------------- |
+| `[CRM] Contatos, empresas e leads`              | → EM ANDAMENTO, com o que falta listado       |
+| `[CRM] Pipeline, oportunidades e atividades`    | → EM ANDAMENTO, com o que falta listado       |
+| **Novo:** `[QA] Verificar as três telas novas…` | → REVISÃO / TESTE, com roteiro de conferência |
+
+Nenhum dos dois foi dado por concluído, e isso é deliberado: os critérios de
+aceite pedem editar, excluir, busca, histórico de movimento e responsável —
+nada disso existe. Marcar como pronto seria a tela existir valendo por
+funcionalidade pronta, que é o que a regra do CLAUDE.md proíbe.
+
+**Continua pendente** a tabela acima: as entregas de 20/09 (autenticação,
+`proxy.ts`, provisionamento, painel Super Admin) e os três cards novos.
+
 ## 6.2 O que for construído em sessão de nuvem não é verificado contra o banco
 
 > Registrado em 23/09/2026, antes de mover o trabalho para a nuvem.
