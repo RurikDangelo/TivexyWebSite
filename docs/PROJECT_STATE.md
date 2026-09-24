@@ -264,10 +264,33 @@ três delas: ligar a guarda antes teria trocado negação por 404.
 recuperação responde igual tenha o endereço conta ou não. Distinguir entregaria
 a lista de e-mails cadastrados a quem tentasse um por um.
 
-**Não existe ainda:** aceitar convite pela tela — exige uma função
-`SECURITY DEFINER`, porque o RLS nega essa escrita a quem ainda não é membro,
-que é exatamente quem está naquela página. Ela diz isso, em vez de mostrar um
-botão que falharia.
+**Aceitar convite pela tela entrou em 24/09/2026.** Era a pendência conhecida
+desta área: ativar o vínculo é escrita em `tenant_users`, e o RLS nega essa
+escrita a quem ainda não é membro ativo — que é exatamente quem está naquela
+página. Até então `/convite` dizia isso em vez de mostrar um botão que
+falharia.
+
+O que mudou não foi a tela: foi `accept_invite()` passar a existir
+(`20260924010000_core_accept_invite.sql`). `SECURITY DEFINER`, estreita, com
+`search_path` vazio, e **quatro conferências antes de escrever**:
+
+| Confere                   | Porque sem isso                                   |
+| ------------------------- | ------------------------------------------------- |
+| Há sessão                 | `auth.uid()` nulo casaria com `user_id is null`   |
+| O vínculo é de quem chama | Aceitar convite alheio é entrar na conta de outro |
+| O vínculo está `invited`  | Não reescrever `joined_at` de quem já entrou      |
+| O tenant está `active`    | Convite de cliente cancelado daria conta morta    |
+
+O parâmetro é o **tenant**, nunca o usuário: a pessoa é sempre `auth.uid()`.
+Uma versão que recebesse `user_id` seria porta para entrar na conta de
+qualquer um com convite pendente. Há teste para isso, e a trava foi conferida
+quebrando de propósito — sem o `user_id = quem`, um teste cai.
+
+Clique repetido responde igual e não reescreve `joined_at` nem duplica a
+auditoria: é o comportamento mais comum do mundo numa tela com um botão só.
+
+12 testes novos em `supabase/tests/accept-invite.test.mjs`. **A migration
+está pendente de `npm run db:push`** — esta sessão não aplica migration.
 
 ### Admin / Super Admin
 
@@ -680,15 +703,15 @@ existir. As entregas desta data estão em `docs/` e no código; **o quadro não*
 Enquanto não for reconciliado, quatro fontes de verdade viraram três — que é
 exatamente o risco nº 5 desta página acontecendo. O que precisa entrar:
 
-| Card                                | Para                                          |
-| ----------------------------------- | --------------------------------------------- |
-| Autenticação e sessão               | Concluído                                     |
-| Middleware / guarda ligada          | Concluído — virou `proxy.ts`                  |
-| Provisionamento no backend          | Concluído                                     |
-| Painel Super Admin                  | Concluído em parte — criar, retomar, desfazer |
-| **Novo:** SMTP próprio no Supabase  | Bloqueado — externo, 🔴                       |
-| **Novo:** aceitar convite pela tela | A fazer — precisa de função SECURITY DEFINER  |
-| **Novo:** escolher CRM ou ERP       | Precisa de decisão                            |
+| Card                                | Para                                            |
+| ----------------------------------- | ----------------------------------------------- |
+| Autenticação e sessão               | Concluído                                       |
+| Middleware / guarda ligada          | Concluído — virou `proxy.ts`                    |
+| Provisionamento no backend          | Concluído                                       |
+| Painel Super Admin                  | Concluído em parte — criar, retomar, desfazer   |
+| **Novo:** SMTP próprio no Supabase  | Bloqueado — externo, 🔴                         |
+| **Novo:** aceitar convite pela tela | Concluído em 24/09 — migration pendente de push |
+| **Novo:** escolher CRM ou ERP       | Precisa de decisão                              |
 
 ### Reconciliado em parte — 24/09/2026
 
@@ -830,8 +853,8 @@ provisionamento e o Blueprint já sustentam os dois.
   corrigir um telefone errado ainda exige SQL
 - Tela de atividades — a tabela e o catálogo de tipos existem e são semeados
   pelo Blueprint
-- Aceitar convite pela tela (falta a função `SECURITY DEFINER` que confere o
-  convite — o RLS nega essa escrita a quem ainda não é membro)
+- ✅ **Feito em 24/09/2026:** aceitar convite pela tela, com `accept_invite()`
+  no banco. Falta aplicar a migration (`npm run db:push`) e conferir no navegador
 - Conferir se o destino do formulário de contato da landing ainda responde
 - Revisar as variáveis de outro projeto no ambiente Vercel (`DATABASE_URL`,
   `AUTH_SECRET`, `STORE_TIMEZONE` e outras) — a landing não usa nenhuma, mas

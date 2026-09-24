@@ -113,11 +113,47 @@ sessão** — exigir vínculo ativo criaria laço:
 e módulo não contratado. Redirecionar quem simplesmente não tem permissão o
 deixaria em laço sem entender o que houve.
 
-> `/convite` não tem botão de aceitar, e a ausência é deliberada: ativar o
-> vínculo é escrita em `tenant_users`, e o RLS nega essa escrita a quem ainda
-> não é membro ativo — que é exatamente quem está nessa tela. Fazer funcionar
-> exige uma função `SECURITY DEFINER` que confira o convite. Um botão que
-> parecesse aceitar e falhasse seria pior do que dizer a verdade.
+## Aceitar convite: a escrita que o RLS precisa negar
+
+Até 24/09/2026, `/convite` não tinha botão de aceitar, e a ausência era
+deliberada — um botão que parecesse aceitar e falhasse seria pior do que dizer
+a verdade.
+
+O impasse é real: ativar o vínculo é `update tenant_users set status =
+'active'`, e as políticas dessa tabela exigem ser **membro ativo** do tenant.
+Quem está naquela tela é, por definição, quem o RLS recusa.
+
+**Afrouxar a política seria a saída errada.** Ela passaria a aceitar escrita de
+quem só foi convidado, e convite pendente é o estado de menor confiança que
+existe no sistema. A saída certa é uma função `SECURITY DEFINER` estreita:
+`accept_invite(p_tenant_id)`.
+
+Ela não relaxa nenhuma regra. Executa **uma** operação como dona da função e
+confere quatro coisas antes:
+
+| Confere                   | Porque sem isso                                   |
+| ------------------------- | ------------------------------------------------- |
+| Há sessão                 | `auth.uid()` nulo casaria com `user_id is null`   |
+| O vínculo é de quem chama | Aceitar convite alheio é entrar na conta de outro |
+| O vínculo está `invited`  | Não reescrever `joined_at` de quem já entrou      |
+| O tenant está `active`    | Convite de cliente cancelado daria conta morta    |
+
+**O parâmetro é o tenant, nunca o usuário.** A pessoa é sempre `auth.uid()`.
+Uma versão que recebesse `user_id` seria uma porta para entrar na conta de
+qualquer um com convite pendente — e é o teste mais importante do arquivo de
+testes, conferido quebrando a trava de propósito.
+
+As mensagens de recusa são **todas iguais**: convite inexistente, de outra
+pessoa, suspenso ou de tenant cancelado respondem a mesma frase. Distinguir
+contaria a quem tentasse se aquele tenant tem convite pendente para aquele
+e-mail — é o mesmo silêncio que `current_viewer()` já pratica.
+
+Clique repetido responde igual e não reescreve `joined_at` nem duplica a
+auditoria: numa tela com um botão só, duplo clique é o comportamento mais
+comum do mundo.
+
+`security definer` sem `search_path` fixo é escalada de privilégio, e o teste
+de esquema varre o catálogo atrás exatamente disso.
 
 ## Não dizer quem existe
 
@@ -165,7 +201,6 @@ o Super Admin repassar. Ver [[../06-ADMIN/PROVISIONING|PROVISIONING]].
 
 ## O que ainda não existe
 
-- Aceitar convite pela tela (falta a função `SECURITY DEFINER`)
 - Segundo fator
 - Sessão revogável pelo administrador da empresa
 - Registro de tentativas de login por conta — hoje o limite é o do Supabase
