@@ -29,12 +29,14 @@
 | Esquema do Core              | ✅     | **Aplicado** em `tivexy-core`; 146 testes em Postgres 18           |
 | Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
 | Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
-| Contratos (`packages/core`)  | ✅     | `npm run validate` — 566 testes; contratos conferidos contra o SQL |
+| Contratos (`packages/core`)  | ✅     | `npm run validate` — 782 testes; contratos conferidos contra o SQL |
 | Autenticação e sessão        | ✅     | Login, proxy e `current_viewer()` exercitados no banco real        |
 | Provisionamento pela tela    | ✅     | Cliente criado, retomado e desfeito contra o Postgres do projeto   |
 | Telas de CRM (5 rotas)       | 🟡     | Leads conferida no navegador; as outras quatro, **só em teste**    |
 | Telas de ERP (5 rotas)       | 🟡     | Construídas em nuvem; **nenhuma aberta no navegador**              |
 | Ficha do cliente (Admin)     | 🟡     | Editar, suspender, plano, convidar — **só em teste**               |
+| Motor de automações          | 🟡     | Gatilho→condição→ação, só interno; **só em teste**                 |
+| Tutorial (`/tutorial`)       | 🟡     | Dez passos conferidos contra o banco; **só em teste**              |
 | CI (GitHub Actions)          | 🟡     | Escrito e no remoto; roda na abertura do PR, não em push de branch |
 | Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado       |
 
@@ -930,7 +932,47 @@ Detalhe em [[PROJECT_AUDIT#17. Riscos]].
 
 ## 8. Retomada — nesta ordem
 
-Os dois primeiros são seus e bloqueiam o resto.
+> Reescrita em 24/09/2026, depois da sessão autônoma que entregou os cinco
+> itens de `docs/00-SYSTEM/PROMPT-SESSAO-AUTONOMA.md`.
+
+### 0. 🔴 Aplicar as migrations novas
+
+Cinco entraram em 24/09 e **nenhuma foi aplicada** — a sessão de nuvem não tem
+`.env`:
+
+| Migration                               | O que traz                        |
+| --------------------------------------- | --------------------------------- |
+| `20260924010000_core_accept_invite`     | Aceitar convite pela tela         |
+| `20260924020000_admin_tenant_lifecycle` | Suspender, reativar, trocar plano |
+| `20260924030000_erp_foundation`         | Produtos, categorias, estoque     |
+| `20260924040000_erp_sales_finance`      | Vendas, pagamentos, financeiro    |
+| `20260924050000_automation`             | Regras e histórico de automação   |
+
+```bash
+npm run db:push
+```
+
+Enquanto não subirem, as telas novas abrem e falham na primeira consulta —
+com a mensagem de erro do PostgREST, que fala de tabela inexistente.
+
+### 0.1 🔴 Conferir no navegador o que a nuvem não pôde conferir
+
+Quinze rotas entraram sem nunca terem sido abertas. O roteiro está no card de
+QA do Trello e em [[04-CRM/CRM]] e [[05-ERP/ERP]]. Os quatro caminhos que mais
+valem, porque são onde o PGlite difere da produção:
+
+1. **CNPJ colado pontuado** em `/erp/produtos` ou na ficha do cliente — é o
+   caminho que a constraint recusaria sem a limpeza.
+2. **Confirmar uma venda** e conferir no banco que o estoque baixou, o número
+   saiu e o recebimento apareceu — os três na mesma transação.
+3. **Uma automação disparando**, e o registro dela no histórico. O `jsonb` de
+   `payload` e `result` é onde o driver de produção já divergiu do PGlite uma
+   vez.
+4. **Apagar um cliente de teste** — o `on delete cascade` atravessa ERP,
+   automação e CRM agora, e foi justamente ali que um gatilho mal escrito
+   quase passou.
+
+### 1. 🔴 Revogar o token da Vercel
 
 ### 1. 🔴 Revogar o token da Vercel
 
@@ -984,11 +1026,12 @@ node scripts/super-admin.mjs seu@email.com "Seu Nome"
 Ele imprime um link de acesso. Depois de entrar, defina a senha em
 `/definir-senha` e `/admin` abre.
 
-### Agora: escolher o primeiro módulo de negócio
+### ✅ A decisão "CRM ou ERP" deixou de existir — 24/09/2026
 
-CRM ou ERP. É decisão de produto, não de código — e é a única coisa entre o
-estado de hoje e um sistema que um cliente usa para trabalhar. O Core, o
-provisionamento e o Blueprint já sustentam os dois.
+Os dois foram construídos. CRM tem cinco telas, ERP tem cinco, e o Admin tem a
+ficha do cliente. O que separa o estado de hoje de um sistema que um cliente
+usa para trabalhar não é mais uma decisão de produto: é **aplicar as
+migrations e abrir as telas no navegador**.
 
 ### O que dá para fazer sem esperar nada
 
