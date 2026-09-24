@@ -314,7 +314,48 @@ o identificador dela pode chamá-la sem nunca abrir a tela.
 `is_super_admin` só pode ser escrito por quem já é Super Admin, e a política não
 abre exceção para o primeiro — nem deve.
 
-**Não existe:** editar cliente, suspender, trocar plano, convidar usuário.
+**A ficha do cliente entrou em 24/09/2026** — `/admin/clientes/[slug]`, com
+editar, suspender/reativar/cancelar, trocar plano, convidar e o histórico de
+provisionamentos com as etapas de cada execução.
+
+**A decisão de arquitetura:** `status` e `plan_id` **não são atualizáveis** por
+`authenticated` — o privilégio de coluna de 19/09 devolveu só
+`name, legal_name, document, settings`. Havia duas saídas:
+
+| Saída                     | Custo                                              |
+| ------------------------- | -------------------------------------------------- |
+| SQL direto com a conexão  | A regra de quem pode suspender mora em TypeScript, |
+| de serviço                | fora do alcance dos testes de banco                |
+| Função `SECURITY DEFINER` | Mais SQL para escrever                             |
+
+Escolhida a segunda: `admin_set_tenant_status()` e `admin_set_tenant_plan()`,
+com `is_super_admin()` conferido **dentro do banco**. 14 testes novos, e a
+trava foi conferida quebrando — sem o `is_super_admin()`, três testes caem.
+
+**Trocar plano sincroniza `tenant_modules` na mesma transação**, porque é ela
+a fonte de verdade sobre acesso, não `plans`. Trocar só `plan_id` deixaria o
+cliente pagando por um módulo que não abre, e o sintoma seria a navegação
+mostrando o item desabilitado — sem erro nenhum. Rebaixar **desabilita e não
+apaga**: o dado é do cliente, e voltar ao plano maior reacende tudo. Também
+tem teste, também conferido quebrando.
+
+**As transições são poucas e estão por extenso:** `provisioning` não se
+suspende — se desfaz, e desfazer é a compensação que já existe. `cancelled` é
+terminal: ressuscitar não é troca de estado.
+
+**O slug não é editável, de propósito.** É o subdomínio: está em links
+guardados, em e-mails já enviados, e é por onde `tenantSlugFromHost()` descobre
+de quem é a requisição. Trocá-lo por um campo quebraria tudo isso em silêncio.
+A tela diz isso em vez de deixar procurando o campo.
+
+**Convidar cria a conta e não envia e-mail** — e a tela diz isso em destaque,
+com o link de acesso para repassar. Sem SMTP próprio o convite não sai; dizer
+"convite enviado" faria o Super Admin e o cliente esperarem por um e-mail que
+nunca chega. O link é credencial: aparece uma vez, não é gravado, não entra em
+log.
+
+**Não existe:** remover pessoa da equipe, trocar o papel de quem já está,
+suspender vínculo individual, e reabrir cliente cancelado.
 
 ### CRM
 

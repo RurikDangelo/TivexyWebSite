@@ -258,3 +258,67 @@ do Supabase por trás do `IdentityPort`, e concorrência real.
 | ------------------------------------- | --------------------------------------------------------------------------------------- |
 | Projeto Supabase                      | Aplicar as migrations, autenticação, tudo                                               |
 | E-mail corporativo com SPF/DKIM/DMARC | O convite chegar. Sem isso o provisionamento "funciona" e o cliente não consegue entrar |
+
+## O ciclo de vida, depois do provisionamento
+
+> Acrescentado em 24/09/2026, com `/admin/clientes/[slug]`.
+
+Provisionar cria o cliente. O que vem depois — suspender, reativar, trocar de
+plano — não é provisionamento e não passa pelo executor: são operações
+pontuais, sem etapas e sem compensação.
+
+### Por que são função de banco, e não `update` da aplicação
+
+`20260919050000_core_tenant_column_privileges.sql` revogou `update` em
+`public.tenants` e devolveu **só** `name, legal_name, document, settings`.
+`status` e `plan_id` ficaram de fora de propósito: são decisão de plataforma.
+
+Isso deixava duas saídas. A aplicação escrever por SQL direto, com a conexão
+de serviço — que é como o executor faz — poria a regra de quem pode suspender
+um cliente em TypeScript, fora do alcance dos testes de banco, e a conexão de
+serviço ignora RLS por definição.
+
+A escolhida foi `admin_set_tenant_status()` e `admin_set_tenant_plan()`:
+`SECURITY DEFINER` estreitas, com `is_super_admin()` conferido **dentro do
+banco**, onde o resto das regras já mora e onde o teste as alcança.
+
+### As transições, por extenso
+
+| De          | Para                    |
+| ----------- | ----------------------- |
+| `active`    | `suspended`,`cancelled` |
+| `suspended` | `active`, `cancelled`   |
+
+`provisioning` não aparece: um cliente pela metade não se suspende, se
+**desfaz** — e desfazer na ordem inversa é `compensateProvisioning`, que já
+existe e sabe o que esta execução criou. Congelar o meio do caminho deixaria
+papéis e módulos num estado que ninguém sabe descrever.
+
+`cancelled` é terminal. Ressuscitar um cliente cancelado não é troca de
+estado: é decisão que merece caminho próprio, com o que fazer sobre os dados
+do período em que ele esteve fora.
+
+### Trocar de plano mexe em duas tabelas
+
+`tenant_modules` é a fonte de verdade sobre acesso a módulo — não `plans`.
+Trocar só `plan_id` deixaria o cliente **pagando por um módulo que não abre**,
+e o sintoma seria a navegação mostrando o item desabilitado, sem erro nenhum.
+
+Então a função sincroniza as duas na mesma transação:
+
+- módulo que entrou no plano → linha criada, ou reacesa se já existia;
+- módulo que saiu → `is_enabled = false`, **linha preservada**.
+
+Desabilitar e não apagar é o ponto. O dado continua sendo do cliente e
+continua alcançável para exportação, suporte e reativação — módulo
+desabilitado não é fronteira de segurança, como o CRM já registrava. Quem
+volta ao plano maior encontra tudo como deixou, sem reprovisionar.
+
+### Convidar não envia e-mail, e a tela diz isso
+
+Criar a conta não precisa de SMTP; **entregar** o convite precisa. A ficha
+cria a identidade pela mesma `IdentityPort` do provisionamento, vincula como
+`invited` e mostra o link de acesso para repassar.
+
+O link **é credencial**: quem o abrir entra como aquela conta. Aparece uma
+vez, não é gravado em lugar nenhum e não entra em log.

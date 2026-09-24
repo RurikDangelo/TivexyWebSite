@@ -147,14 +147,19 @@ export default async function AdminPage() {
           {clientes.map((cliente) => (
             <li
               key={cliente.id}
-              className="flex flex-wrap items-center gap-3 rounded-lg border border-line-subtle bg-surface-raised p-4"
+              className="flex flex-wrap items-center gap-3 rounded-lg border border-line-subtle bg-surface-raised p-4 transition-colors hover:border-line-strong"
             >
-              <span className="min-w-0 flex-1">
+              {/*
+                A linha inteira vira link para a ficha. É `Link` e não `form`
+                porque abrir a ficha é navegação, não escrita — e navegação por
+                link é o que faz "abrir em nova aba" funcionar.
+              */}
+              <Link href={`/admin/clientes/${cliente.slug}`} className="min-w-0 flex-1">
                 <span className="block truncate font-medium text-content">{cliente.name}</span>
                 <span className="block truncate font-mono text-xs text-content-subtle">
                   {cliente.slug}.tivexy.com.br
                 </span>
-              </span>
+              </Link>
 
               {embeddedCode(cliente.plans) !== null && <Badge>{embeddedCode(cliente.plans)}</Badge>}
               <Badge tone={TOM[cliente.status] ?? 'neutral'}>{cliente.status}</Badge>
