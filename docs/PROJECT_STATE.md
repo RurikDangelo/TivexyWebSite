@@ -581,6 +581,41 @@ exatamente o risco nº 5 desta página acontecendo. O que precisa entrar:
 | **Novo:** aceitar convite pela tela | A fazer — precisa de função SECURITY DEFINER  |
 | **Novo:** escolher CRM ou ERP       | Precisa de decisão                            |
 
+## 6.2 O que for construído em sessão de nuvem não é verificado contra o banco
+
+> Registrado em 23/09/2026, antes de mover o trabalho para a nuvem.
+
+`.env` e `apps/web/.env.local` são gitignored, e precisam ser. A sessão de
+nuvem recebe **o repositório, não os segredos** — então ela pode construir e
+rodar a suíte inteira (o PGlite não precisa de credencial), e **não** pode:
+
+- aplicar migrations em `tivexy-core`
+- entrar no sistema e conferir uma tela no navegador
+- exercitar RPC e RLS contra o Postgres do projeto
+
+### Por que isso é registrado em vez de só aceito
+
+A legenda desta página separa **✅ FUNCIONA** — "verificado por execução" — de
+🟡 PARCIAL. Sem banco, a nuvem só alcança "passa nos testes", que é outra
+coisa.
+
+E não é preciosismo. Os dois defeitos mais sérios encontrados em 20/09 **não
+foram pegos por teste nenhum**:
+
+| Defeito                                   | Por que o teste não pegou                         |
+| ----------------------------------------- | ------------------------------------------------- |
+| JSON gravado como texto dentro de `jsonb` | O PGlite normaliza a diferença entre drivers      |
+| Funil da clínica sem etapa de saída       | Erro de dado: o esquema aceitava, e nada quebrava |
+
+### A regra, então
+
+Tudo que sair de sessão sem banco entra aqui como 🟡, com a frase **"testado,
+não verificado contra o banco real"**. Vira ✅ quando alguém rodar o fluxo
+nesta máquina — ou em qualquer uma com o `.env`.
+
+Marcar como ✅ o que só passou em teste é fazer esta página mentir, que é o
+risco nº 5 da seção seguinte.
+
 ## 7. Riscos ativos
 
 | #   | Risco                                          | Impacto                      |
