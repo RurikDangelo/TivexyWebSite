@@ -60,6 +60,32 @@ export {
   type CrmStageKind,
 } from './crm.ts';
 
+export {
+  AUTOMATION_ACTIONS,
+  AUTOMATION_ACTION_LABEL,
+  AUTOMATION_ACTION_PARAMS,
+  AUTOMATION_EVENTS,
+  AUTOMATION_EVENT_FIELDS,
+  AUTOMATION_EVENT_LABEL,
+  AUTOMATION_OPERATORS,
+  AUTOMATION_OPERATOR_LABEL,
+  applyTemplate,
+  checkRule,
+  matchesCondition,
+  matchesRule,
+  needsValue,
+  planAutomations,
+  type AutomationAction,
+  type AutomationActionKind,
+  type AutomationCondition,
+  type AutomationEvent,
+  type AutomationOperator,
+  type AutomationRule,
+  type AutomationTriggerEvent,
+  type PlannedAction,
+  type RuleProblem,
+} from './automation.ts';
+
 export { CNPJ_LENGTH, CPF_LENGTH, checkDocument, formatDocument, onlyDigits } from './documento.ts';
 
 export {

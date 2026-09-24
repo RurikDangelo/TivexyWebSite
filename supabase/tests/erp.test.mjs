@@ -306,15 +306,70 @@ describe('o saldo vem do razão', () => {
     );
   });
 
-  it('o razão não se edita nem se apaga — corrigir é lançar ajuste', async () => {
+  it('a aplicação não edita nem apaga o razão — corrigir é lançar ajuste', async () => {
+    /*
+     * Exercitado **como usuário**: a garantia que importa é "a aplicação não
+     * consegue", e é `authenticated` que a aplicação usa.
+     *
+     * A primeira versão disto era um gatilho, testado com a conexão dona.
+     * Passava, e escondia um defeito — o gatilho bloqueava também as ações
+     * referenciais do Postgres, e apagar um cliente falharia com uma
+     * mensagem sobre razão de estoque. O teste logo abaixo é o que faltava.
+     */
     await assert.rejects(
-      db.query('update public.erp_stock_movements set quantity = 1 where id = $1', [fx.movimentoA]),
-      /não se altera/,
+      asUser(db, fx.adminA, () =>
+        db.query('update public.erp_stock_movements set quantity = 1 where id = $1', [
+          fx.movimentoA,
+        ]),
+      ),
+      /permission denied/i,
     );
     await assert.rejects(
-      db.query('delete from public.erp_stock_movements where id = $1', [fx.movimentoA]),
-      /não se altera/,
+      asUser(db, fx.adminA, () =>
+        db.query('delete from public.erp_stock_movements where id = $1', [fx.movimentoA]),
+      ),
+      /permission denied/i,
     );
+  });
+
+  it('apagar o cliente leva o ERP junto, razão inclusive', async () => {
+    /*
+     * O teste que faltava, e que teria pego o defeito do gatilho na hora.
+     * `on delete cascade` precisa poder apagar o razão — senão um cliente
+     * cancelado fica impossível de remover, e o erro fala de estoque.
+     */
+    const tenant = await createTenant(db, { slug: 'efemero-erp', name: 'Efêmero' });
+    const produto = await criar('erp_products', { tenant_id: tenant, name: 'Some' });
+    await criar('erp_stock_movements', {
+      tenant_id: tenant,
+      product_id: produto,
+      kind: 'in',
+      quantity: 5,
+    });
+    const v = await criar('erp_sales', { tenant_id: tenant });
+    await criar('erp_sale_items', {
+      tenant_id: tenant,
+      sale_id: v,
+      product_id: produto,
+      quantity: 1,
+      unit_price_cents: 100,
+    });
+
+    await db.query('delete from public.tenants where id = $1', [tenant]);
+
+    const { rows } = await db.query(
+      `select
+         (select count(*)::int from public.erp_products where tenant_id = $1) as produtos,
+         (select count(*)::int from public.erp_stock_movements where tenant_id = $1) as razao,
+         (select count(*)::int from public.erp_stock_balances where tenant_id = $1) as saldos,
+         (select count(*)::int from public.erp_sales where tenant_id = $1) as vendas`,
+      [tenant],
+    );
+    const [c] = rows;
+    assert.equal(c.produtos, 0);
+    assert.equal(c.razao, 0, 'o razão impediu o cliente de ser apagado');
+    assert.equal(c.saldos, 0);
+    assert.equal(c.vendas, 0);
   });
 
   it('o saldo bate com a soma do razão, sempre', async () => {

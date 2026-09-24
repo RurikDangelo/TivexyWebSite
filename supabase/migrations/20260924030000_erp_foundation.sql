@@ -189,22 +189,14 @@ create index erp_stock_movements_sale_idx
 
 -- O razão não se reescreve. Corrigir é lançar ajuste, e o ajuste aparece no
 -- histórico — que é justamente o que se quer poder auditar depois.
-create or replace function public.erp_stock_movements_append_only()
-returns trigger
-language plpgsql
-security definer
-set search_path = ''
-as $$
-begin
-  raise exception using
-    errcode = '42501',
-    message = 'O razão do estoque não se altera. Lance um ajuste.';
-end;
-$$;
-
-create trigger erp_stock_movements_no_update
-  before update or delete on public.erp_stock_movements
-  for each row execute function public.erp_stock_movements_append_only();
+--
+-- **Privilégio revogado, e não gatilho.** Um gatilho `before update or delete`
+-- bloquearia também as ações referenciais do próprio Postgres: o
+-- `on delete cascade` de `tenants` e de `erp_products` é um `delete`, e
+-- apagar um cliente passaria a falhar com uma mensagem sobre razão de
+-- estoque. Revogar de `authenticated` protege a aplicação — que é quem se
+-- quer impedir — e deixa o Postgres cuidar das próprias referências.
+revoke update, delete on public.erp_stock_movements from authenticated;
 
 -- ─────────────────────────────────────────────────────────────────────────
 -- Estoque: o saldo

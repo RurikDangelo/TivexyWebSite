@@ -601,7 +601,35 @@ dava erro: a interface só mostrava o nome genérico. Hoje vai para
 
 ### Automation Engine
 
-**Estado:** ⬜ NÃO EXISTE · **Trello:** `AUTOMATION`
+**Estado:** 🟡 PARCIAL · **Docs:** [[08-AUTOMATION/AUTOMATION]] · **Trello:** `AUTOMATION`
+
+Construído em 24/09/2026. Gatilho → condição → ação, **só interno**: criar
+atividade e lançar conta. Não há e-mail, WhatsApp nem webhook, e há teste
+travando a fronteira — nenhum código de ação pode casar com
+`/mail|whatsapp|sms|webhook|notify|push/`.
+
+A decisão mora no Core (38 testes, puros); a escrita, na aplicação. Ligado a
+três eventos reais: lead cadastrado, lead mudando de estado e venda
+confirmada.
+
+**Uma automação nunca derruba o que a provocou.** Se a regra falhar, o lead
+continua cadastrado e a venda confirmada — a falha vira linha em
+`automation_runs`, com o motivo. E por isso elas rodam **depois** da transação
+de `erp_confirm_sale`, não dentro: dentro, uma regra ruim faria a venda voltar
+atrás com o estoque já baixado no cliente.
+
+**Um teste encontrou um defeito real, e ele não era só do módulo novo.** A
+primeira versão protegia o histórico com gatilho `before update or delete` —
+e o gatilho bloqueia também as ações referenciais do Postgres: `on delete set
+null` é um `update`, `on delete cascade` é um `delete`. **Apagar um cliente
+falharia**, com mensagem sobre histórico de automação. O mesmo defeito estava
+**latente em `erp_stock_movements`**, escrito no mesmo dia, sem teste de
+apagar tenant para expô-lo. Os dois viraram revogação de privilégio, e o teste
+que faltava entrou.
+
+Os testes desses dois passaram a rodar **como usuário**, não com a conexão
+dona: a garantia é "a aplicação não consegue", e testar com o dono passava
+escondendo o defeito.
 
 ### Integrações — WhatsApp / Meta
 

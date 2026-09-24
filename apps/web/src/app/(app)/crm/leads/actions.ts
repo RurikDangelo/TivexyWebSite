@@ -23,6 +23,7 @@ import { revalidatePath } from 'next/cache';
 import { requireAccess } from '@/lib/auth/require';
 import { conferirEmail, conferirTelefone, mensagemDeErro, opcional, texto } from '@/lib/crm/form';
 import { supabaseServer } from '@/lib/supabase/server';
+import { dispararAutomacoes } from '@/server/automation/run';
 
 import {
   CONVERSAO_INICIAL,
@@ -69,14 +70,18 @@ export async function criarLead(_anterior: LeadFormState, form: FormData): Promi
   const nome = texto(form, 'name');
   const supabase = await supabaseServer();
 
-  const { error } = await supabase.from('crm_leads').insert({
-    tenant_id: choice.tenant.id,
-    name: nome,
-    email: opcional(form, 'email'),
-    phone: opcional(form, 'phone'),
-    company_name: opcional(form, 'company_name'),
-    source: opcional(form, 'source'),
-  });
+  const { data: criado, error } = await supabase
+    .from('crm_leads')
+    .insert({
+      tenant_id: choice.tenant.id,
+      name: nome,
+      email: opcional(form, 'email'),
+      phone: opcional(form, 'phone'),
+      company_name: opcional(form, 'company_name'),
+      source: opcional(form, 'source'),
+    })
+    .select('id, name, source, company_name, status')
+    .maybeSingle();
 
   if (error !== null) {
     /*
@@ -87,6 +92,25 @@ export async function criarLead(_anterior: LeadFormState, form: FormData): Promi
       ...LEAD_INICIAL,
       erro: mensagemDeErro(error, 'Você não tem permissão para cadastrar aqui.'),
     };
+  }
+
+  /*
+   * As automações rodam **depois** da escrita, e a falha delas não desfaz o
+   * cadastro: o lead está cadastrado. Uma regra mal escrita impedindo de
+   * anotar um telefone, com mensagem falando de automação, seria o pior jeito
+   * de errar aqui. Ver `server/automation/run.ts`.
+   */
+  if (criado !== null) {
+    await dispararAutomacoes(supabase, choice.tenant.id, {
+      type: 'crm.lead.created',
+      data: {
+        name: String(criado.name),
+        source: (criado.source as string | null) ?? null,
+        companyName: (criado.company_name as string | null) ?? null,
+        status: String(criado.status),
+      },
+      alvo: { tipo: 'lead', id: String(criado.id) },
+    });
   }
 
   revalidatePath(ROTA);
@@ -175,7 +199,7 @@ export async function moverLead(form: FormData): Promise<void> {
   if (id === '' || !nextLeadStatuses(de).includes(para)) return;
 
   const supabase = await supabaseServer();
-  await supabase
+  const { data: movido } = await supabase
     .from('crm_leads')
     .update({ status: para })
     .eq('id', id)
@@ -187,7 +211,28 @@ export async function moverLead(form: FormData): Promise<void> {
      */
     .eq('tenant_id', choice.tenant.id)
     /* E o estado de origem: dois cliques rápidos não aplicam a transição duas vezes. */
-    .eq('status', de);
+    .eq('status', de)
+    .select('id, name, source, status')
+    .maybeSingle();
+
+  /*
+   * Só dispara se a linha **mudou de verdade**. O `select` depois do `update`
+   * devolve nulo quando nada casou — segundo clique, ou aba velha —, e sem
+   * essa conferência a automação rodaria de novo sobre um estado que já
+   * valia.
+   */
+  if (movido !== null) {
+    await dispararAutomacoes(supabase, choice.tenant.id, {
+      type: 'crm.lead.status_changed',
+      data: {
+        name: String(movido.name),
+        source: (movido.source as string | null) ?? null,
+        status: String(movido.status),
+        previousStatus: de,
+      },
+      alvo: { tipo: 'lead', id: String(movido.id) },
+    });
+  }
 
   revalidatePath(ROTA);
 }

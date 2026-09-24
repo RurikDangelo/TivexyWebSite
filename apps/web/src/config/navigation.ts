@@ -77,7 +77,7 @@ export const navigation: NavGroup[] = [
     label: 'Plataforma',
     module: 'integrations',
     items: [
-      { label: 'Automações', href: '/automacoes', icon: Zap, status: 'pending' },
+      { label: 'Automações', href: '/automacoes', icon: Zap, status: 'ready' },
       {
         label: 'Integrações',
         href: '/integracoes',

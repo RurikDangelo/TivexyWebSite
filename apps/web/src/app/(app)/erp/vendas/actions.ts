@@ -21,7 +21,9 @@ import { redirect } from 'next/navigation';
 
 import { requireAccess } from '@/lib/auth/require';
 import { mensagemDeErro, opcional, texto } from '@/lib/crm/form';
+import { nomeAninhado } from '@/lib/crm/postgrest';
 import { supabaseServer } from '@/lib/supabase/server';
+import { dispararAutomacoes } from '@/server/automation/run';
 
 import {
   CONFIRMAR_INICIAL,
@@ -321,7 +323,42 @@ export async function confirmarVenda(
     };
   }
 
-  const linha = (Array.isArray(data) ? data[0] : data) as { number?: unknown } | null;
+  const linha = (Array.isArray(data) ? data[0] : data) as {
+    number?: unknown;
+    total_cents?: unknown;
+  } | null;
+
+  /*
+   * As automações rodam depois da transação de confirmação, não dentro dela.
+   * Dentro, uma regra mal escrita faria a venda inteira voltar atrás — com o
+   * estoque já baixado no cliente e a mensagem falando de automação para quem
+   * só queria fechar a venda. Ver `server/automation/run.ts`.
+   */
+  const { data: confirmada } = await supabase
+    .from('erp_sales')
+    .select('id, number, total_cents, company_id, crm_companies(name)')
+    .eq('id', vendaId)
+    .eq('tenant_id', choice.tenant.id)
+    .maybeSingle();
+
+  if (confirmada !== null) {
+    await dispararAutomacoes(supabase, choice.tenant.id, {
+      type: 'erp.sale.confirmed',
+      data: {
+        number: confirmada.number === null ? null : Number(confirmada.number),
+        totalCents: Number(confirmada.total_cents),
+        customerName: nomeAninhado(confirmada.crm_companies),
+      },
+      /* Venda não é alvo de atividade — a conta do cliente é. Sem cliente
+         identificado, a ação de agenda registra a falha em vez de inventar
+         um alvo. */
+      alvo:
+        confirmada.company_id === null
+          ? null
+          : { tipo: 'company', id: String(confirmada.company_id) },
+      empresaId: (confirmada.company_id as string | null) ?? null,
+    });
+  }
 
   recarregar(vendaId);
   revalidatePath('/erp/estoque');
