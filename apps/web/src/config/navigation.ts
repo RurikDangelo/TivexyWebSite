@@ -67,9 +67,9 @@ export const navigation: NavGroup[] = [
     label: 'ERP',
     module: 'erp',
     items: [
-      { label: 'Produtos', href: '/erp/produtos', icon: Package, status: 'pending' },
+      { label: 'Produtos', href: '/erp/produtos', icon: Package, status: 'ready' },
       { label: 'Vendas', href: '/erp/vendas', icon: ShoppingCart, status: 'pending' },
-      { label: 'Estoque', href: '/erp/estoque', icon: Boxes, status: 'pending' },
+      { label: 'Estoque', href: '/erp/estoque', icon: Boxes, status: 'ready' },
       { label: 'Financeiro', href: '/erp/financeiro', icon: CreditCard, status: 'pending' },
     ],
   },
