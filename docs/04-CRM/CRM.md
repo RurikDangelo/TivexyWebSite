@@ -18,8 +18,75 @@
 | `crm_activity_types`  | Tipo de atividade — consulta, retorno, visita         |
 | `crm_activities`      | A atividade em si                                     |
 
-Tela pronta: **`/crm/leads`**. As outras rotas existem em `routes.ts` e ainda
-não têm página — a navegação as mostra desabilitadas, de propósito.
+Telas prontas: **`/crm/leads`**, **`/crm/empresas`**, **`/crm/contatos`** e
+**`/crm/oportunidades`**. `/crm/atividades` existe em `routes.ts` e ainda não
+tem página — a navegação a mostra desabilitada, de propósito.
+
+> As três telas novas são de 24/09/2026 e estão **testadas, não verificadas
+> contra o banco real**: foram construídas em sessão de nuvem, que recebe o
+> repositório e não os segredos. Ver [[../PROJECT_STATE#6.2]].
+
+## As três telas que faltavam à conversão
+
+Converter um lead sempre criou conta, pessoa e oportunidade numa transação só.
+Até aqui, **duas das três não tinham onde ser vistas**. O dado estava certo no
+banco e invisível para quem trabalha — uma forma silenciosa de o sistema
+mentir sobre o que faz, porque a tela de leads dizia "convertido" e não havia
+para onde ir olhar.
+
+| Tela                 | O que faz                                              |
+| -------------------- | ------------------------------------------------------ |
+| `/crm/empresas`      | Lista e cadastra contas                                |
+| `/crm/contatos`      | Lista e cadastra pessoas, com vínculo opcional à conta |
+| `/crm/oportunidades` | O quadro do funil, e move oportunidade entre etapas    |
+
+### O quadro é de servidor, sem estado de cliente
+
+Cada movimento é um `form` com Server Action. Arrastar-e-soltar é mais bonito
+e traz duas coisas de graça que a alternativa não traz: funcionar sem
+JavaScript e ser operável pelo teclado. Quando o arrastar vier, vem por cima
+disto — não no lugar.
+
+No celular as colunas viram seções empilhadas. Quadro com rolagem horizontal
+em 375px esconde metade do funil atrás de um gesto que ninguém descobre.
+
+### O quadro nunca escreve `closed_at`
+
+Quem mantém essa coluna é o gatilho `sync_deal_closed_at`: entrou em etapa
+terminal, carimba; saiu, limpa. A aplicação carimbar junto seria a segunda
+verdade que o esquema recusou ter — e a que diverge no dia em que alguém mover
+a etapa por importação.
+
+Pelo mesmo motivo o funil **não é campo de formulário**: ele é lido da etapa,
+no servidor. `crm_deals` guarda `pipeline_id` e `stage_id`, e o gatilho
+`assert_deal_stage_in_pipeline` recusa a linha em que os dois discordam.
+Receber os dois do formulário seria deixar o navegador escolher se eles
+combinam.
+
+### O teto de 500, e por que ele é anunciado
+
+Uma coluna "Ganhas" acumula para sempre. O quadro carrega no máximo 500
+oportunidades por funil — e **diz quando cortou**, porque os totais de cada
+coluna somam o que veio, não o que há. Teto silencioso produziria um número
+plausível e errado em cima de dinheiro, que é a pior mentira que este sistema
+pode contar.
+
+### O documento subiu para o Core
+
+`checkDocument()`, `onlyDigits()` e `formatDocument()` vivem em
+`packages/core/src/documento.ts`, junto de `parseCents` e pelo mesmo motivo: o
+ERP vai cadastrar cliente e fornecedor com os mesmos CPF e CNPJ, e uma segunda
+implementação num formulário é a que grava com pontuação — aí a mesma empresa
+cadastrada de dois jeitos parece duas.
+
+Grava-se só dígito, porque `crm_companies_document_digits` exige. Isso tem
+teste dos dois lados: contra a expressão em `documento.test.ts`, e contra o
+Postgres em `supabase/tests/crm.test.mjs`, que também prova que a colagem
+pontuada — a mais comum — seria recusada sem a limpeza.
+
+**O dígito verificador não é conferido.** `11111111111` passa. Está escrito no
+código para não ser confundido com validação de verdade; conferir o dígito é
+decisão separada, e dizer que existe seria pior do que não ter.
 
 ## A decisão estrutural: chave estrangeira composta
 
@@ -221,7 +288,19 @@ dado por concluído.
 
 ## O que falta
 
-- Telas de contatos, contas, funil e atividades
-- Busca e filtro (hoje a listagem traz as 200 mais recentes)
+- Tela de atividades
+- **Editar e excluir** — as quatro telas cadastram e listam; nenhuma altera
+  linha existente. Corrigir um telefone errado ainda exige SQL
+- Detalhe de conta e de pessoa — hoje não há para onde clicar a partir da
+  listagem, então o histórico de uma conta não tem onde aparecer
+- Busca e filtro (hoje a listagem traz as 200 primeiras por nome, e o quadro
+  do funil as 500 mexidas mais recentemente)
+- Responsável (`owner_id`) — a coluna existe em todas as tabelas e nenhuma
+  tela a preenche
+- `crm.contact_requires_document`: a configuração está no catálogo do Core e
+  **nada a consome**. `crm_contacts` não tem coluna de documento — só
+  `crm_companies` tem. Honrá-la exige migration, então ligá-la hoje não faria
+  efeito nenhum, que é o defeito sem sintoma que o próprio catálogo existe
+  para evitar
 - Importação
 - Atendimento e conversas — dependem das credenciais Meta/WhatsApp 🔒

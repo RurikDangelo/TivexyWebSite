@@ -10,12 +10,43 @@
  *   npm run test:web
  */
 import assert from 'node:assert/strict';
+import { readdirSync } from 'node:fs';
+import path from 'node:path';
 import { describe, it } from 'node:test';
 import { MODULE_CODES, matchRule } from '@tivexy/core';
 import { navigation } from './navigation.ts';
 import { routeRules } from './routes.ts';
 
 const hrefs = navigation.flatMap((grupo) => grupo.items.map((item) => item.href));
+
+/**
+ * Os caminhos que o App Router de fato serve.
+ *
+ * Lidos do disco, não declarados numa lista — uma segunda lista escrita à mão
+ * seria mais uma coisa a esquecer de atualizar, que é justamente o defeito que
+ * o teste abaixo existe para pegar.
+ *
+ * Segmento entre parênteses é grupo de rotas: `(app)` e `(auth)` organizam
+ * arquivos e não aparecem na URL.
+ */
+function rotasServidas(): Set<string> {
+  const raiz = path.join(import.meta.dirname, '..', 'app');
+  const encontradas = new Set<string>();
+
+  function percorrer(diretorio: string, rota: string): void {
+    for (const entrada of readdirSync(diretorio, { withFileTypes: true })) {
+      if (entrada.isDirectory()) {
+        const grupo = /^\(.*\)$/.test(entrada.name);
+        percorrer(path.join(diretorio, entrada.name), grupo ? rota : `${rota}/${entrada.name}`);
+      } else if (entrada.name === 'page.tsx') {
+        encontradas.add(rota === '' ? '/' : rota);
+      }
+    }
+  }
+
+  percorrer(raiz, '');
+  return encontradas;
+}
 
 /** Casou por uma regra declarada, ou caiu no padrão? */
 function temRegraDeclarada(pathname: string): boolean {
@@ -65,6 +96,31 @@ describe('navegação × rotas', () => {
 
   it('o item de Super Admin exige escopo de plataforma', () => {
     assert.equal(matchRule(routeRules, '/admin').kind, 'superAdmin');
+  });
+
+  it('todo item marcado como pronto tem página', () => {
+    /*
+     * `status: 'ready'` é uma promessa: o item vira link clicável no menu. Um
+     * link para uma rota sem `page.tsx` dá 404 — e o 404 não aparece em
+     * typecheck, nem em lint, nem no build. Aparece para quem clicou.
+     *
+     * A promessa é só esta. O contrário **não** se afirma aqui: uma página
+     * existir não quer dizer que a funcionalidade está pronta, e marcar uma
+     * tela pela metade como "em construção" é decisão honesta, não erro. Ver
+     * CLAUDE.md.
+     */
+    const servidas = rotasServidas();
+    const prometidas = navigation
+      .flatMap((grupo) => grupo.items)
+      .filter((item) => item.status === 'ready')
+      .map((item) => item.href);
+
+    const semPagina = prometidas.filter((href) => !servidas.has(href));
+    assert.deepEqual(
+      semPagina,
+      [],
+      'item do menu marcado como pronto aponta para rota que não existe',
+    );
   });
 
   it('as rotas de saída do limbo não estão no menu', () => {

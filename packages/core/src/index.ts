@@ -60,6 +60,8 @@ export {
   type CrmStageKind,
 } from './crm.ts';
 
+export { CNPJ_LENGTH, CPF_LENGTH, checkDocument, formatDocument, onlyDigits } from './documento.ts';
+
 export {
   TENANT_SETTINGS,
   checkSettingValue,

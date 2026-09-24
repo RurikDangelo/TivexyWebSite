@@ -18,6 +18,7 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
+import { checkDocument, onlyDigits } from '../../packages/core/src/documento.ts';
 import { addMember, asUser, createDatabase, createTenant, createUser } from './harness.mjs';
 
 let db;
@@ -412,6 +413,61 @@ describe('o que o esquema recusa', () => {
         converted_at: new Date().toISOString(),
       }),
       /converted_consistency/,
+    );
+  });
+});
+
+/* ── 5.1 O documento que a tela grava ──────────────────────────────────── */
+
+/**
+ * O contrato entre `checkDocument()` e `crm_companies_document_digits`.
+ *
+ * Os dois falam do mesmo campo e moram em arquivos diferentes: um em
+ * TypeScript, decidindo o que o formulário aceita; outro em SQL, decidindo o
+ * que a coluna aceita. Enquanto concordarem, quem cola um CNPJ pontuado do
+ * site da Receita consegue cadastrar. No dia em que divergirem, o sintoma é
+ * um erro de constraint falando de expressão regular para quem só queria
+ * cadastrar uma empresa — e nenhum teste de unidade pega, porque cada lado
+ * continua certo sozinho.
+ */
+describe('o documento aceito na tela entra na coluna', () => {
+  const COMO_A_PESSOA_DIGITA = [
+    '12.345.678/0001-95',
+    '98765432000188',
+    '123.456.789-01',
+    '  11122233344  ',
+  ];
+
+  for (const entrada of COMO_A_PESSOA_DIGITA) {
+    it(`"${entrada.trim()}" é aceito nos dois lados`, async () => {
+      assert.equal(checkDocument(entrada), null, 'a conferência da tela deveria aceitar');
+
+      /* E o Postgres aceita o que ela manda gravar. */
+      const id = await criar('crm_companies', {
+        tenant_id: fx.tenantA,
+        name: `Documento ${entrada.trim()}`,
+        document: onlyDigits(entrada),
+      });
+
+      const { rows } = await db.query('select document from public.crm_companies where id = $1', [
+        id,
+      ]);
+      assert.match(rows[0].document, /^[0-9]+$/);
+    });
+  }
+
+  it('a pontuação é recusada pela coluna — por isso a tela limpa antes', async () => {
+    /*
+     * A prova de que `onlyDigits()` não é enfeite. Sem ela, exatamente a
+     * colagem mais comum é a que falha.
+     */
+    await assert.rejects(
+      criar('crm_companies', {
+        tenant_id: fx.tenantA,
+        name: 'Pontuada',
+        document: '12.345.678/0001-95',
+      }),
+      /document_digits/,
     );
   });
 });

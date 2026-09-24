@@ -21,6 +21,7 @@ import { type CrmLeadStatus, nextLeadStatuses, parseCents } from '@tivexy/core';
 import { revalidatePath } from 'next/cache';
 
 import { requireAccess } from '@/lib/auth/require';
+import { conferirEmail, conferirTelefone, mensagemDeErro, opcional, texto } from '@/lib/crm/form';
 import { supabaseServer } from '@/lib/supabase/server';
 
 import {
@@ -33,38 +34,25 @@ import {
 /** De onde a tela lê e escreve. Uma constante: o caminho também é a regra. */
 const ROTA = '/crm/leads';
 
-function texto(form: FormData, campo: string): string {
-  const valor = form.get(campo);
-  return typeof valor === 'string' ? valor.trim() : '';
-}
-
-/** Vazio vira `null`, não string vazia — a coluna é opcional, não "preenchida com nada". */
-function opcional(form: FormData, campo: string): string | null {
-  const valor = texto(form, campo);
-  return valor === '' ? null : valor;
-}
-
 /**
  * Validação de forma, antes de falar com o banco.
  *
  * O banco tem as suas — `name` não pode ser branco — e elas chegam como
  * violação de constraint, que não diz a quem preencheu qual campo consertar.
- * Isto aqui existe para a mensagem, não para a garantia.
+ * Isto aqui existe para a mensagem, não para a garantia. As regras em si
+ * vivem em `lib/crm/form.ts`, compartilhadas com as outras telas do módulo:
+ * três definições de "isto parece um e-mail?" divergem na primeira correção.
  */
 function conferir(form: FormData): LeadFormState['campos'] {
   const campos: Record<string, string> = {};
 
   if (texto(form, 'name') === '') campos.name = 'Obrigatório.';
 
-  const email = texto(form, 'email');
-  if (email !== '' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    campos.email = 'Não parece um e-mail.';
-  }
+  const email = conferirEmail(texto(form, 'email'));
+  if (email !== null) campos.email = email;
 
-  const telefone = texto(form, 'phone');
-  if (telefone !== '' && telefone.replace(/\D/g, '').length < 8) {
-    campos.phone = 'Curto demais para um telefone.';
-  }
+  const telefone = conferirTelefone(texto(form, 'phone'));
+  if (telefone !== null) campos.phone = telefone;
 
   return campos;
 }
@@ -97,10 +85,7 @@ export async function criarLead(_anterior: LeadFormState, form: FormData): Promi
      */
     return {
       ...LEAD_INICIAL,
-      erro:
-        error.code === '42501'
-          ? 'Você não tem permissão para cadastrar aqui.'
-          : `Não consegui salvar: ${error.message}`,
+      erro: mensagemDeErro(error, 'Você não tem permissão para cadastrar aqui.'),
     };
   }
 

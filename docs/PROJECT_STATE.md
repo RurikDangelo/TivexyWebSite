@@ -2,7 +2,7 @@
 
 > Estado real do ecossistema Tivexy. **Atualize junto com a entrega, não depois.**
 >
-> Última atualização: **20/09/2026**
+> Última atualização: **24/09/2026**
 
 ## Legenda
 
@@ -29,9 +29,10 @@
 | Esquema do Core              | ✅     | **Aplicado** em `tivexy-core`; 146 testes em Postgres 18           |
 | Knowledge base (`docs/`)     | ✅     | Cofre Obsidian versionado                                          |
 | Trello estruturado           | ✅     | Listas, labels por módulo e backlog inicial                        |
-| Contratos (`packages/core`)  | ✅     | `npm run validate` — 519 testes; contratos conferidos contra o SQL |
+| Contratos (`packages/core`)  | ✅     | `npm run validate` — 566 testes; contratos conferidos contra o SQL |
 | Autenticação e sessão        | ✅     | Login, proxy e `current_viewer()` exercitados no banco real        |
 | Provisionamento pela tela    | ✅     | Cliente criado, retomado e desfeito contra o Postgres do projeto   |
+| Telas de CRM (4 rotas)       | 🟡     | Leads conferida no navegador; as outras três, **só em teste**      |
 | CI (GitHub Actions)          | 🟡     | Escrito e no remoto; roda na abertura do PR, não em push de branch |
 | Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado       |
 
@@ -315,6 +316,53 @@ por SQL — sem erro, só relatório errado.
 **Tela pronta: `/crm/leads`.** Cadastro, transições de estado, validação por
 campo, estado vazio e 375px conferidos no navegador, contra o banco real.
 
+**Mais três telas em 24/09/2026 — `/crm/empresas`, `/crm/contatos` e
+`/crm/oportunidades`.** São as que faltavam à conversão: ela sempre criou
+conta, pessoa e oportunidade numa transação só, e **duas das três não tinham
+onde ser vistas**. O dado estava certo no banco e invisível para quem
+trabalha.
+
+- `/crm/empresas` e `/crm/contatos` listam e cadastram. O contato vincula-se a
+  uma conta, e a escolha só oferece contas deste tenant — a chave composta já
+  recusaria uma de outro, e conferir antes é o que troca erro de constraint
+  por frase em português.
+- `/crm/oportunidades` é o quadro do funil, com uma coluna por etapa, total em
+  centavos por coluna e movimento entre etapas. Sem estado de cliente: cada
+  movimento é `form` com Server Action, o que dá teclado e funcionamento sem
+  JavaScript de graça. Arrastar-e-soltar, quando vier, vem por cima disto.
+- O quadro **nunca escreve `closed_at`** — quem mantém é o gatilho
+  `sync_deal_closed_at`. E o funil não é campo de formulário: é lido da etapa,
+  no servidor, porque `assert_deal_stage_in_pipeline` recusa a linha em que os
+  dois discordam.
+- O teto de 500 oportunidades por funil é **anunciado na tela** quando bate,
+  porque os totais somam o que veio, não o que há. Teto silencioso daria um
+  número plausível e errado em cima de dinheiro.
+
+**Estado: 🟡 testado, não verificado contra o banco real.** Foram construídas
+em sessão de nuvem, que recebe o repositório e não os segredos — ver §6.2.
+Passam em typecheck, lint, build e nos 127 testes de `apps/web`; **ninguém
+abriu nenhuma das três no navegador nem contra o Postgres do projeto.**
+
+O que falta dentro delas, e está registrado em [[04-CRM/CRM#O que falta]]:
+editar e excluir (as quatro telas cadastram e listam; corrigir um telefone
+ainda exige SQL), detalhe de conta e de pessoa, responsável (`owner_id`) e
+busca.
+
+**CPF e CNPJ subiram para o Core** — `packages/core/src/documento.ts`, junto de
+`parseCents` e pelo mesmo motivo: o ERP vai cadastrar cliente e fornecedor com
+os mesmos documentos. Grava-se só dígito, porque a coluna exige, e isso tem
+teste dos dois lados — contra a expressão no Core, e contra o Postgres em
+`supabase/tests/crm.test.mjs`, que prova que a colagem pontuada (a mais comum)
+seria recusada sem a limpeza. **O dígito verificador não é conferido**, e está
+escrito no código para não ser confundido com validação de verdade.
+
+**Um item de menu marcado como pronto agora precisa ter página.** `status:
+'ready'` em `navigation.ts` é promessa: vira link clicável. Um link para rota
+sem `page.tsx` dá 404, e 404 não aparece em typecheck, nem em lint, nem no
+build — aparece para quem clicou. O teste lê as rotas do disco e compara; a
+regressão foi conferida quebrando de propósito. O contrário **não** se afirma:
+página existir não quer dizer funcionalidade pronta.
+
 **O vocabulário do nicho chegou na tela.** Uma clínica lê "interessados" onde
 uma consultoria lê "leads" — verificado provisionando a clínica odontológica e
 abrindo a listagem. Ver abaixo.
@@ -329,7 +377,8 @@ Verificada contra o banco real: um lead virou conta, pessoa e oportunidade de
 R$ 4.500,00 na etapa "Orçamento enviado" do funil "Tratamentos", com o lead
 carimbado apontando para os três.
 
-**Não existe:** contatos, contas, funil, atividades, busca e importação.
+**Não existe:** atividades, edição, exclusão, detalhe de conta e de pessoa,
+responsável, busca e importação.
 
 ### ERP
 
@@ -436,6 +485,14 @@ o teste de escalada teria passado por engano.
 ## 4. O que está em desenvolvimento
 
 Nada em andamento.
+
+Em 24/09/2026 entraram as três telas que faltavam à conversão de lead —
+`/crm/empresas`, `/crm/contatos` e `/crm/oportunidades`. Foram construídas em
+sessão de nuvem, então entram como 🟡 **testado, não verificado contra o banco
+real**, pela regra de §6.2. O que as torna ✅ é alguém abrir cada uma no
+navegador, em máquina com `.env`, e conferir: cadastrar uma conta com CNPJ
+colado pontuado, cadastrar uma pessoa vinculada a ela, mover uma oportunidade
+entre etapas e ver `closed_at` sendo carimbado e limpo pelo gatilho.
 
 Em 20/09/2026 a autenticação deixou de ser pendência: sessão, proxy, telas de
 entrada e provisionamento pela tela foram construídos e exercitados contra o
@@ -695,7 +752,13 @@ provisionamento e o Blueprint já sustentam os dois.
 
 ### O que dá para fazer sem esperar nada
 
-- Telas de funil, contatos e contas — a conversão já cria as três coisas
+- ✅ **Feito em 24/09/2026:** telas de funil, contatos e contas — a conversão
+  já criava as três coisas e só a de leads tinha onde ser vista. Falta abrir
+  as três no navegador, que não se faz de sessão de nuvem
+- Editar e excluir nas quatro telas de CRM. Hoje elas cadastram e listam;
+  corrigir um telefone errado ainda exige SQL
+- Tela de atividades — a tabela e o catálogo de tipos existem e são semeados
+  pelo Blueprint
 - Aceitar convite pela tela (falta a função `SECURITY DEFINER` que confere o
   convite — o RLS nega essa escrita a quem ainda não é membro)
 - Conferir se o destino do formulário de contato da landing ainda responde
