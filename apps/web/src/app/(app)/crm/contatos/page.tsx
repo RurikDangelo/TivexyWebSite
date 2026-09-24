@@ -1,8 +1,10 @@
 import { Contact, Mail, Phone } from 'lucide-react';
 import type { Metadata } from 'next';
 
+import { BarraDeBusca, SemResultado } from '@/components/crm/search-bar';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireAccess } from '@/lib/auth/require';
+import { filtroOu, parametro } from '@/lib/crm/busca';
 import { nomeAninhado } from '@/lib/crm/postgrest';
 import { capitalizar, currentTerms, term } from '@/lib/crm/terms';
 import { supabaseServer } from '@/lib/supabase/server';
@@ -30,8 +32,13 @@ const PADRAO_EMPRESA = { singular: 'empresa', plural: 'empresas' };
  * consulta sem filtro devolveria as duas listas misturadas. O RLS é o piso,
  * não o filtro.
  */
-export default async function ContatosPage() {
+export default async function ContatosPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { choice } = await requireAccess('/crm/contatos');
+  const termo = parametro(await searchParams, 'b');
   const termos = await currentTerms();
   const rotulo = term(termos, 'crm.contacts', PADRAO);
   const rotuloEmpresa = term(termos, 'crm.companies', PADRAO_EMPRESA);
@@ -63,12 +70,22 @@ export default async function ContatosPage() {
     nome: String(linha.name),
   }));
 
-  const { data, error } = await supabase
+  /*
+   * A busca **não** alcança o nome da empresa, e isso é deliberado: filtrar
+   * por coluna de relação embutida no PostgREST exige `!inner`, que
+   * transforma a listagem em junção interna — quem não tem empresa sumiria
+   * da lista ao buscar. Pessoa sem empresa é caso normal aqui.
+   */
+  const filtro = filtroOu(termo, ['name', 'email', 'phone', 'title']);
+
+  let consulta = supabase
     .from('crm_contacts')
     .select('id, name, title, email, phone, created_at, crm_companies(name)')
-    .eq('tenant_id', choice.tenant.id)
-    .order('name')
-    .limit(200);
+    .eq('tenant_id', choice.tenant.id);
+
+  if (filtro !== null) consulta = consulta.or(filtro);
+
+  const { data, error } = await consulta.order('name').limit(200);
 
   const contatos: ContatoListado[] = (data ?? []).map((linha) => ({
     id: String(linha.id),
@@ -88,7 +105,7 @@ export default async function ContatosPage() {
         </h1>
         <p className="mt-1 text-content-muted">
           As pessoas com quem se fala. {contatos.length}{' '}
-          {contatos.length === 1 ? 'cadastrado' : 'cadastrados'}.
+          {termo === '' ? (contatos.length === 1 ? 'cadastrado' : 'cadastrados') : 'encontrados'}.
         </p>
       </header>
 
@@ -100,6 +117,8 @@ export default async function ContatosPage() {
         />
       </div>
 
+      <BarraDeBusca termo={termo} placeholder="Nome, e-mail, telefone ou cargo" />
+
       {error !== null && (
         <Card className="mb-4 border-danger/30">
           <CardHeader>
@@ -109,7 +128,9 @@ export default async function ContatosPage() {
         </Card>
       )}
 
-      {contatos.length === 0 && error === null ? (
+      {contatos.length === 0 && error === null && termo !== '' ? (
+        <SemResultado termo={termo} limpar="/crm/contatos" />
+      ) : contatos.length === 0 && error === null ? (
         <Card>
           <CardHeader>
             <div className="mb-1 flex size-10 items-center justify-center rounded-full bg-surface-muted">

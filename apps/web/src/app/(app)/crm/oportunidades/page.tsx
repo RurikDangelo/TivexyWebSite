@@ -5,7 +5,9 @@ import Link from 'next/link';
 import type { CrmStageKind } from '@tivexy/core';
 import type { Opcao } from '@/components/ui/field';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { BarraDeBusca } from '@/components/crm/search-bar';
 import { requireAccess } from '@/lib/auth/require';
+import { filtroOu, parametro } from '@/lib/crm/busca';
 import { nomeAninhado } from '@/lib/crm/postgrest';
 import { capitalizar, currentTerms, term } from '@/lib/crm/terms';
 import { cn } from '@/lib/utils';
@@ -107,7 +109,9 @@ export default async function OportunidadesPage({
    * vez de mostrar quadro vazio — e como a lista veio filtrada pelo tenant,
    * um id de outra empresa simplesmente não casa.
    */
-  const pedido = (await searchParams).funil;
+  const params = await searchParams;
+  const termo = parametro(params, 'b');
+  const pedido = params.funil;
   const escolhido = typeof pedido === 'string' ? funis.find((f) => f.id === pedido) : undefined;
   const funil = escolhido ?? funis.find((f) => f.padrao) ?? funis[0];
 
@@ -125,13 +129,21 @@ export default async function OportunidadesPage({
     posicao: Number(linha.position),
   }));
 
-  const { data: negociosBrutos, error } = await supabase
+  let consultaNegocios = supabase
     .from('crm_deals')
     .select(
       'id, title, value_cents, stage_id, expected_close_date, crm_companies(name), crm_contacts(name)',
     )
     .eq('tenant_id', choice.tenant.id)
-    .eq('pipeline_id', funil.id)
+    .eq('pipeline_id', funil.id);
+
+  /* A busca alcança título e anotação. A conta e a pessoa ficam de fora pelo
+     mesmo motivo da tela de contatos: filtrar por relação embutida exige
+     junção interna, e oportunidade sem conta é caso normal. */
+  const filtroBusca = filtroOu(termo, ['title', 'notes']);
+  if (filtroBusca !== null) consultaNegocios = consultaNegocios.or(filtroBusca);
+
+  const { data: negociosBrutos, error } = await consultaNegocios
     .order('updated_at', { ascending: false })
     .limit(TETO);
 
@@ -157,6 +169,17 @@ export default async function OportunidadesPage({
       descricao={`${oportunidades.length} no funil ${funil.nome}.`}
     >
       {funis.length > 1 && <Abas funis={funis} atual={funil.id} />}
+
+      {/*
+        O funil escolhido viaja junto com a busca. Sem isso, buscar jogaria a
+        pessoa de volta no funil padrão sem aviso — e ela acharia que a busca
+        não achou nada.
+      */}
+      <BarraDeBusca
+        termo={termo}
+        placeholder="Título ou observação da oportunidade"
+        extras={{ funil: funil.id }}
+      />
 
       {etapas.length > 0 && (
         <div className="mb-6">

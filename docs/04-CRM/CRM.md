@@ -345,14 +345,64 @@ diferença é o que cada um significa: sem alvo a atividade não quer dizer nada
 recusa, fazendo o `delete` do lead falhar por causa de uma atividade. Sem
 tipo, ela continua sendo "ligar para o cliente na terça".
 
+## Busca e filtro
+
+As cinco listagens buscam no banco, com `?b=` na URL, e três delas filtram por
+estado com `?estado=`.
+
+### É um `form` com `method="get"`, não um campo que escuta digitação
+
+Três consequências, todas boas: funciona sem JavaScript; o resultado fica na
+URL, então dá para guardar nos favoritos e mandar para um colega; e não
+dispara uma consulta por tecla, que é o que transforma uma listagem de mil
+linhas numa tela lenta. O custo é um Enter a mais.
+
+### O filtro vai para o banco, nunca para `Array.filter`
+
+As listagens têm teto — 200 linhas, 300 na agenda, 500 no funil. Filtrar
+**depois** de ler só encontraria dentro do que veio: quem procurasse o
+cliente cadastrado ano passado receberia "nada encontrado" sobre um cadastro
+que existe. Pior que lento, é mentira.
+
+### O termo digitado não pode virar sintaxe de filtro
+
+O filtro do PostgREST é texto com sintaxe:
+
+    or=(name.ilike.*maria*,email.ilike.*maria*)
+
+A vírgula separa condições e o parêntese delimita o grupo. Interpolar o que a
+pessoa digitou é o mesmo erro que concatenar SQL — e um nome de empresa
+brasileiro tem os dois: `Silva, Souza & Cia (ME)`.
+
+`filtroOu()` monta o valor **entre aspas duplas**, onde vírgula e parêntese
+perdem o significado, e tira do termo só a aspa e a barra invertida — que são
+o que fecharia a citação. O teste prova a contenção contando cláusulas fora
+das aspas, e foi conferido quebrando: sem as aspas, cinco testes caem.
+
+> Nada disso decide quem vê o quê. Um defeito aqui traz linha errada **do
+> próprio tenant**; o RLS continua recusando o resto. É a diferença entre um
+> bug de busca e um vazamento.
+
+### O que a busca não alcança, e por quê
+
+Nome da empresa na tela de contatos, conta e pessoa no funil. Filtrar por
+coluna de relação embutida no PostgREST exige `!inner`, que transforma a
+listagem em **junção interna** — quem não tem empresa sumiria da lista ao
+buscar. Pessoa sem empresa e oportunidade sem conta são casos normais.
+
+### O padrão de cada filtro é a fila de trabalho
+
+Leads abre em "em aberto", a agenda em "pendentes". Quem abre a tela vai
+trabalhar, e o descartado de três meses atrás não é o que se vê primeiro.
+Continua alcançável — é uma opção do filtro, não dado escondido.
+
 ## O que falta
 
 - **Editar e excluir** — as quatro telas cadastram e listam; nenhuma altera
   linha existente. Corrigir um telefone errado ainda exige SQL
 - Detalhe de conta e de pessoa — hoje não há para onde clicar a partir da
   listagem, então o histórico de uma conta não tem onde aparecer
-- Busca e filtro (hoje a listagem traz as 200 primeiras por nome, e o quadro
-  do funil as 500 mexidas mais recentemente)
+- Paginação: a busca existe, o "ver mais" não
 - Responsável (`owner_id`) — a coluna existe em todas as tabelas e nenhuma
   tela a preenche
 - `crm.contact_requires_document`: a configuração está no catálogo do Core e

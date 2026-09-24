@@ -403,8 +403,28 @@ desde 2019, então um código errado passaria em todo teste brasileiro.
 entre tenants**, contra a regra de `docs/00-SYSTEM/TESTING.md`. Entraram, mais
 os testes de cascata do alvo e de tipo emprestado de outro tenant.
 
+**Busca e filtro entraram em 24/09/2026** nas cinco listagens, com `?b=` e
+`?estado=` na URL. `form method="get"`: funciona sem JavaScript, o resultado é
+compartilhável, e não dispara consulta por tecla digitada.
+
+O filtro vai para o **banco**, nunca para `Array.filter` depois de ler. Com os
+tetos de 200/300/500 linhas, filtrar na aplicação faria "descartados" mostrar
+só os que por acaso estivessem entre os mais recentes — e a tela diria "nada
+encontrado" sobre cadastro que existe.
+
+**O risco que isso criou, e como foi contido:** o filtro do PostgREST é texto
+com sintaxe — vírgula separa condições, parêntese delimita grupo. Interpolar o
+termo digitado é o mesmo erro que concatenar SQL, e nome de empresa brasileiro
+tem os dois (`Silva, Souza & Cia (ME)`). `filtroOu()` cita o valor entre aspas
+duplas e tira só aspa e barra invertida. O teste conta cláusulas fora das
+aspas; conferido quebrando — sem as aspas, cinco testes caem.
+
+> Isso não decide quem vê o quê. Um defeito ali traz linha errada **do próprio
+> tenant**; o RLS recusa o resto. É a diferença entre um bug de busca e um
+> vazamento.
+
 **Não existe:** edição, exclusão, detalhe de conta e de pessoa, responsável,
-busca e importação.
+paginação e importação.
 
 ### ERP
 

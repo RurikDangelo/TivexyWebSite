@@ -1,15 +1,17 @@
 import { Inbox } from 'lucide-react';
 import type { Metadata } from 'next';
 
-import { type CrmLeadStatus, isLeadClosed } from '@tivexy/core';
+import { CRM_LEAD_STATUSES, type CrmLeadStatus, isLeadClosed } from '@tivexy/core';
+import { BarraDeBusca, SemResultado } from '@/components/crm/search-bar';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireAccess } from '@/lib/auth/require';
+import { filtroOu, parametro, umDentre } from '@/lib/crm/busca';
 import { capitalizar, currentTerms, term } from '@/lib/crm/terms';
 import { supabaseServer } from '@/lib/supabase/server';
 
 import { LeadForm } from './lead-form';
 import { LeadRow, type LeadListado } from './lead-row';
-import type { EtapaOferecida } from './state';
+import { LEAD_STATUS_LABEL, type EtapaOferecida } from './state';
 
 export const metadata: Metadata = { title: 'Leads' };
 
@@ -30,9 +32,25 @@ const PADRAO = { singular: 'lead', plural: 'leads' };
  * consulta sem filtro devolveria as duas listas misturadas. O RLS é o piso,
  * não o filtro.
  */
-export default async function LeadsPage() {
+/** Os estados oferecidos no filtro, mais os dois atalhos que valem por vários. */
+const ESTADOS_DO_FILTRO = ['todos', 'abertos', ...CRM_LEAD_STATUSES] as const;
+
+export default async function LeadsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { choice } = await requireAccess('/crm/leads');
   const rotulo = term(await currentTerms(), 'crm.leads', PADRAO);
+
+  const params = await searchParams;
+  const termo = parametro(params, 'b');
+  /*
+   * `abertos` é o padrão, e não `todos`. Quem abre esta tela vai trabalhar a
+   * fila — o descartado de três meses atrás não é o que se quer ver primeiro.
+   * Continua alcançável: é uma opção do filtro, não um dado escondido.
+   */
+  const estado = umDentre(parametro(params, 'estado'), ESTADOS_DO_FILTRO, 'abertos');
 
   if (choice.kind !== 'resolved') {
     /* `requireAccess` já mandaria para `/empresas`; isto é a rede embaixo. */
@@ -69,12 +87,24 @@ export default async function LeadsPage() {
     ),
   }));
 
-  const { data, error } = await supabase
+  const filtro = filtroOu(termo, ['name', 'email', 'phone', 'company_name', 'source']);
+
+  let consulta = supabase
     .from('crm_leads')
     .select('id, name, email, phone, company_name, source, status, created_at')
-    .eq('tenant_id', choice.tenant.id)
-    .order('created_at', { ascending: false })
-    .limit(200);
+    .eq('tenant_id', choice.tenant.id);
+
+  if (filtro !== null) consulta = consulta.or(filtro);
+
+  /*
+   * O estado entra como filtro do banco, e não como `Array.filter` depois:
+   * com o teto de 200, filtrar na aplicação faria "descartados" mostrar só os
+   * descartados que por acaso estivessem entre os 200 mais recentes de todos.
+   */
+  if (estado === 'abertos') consulta = consulta.in('status', ['new', 'contacted', 'qualified']);
+  else if (estado !== 'todos') consulta = consulta.eq('status', estado);
+
+  const { data, error } = await consulta.order('created_at', { ascending: false }).limit(200);
 
   const leads: LeadListado[] = (data ?? []).map((linha) => ({
     id: String(linha.id),
@@ -111,6 +141,21 @@ export default async function LeadsPage() {
         <LeadForm singular={rotulo.singular} />
       </div>
 
+      <BarraDeBusca
+        termo={termo}
+        placeholder={`Nome, e-mail, telefone ou origem`}
+        filtro={{
+          nome: 'estado',
+          rotulo: 'Estado',
+          valor: estado,
+          opcoes: [
+            { valor: 'abertos', texto: 'Em aberto' },
+            { valor: 'todos', texto: 'Todos' },
+            ...CRM_LEAD_STATUSES.map((s) => ({ valor: s, texto: LEAD_STATUS_LABEL[s] })),
+          ],
+        }}
+      />
+
       {error !== null && (
         <Card className="mb-4 border-danger/30">
           <CardHeader>
@@ -120,7 +165,9 @@ export default async function LeadsPage() {
         </Card>
       )}
 
-      {leads.length === 0 && error === null ? (
+      {leads.length === 0 && error === null && termo !== '' ? (
+        <SemResultado termo={termo} limpar="/crm/leads" />
+      ) : leads.length === 0 && error === null ? (
         <Card>
           <CardHeader>
             <div className="mb-1 flex size-10 items-center justify-center rounded-full bg-surface-muted">

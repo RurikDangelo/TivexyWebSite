@@ -2,9 +2,11 @@ import { CalendarCheck } from 'lucide-react';
 import type { Metadata } from 'next';
 
 import { formatInstant } from '@tivexy/core';
+import { BarraDeBusca, SemResultado } from '@/components/crm/search-bar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireAccess } from '@/lib/auth/require';
+import { filtroOu, parametro, umDentre } from '@/lib/crm/busca';
 import { FAIXAS, FAIXA_TITULO, FAIXA_TOM, type Faixa, faixaDe, instante } from '@/lib/crm/agenda';
 import { nomeAninhado } from '@/lib/crm/postgrest';
 import { capitalizar, currentTerms, term } from '@/lib/crm/terms';
@@ -38,9 +40,20 @@ const TETO = 300;
  * empresas desta pessoa: quem participa de duas tem permissão nas duas, e a
  * consulta sem filtro devolveria as duas agendas misturadas.
  */
-export default async function AtividadesPage() {
+/** Os recortes da agenda. `pendentes` é o padrão: é a fila de trabalho. */
+const RECORTES = ['pendentes', 'todas', 'concluidas'] as const;
+
+export default async function AtividadesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { choice } = await requireAccess('/crm/atividades');
   const rotulo = term(await currentTerms(), 'crm.activities', PADRAO);
+
+  const params = await searchParams;
+  const termo = parametro(params, 'b');
+  const recorte = umDentre(parametro(params, 'estado'), RECORTES, 'pendentes');
 
   if (choice.kind !== 'resolved') {
     /* `requireAccess` já mandaria para `/empresas`; isto é a rede embaixo. */
@@ -58,21 +71,7 @@ export default async function AtividadesPage() {
       .eq('tenant_id', choice.tenant.id)
       .order('position'),
     alvosOferecidos(supabase, choice.tenant.id),
-    supabase
-      .from('crm_activities')
-      /*
-       * O `select` é um literal só, sem concatenação nem interpolação. Não é
-       * estilo: o supabase-js **lê esta string em tempo de tipo** para saber
-       * a forma do retorno, e um `+` no meio apaga isso — o resultado vira
-       * `GenericStringError` e nenhum campo existe mais. O typecheck avisa,
-       * mas o motivo não é óbvio na mensagem.
-       */
-      .select(
-        'id, subject, notes, due_at, done_at, lead_id, contact_id, company_id, deal_id, crm_activity_types(name), crm_leads(name), crm_contacts(name), crm_companies(name), crm_deals(title)',
-      )
-      .eq('tenant_id', choice.tenant.id)
-      .order('due_at', { ascending: true, nullsFirst: false })
-      .limit(TETO),
+    listarAtividades(supabase, choice.tenant.id, termo, recorte),
   ]);
 
   const tipos = (tiposResposta.data ?? []).map((linha) => ({
@@ -117,6 +116,21 @@ export default async function AtividadesPage() {
         <ActivityForm alvos={alvos} tipos={tipos} />
       </div>
 
+      <BarraDeBusca
+        termo={termo}
+        placeholder="Assunto ou observação"
+        filtro={{
+          nome: 'estado',
+          rotulo: 'Recorte',
+          valor: recorte,
+          opcoes: [
+            { valor: 'pendentes', texto: 'Em aberto' },
+            { valor: 'concluidas', texto: 'Concluídas' },
+            { valor: 'todas', texto: 'Todas' },
+          ],
+        }}
+      />
+
       {resposta.error !== null && (
         <Card className="mb-4 border-danger/30">
           <CardHeader>
@@ -132,7 +146,9 @@ export default async function AtividadesPage() {
         </p>
       )}
 
-      {atividades.length === 0 && resposta.error === null ? (
+      {atividades.length === 0 && resposta.error === null && termo !== '' ? (
+        <SemResultado termo={termo} limpar="/crm/atividades" />
+      ) : atividades.length === 0 && resposta.error === null ? (
         <Card>
           <CardHeader>
             <div className="mb-1 flex size-10 items-center justify-center rounded-full bg-surface-muted">
@@ -156,6 +172,45 @@ export default async function AtividadesPage() {
       )}
     </div>
   );
+}
+
+/**
+ * A agenda, já filtrada pelo banco.
+ *
+ * O recorte entra como condição da consulta, e não como `Array.filter` depois
+ * de ler. Com o teto de 300, filtrar na aplicação faria "concluídas" mostrar
+ * só as concluídas que por acaso estivessem entre as 300 de prazo mais
+ * próximo — e a tela diria que não há mais nenhuma.
+ */
+async function listarAtividades(
+  supabase: Awaited<ReturnType<typeof supabaseServer>>,
+  tenantId: string,
+  termo: string,
+  recorte: 'pendentes' | 'todas' | 'concluidas',
+) {
+  let consulta = supabase
+    .from('crm_activities')
+    /*
+     * O `select` é um literal só, sem concatenação nem interpolação. Não é
+     * estilo: o supabase-js **lê esta string em tempo de tipo** para saber a
+     * forma do retorno, e um `+` no meio apaga isso — o resultado vira
+     * `GenericStringError` e nenhum campo existe mais.
+     */
+    .select(
+      'id, subject, notes, due_at, done_at, lead_id, contact_id, company_id, deal_id, crm_activity_types(name), crm_leads(name), crm_contacts(name), crm_companies(name), crm_deals(title)',
+    )
+    .eq('tenant_id', tenantId);
+
+  /* A busca alcança o assunto e a anotação — é por onde se procura "aquela
+     ligação sobre o orçamento". O nome do alvo ficaria fora pelo mesmo motivo
+     da tela de contatos: filtrar por relação embutida exige junção interna. */
+  const filtro = filtroOu(termo, ['subject', 'notes']);
+  if (filtro !== null) consulta = consulta.or(filtro);
+
+  if (recorte === 'pendentes') consulta = consulta.is('done_at', null);
+  else if (recorte === 'concluidas') consulta = consulta.not('done_at', 'is', null);
+
+  return consulta.order('due_at', { ascending: true, nullsFirst: false }).limit(TETO);
 }
 
 /**

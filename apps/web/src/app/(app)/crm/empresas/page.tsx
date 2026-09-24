@@ -1,8 +1,10 @@
 import { Building2, Globe, Mail, Phone } from 'lucide-react';
 import type { Metadata } from 'next';
 
+import { BarraDeBusca, SemResultado } from '@/components/crm/search-bar';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireAccess } from '@/lib/auth/require';
+import { filtroOu, parametro } from '@/lib/crm/busca';
 import { formatarDocumento } from '@/lib/crm/form';
 import { capitalizar, currentTerms, term } from '@/lib/crm/terms';
 import { supabaseServer } from '@/lib/supabase/server';
@@ -30,8 +32,13 @@ const PADRAO = { singular: 'empresa', plural: 'empresas' };
  * consulta sem filtro devolveria as duas listas misturadas. O RLS é o piso,
  * não o filtro.
  */
-export default async function EmpresasPage() {
+export default async function EmpresasPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { choice } = await requireAccess('/crm/empresas');
+  const termo = parametro(await searchParams, 'b');
   const rotulo = term(await currentTerms(), 'crm.companies', PADRAO);
 
   if (choice.kind !== 'resolved') {
@@ -41,12 +48,22 @@ export default async function EmpresasPage() {
 
   const supabase = await supabaseServer();
 
-  const { data, error } = await supabase
+  /*
+   * A busca vira filtro no banco, não `Array.filter` depois de ler.
+   * Filtrar na aplicação só encontraria dentro das 200 que vieram — quem
+   * procura o cliente cadastrado ano passado não acharia, e a tela diria
+   * "nada encontrado" sobre um cadastro que existe.
+   */
+  const filtro = filtroOu(termo, ['name', 'legal_name', 'document', 'email', 'phone']);
+
+  let consulta = supabase
     .from('crm_companies')
     .select('id, name, legal_name, document, email, phone, website, created_at')
-    .eq('tenant_id', choice.tenant.id)
-    .order('name')
-    .limit(200);
+    .eq('tenant_id', choice.tenant.id);
+
+  if (filtro !== null) consulta = consulta.or(filtro);
+
+  const { data, error } = await consulta.order('name').limit(200);
 
   const empresas: EmpresaListada[] = (data ?? []).map((linha) => ({
     id: String(linha.id),
@@ -67,13 +84,15 @@ export default async function EmpresasPage() {
         </h1>
         <p className="mt-1 text-content-muted">
           Com quem se faz negócio. {empresas.length}{' '}
-          {empresas.length === 1 ? 'cadastrada' : 'cadastradas'}.
+          {termo === '' ? (empresas.length === 1 ? 'cadastrada' : 'cadastradas') : 'encontradas'}.
         </p>
       </header>
 
       <div className="mb-6">
         <CompanyForm singular={rotulo.singular} />
       </div>
+
+      <BarraDeBusca termo={termo} placeholder="Nome, CNPJ, e-mail ou telefone" />
 
       {error !== null && (
         <Card className="mb-4 border-danger/30">
@@ -84,7 +103,9 @@ export default async function EmpresasPage() {
         </Card>
       )}
 
-      {empresas.length === 0 && error === null ? (
+      {empresas.length === 0 && error === null && termo !== '' ? (
+        <SemResultado termo={termo} limpar="/crm/empresas" />
+      ) : empresas.length === 0 && error === null ? (
         <Card>
           <CardHeader>
             <div className="mb-1 flex size-10 items-center justify-center rounded-full bg-surface-muted">
