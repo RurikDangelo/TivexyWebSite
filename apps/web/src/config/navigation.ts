@@ -70,7 +70,7 @@ export const navigation: NavGroup[] = [
       { label: 'Produtos', href: '/erp/produtos', icon: Package, status: 'ready' },
       { label: 'Vendas', href: '/erp/vendas', icon: ShoppingCart, status: 'ready' },
       { label: 'Estoque', href: '/erp/estoque', icon: Boxes, status: 'ready' },
-      { label: 'Financeiro', href: '/erp/financeiro', icon: CreditCard, status: 'pending' },
+      { label: 'Financeiro', href: '/erp/financeiro', icon: CreditCard, status: 'ready' },
     ],
   },
   {

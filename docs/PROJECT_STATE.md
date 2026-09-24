@@ -33,6 +33,8 @@
 | Autenticação e sessão        | ✅     | Login, proxy e `current_viewer()` exercitados no banco real        |
 | Provisionamento pela tela    | ✅     | Cliente criado, retomado e desfeito contra o Postgres do projeto   |
 | Telas de CRM (5 rotas)       | 🟡     | Leads conferida no navegador; as outras quatro, **só em teste**    |
+| Telas de ERP (5 rotas)       | 🟡     | Construídas em nuvem; **nenhuma aberta no navegador**              |
+| Ficha do cliente (Admin)     | 🟡     | Editar, suspender, plano, convidar — **só em teste**               |
 | CI (GitHub Actions)          | 🟡     | Escrito e no remoto; roda na abertura do PR, não em push de branch |
 | Formatação e finais de linha | ✅     | `.gitattributes` + Prettier limpo; build idêntico comprovado       |
 
@@ -498,7 +500,55 @@ paginação e importação.
 
 ### ERP
 
-**Estado:** ⬜ NÃO EXISTE · **Trello:** `ERP` · **Depende de:** Core, Auth, RBAC, provisionamento
+**Estado:** 🟡 PARCIAL · **Docs:** [[05-ERP/ERP]] · **Trello:** `ERP`
+
+Construído do zero em 24/09/2026: **9 tabelas** com RLS, contratos em
+`packages/core/src/erp.ts`, **25 testes de banco** e cinco telas —
+`/erp/produtos`, `/erp/estoque`, `/erp/vendas`, `/erp/vendas/[id]` e
+`/erp/financeiro`.
+
+**A decisão que define o módulo: estoque é razão, não coluna.** Uma coluna
+`quantidade` é rápida de ler e produz o pior tipo de defeito — no dia em que
+alguém corrigir por SQL ou uma venda falhar no meio, ela discorda do que
+entrou e saiu, **sem erro nenhum**. O sintoma é o inventário não fechar meses
+depois. Mesma família do "a oportunidade não guarda situação própria".
+
+Três coisas sustentam isso, e nenhuma é "a gente toma cuidado":
+
+| Garantia                          | Como                                      |
+| --------------------------------- | ----------------------------------------- |
+| A aplicação não escreve o saldo   | Privilégio revogado — `permission denied` |
+| O razão não se edita nem se apaga | Gatilho recusa `update` e `delete`        |
+| A quantidade é sempre positiva    | Constraint; o sinal vem do `kind`         |
+
+O invariante (saldo = soma do razão) tem teste, conferido quebrando.
+
+**O total da venda também é derivado**, por dois gatilhos — um para item, outro
+para desconto. Sem o segundo, o total ficaria com o desconto antigo até alguém
+mexer num item, e ninguém mexe depois de fechar.
+
+**A venda nasce rascunho**, e o número sai só na confirmação: desistir deixaria
+buraco na sequência. `erp_confirm_sale()` faz número, estado, baixa e
+recebimento numa transação — o PostgREST não tem transação, e o pior desfecho
+parcial não parece defeito.
+
+**As duas configurações mortas do catálogo passaram a valer:**
+`inventory.deduct_on_sale` e `erp.sales_requires_customer`. Estavam lá desde o
+começo e nada as lia — configuração que ninguém consome é o defeito sem
+sintoma que o próprio catálogo existe para evitar.
+
+**As sementes de ERP deixaram de ficar pendentes.** `erp.product_categories` e
+`erp.payment_methods` entraram em `TABELA_DA_SEMENTE`, o que inverteu um teste
+que afirmava o contrário — ele estava certo sobre o mundo antigo e passaria a
+proteger uma regressão.
+
+**O gráfico de previsão de caixa teve as cores medidas, não escolhidas.** O par
+óbvio — verde e vermelho — foi **recusado pelo validador**: ΔE 8,0 no
+deuteranopia. Azul e vermelho passam com ΔE 24,8 nos dois temas.
+
+**Não existe:** compras e fornecedores (as permissões existem e nenhuma tabela
+as usa), editar/excluir produto, cancelar venda confirmada, responsável,
+relatórios. Emissão fiscal 🔒 e **não deve ser simulada**.
 
 ### Blueprint — configuração de nicho
 

@@ -219,6 +219,31 @@
   }
 }
 
+/*
+ * A barra do gráfico de fluxo nasce da linha de base.
+ *
+ * `transform` e não `height`: animar altura recalcula o layout a cada quadro
+ * e faz o eixo tremer. `transform-origin: bottom` é o que ancora o
+ * crescimento na base — sem ele a barra cresce do meio para os dois lados, o
+ * que não quer dizer nada.
+ *
+ * A regra de `prefers-reduced-motion` logo abaixo zera a duração, então quem
+ * pediu menos movimento vê as barras já no lugar.
+ */
+@keyframes tvx-barra-sobe {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.tvx-barra {
+  transform-origin: bottom;
+  animation: tvx-barra-sobe 420ms var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)) backwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
