@@ -19,7 +19,7 @@
 | `crm_activities`      | A atividade em si                                     |
 
 Telas prontas: **`/crm/leads`**, **`/crm/oportunidades`** — o quadro, a página
-de cada oportunidade e o editor de funis — e **`/crm/contatos`**. As outras rotas existem em
+de cada oportunidade e o editor de funis — **`/crm/contatos`** e **`/crm/empresas`**. As outras rotas existem em
 `routes.ts` e ainda não têm página — a navegação as mostra desabilitadas, de
 propósito.
 
@@ -326,9 +326,28 @@ As constraints antigas foram trocadas com `not valid`: valem para toda escrita
 nova e não reprovam linha antiga, que a regra anterior aceitava com qualquer
 quantidade de dígitos.
 
+## Contas — `/crm/empresas`
+
+Desde 25/09/2026 🟡 _testado, não verificado contra o banco real._
+
+O mesmo desenho das pessoas — lista paginada, busca no banco, cadastro e
+edição —, mais o que a conta junta: **as pessoas de lá e as oportunidades com
+ela**, com os totais em aberto, ganhos e perdas de todos os funis.
+`totalsByKind()` soma pela situação que vem embutida da etapa: fora do quadro,
+as oportunidades são de funis diferentes, e não há uma lista de etapas para
+`boardTotals()` percorrer.
+
+**O site é guardado com esquema.** `exemplo.com.br` vira
+`https://exemplo.com.br` — sem isso, o link da página da conta seria relativo
+ao próprio Tivexy. E só `http` e `https` entram: `javascript:` num link
+clicável é a porta clássica, e `normalizeWebsite()` tem teste para ela.
+
+O colaborador lê conta e não escreve — o catálogo sempre disse isso. A página
+dele mostra o cadastro sem o formulário.
+
 ## O que falta
 
-- Telas de contas e atividades
+- Tela de atividades
 - Busca e filtro (hoje a listagem traz as 200 mais recentes)
 - Importação
 - Atendimento e conversas — dependem das credenciais Meta/WhatsApp 🔒

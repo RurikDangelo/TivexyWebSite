@@ -315,6 +315,9 @@ por SQL — sem erro, só relatório errado.
 **Tela pronta: `/crm/leads`.** Cadastro, transições de estado, validação por
 campo, estado vazio e 375px conferidos no navegador, contra o banco real.
 
+**`/crm/empresas`** desde 25/09/2026 — 🟡 testado, não verificado contra o banco
+real. As contas, com as pessoas de lá, as oportunidades e os totais.
+
 **`/crm/contatos`** desde 25/09/2026 — 🟡 testado, não verificado contra o banco
 real. Lista paginada com busca no banco, cadastro, edição e a página da pessoa
 com as oportunidades dela e o lead de onde veio.
@@ -548,13 +551,14 @@ O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 
 ### Entregas
 
-| Entrega                                          | Estado | Onde conferir primeiro contra o banco real                                                                   |
-| ------------------------------------------------ | ------ | ------------------------------------------------------------------------------------------------------------ |
-| Menu no vocabulário do nicho                     | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba                                                  |
-| `/convite` — aceitar convite                     | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel                                         |
-| Excluir no CRM exige `.delete`                   | 🟡     | Colaborador tenta `DELETE` pela API REST e recebe zero linhas                                                |
-| `/crm/oportunidades` — quadro, página e funis    | 🟡     | Arrastar, recarregar e ver o cartão onde ficou; embutido `company:crm_companies(name)` pela chave composta   |
-| `/crm/contatos` — lista, busca, cadastro, página | 🟡     | Buscar por CPF com e sem pontuação; CNPJ com letra entra em conta e pessoa; o `not valid` passa no `db:push` |
+| Entrega                                           | Estado | Onde conferir primeiro contra o banco real                                                                   |
+| ------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------ |
+| Menu no vocabulário do nicho                      | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba                                                  |
+| `/convite` — aceitar convite                      | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel                                         |
+| Excluir no CRM exige `.delete`                    | 🟡     | Colaborador tenta `DELETE` pela API REST e recebe zero linhas                                                |
+| `/crm/oportunidades` — quadro, página e funis     | 🟡     | Arrastar, recarregar e ver o cartão onde ficou; embutido `company:crm_companies(name)` pela chave composta   |
+| `/crm/contatos` — lista, busca, cadastro, página  | 🟡     | Buscar por CPF com e sem pontuação; CNPJ com letra entra em conta e pessoa; o `not valid` passa no `db:push` |
+| `/crm/empresas` — contas, pessoas e oportunidades | 🟡     | A página da conta com pessoas e oportunidades ligadas; site sem esquema vira link absoluto                   |
 
 ### O Trello continua desconectado
 

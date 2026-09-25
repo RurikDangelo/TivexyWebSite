@@ -24,6 +24,7 @@ import {
   orderStages,
   parseCents,
   stageTotals,
+  totalsByKind,
 } from './crm.ts';
 
 describe('etapas', () => {
@@ -242,5 +243,23 @@ describe('formatCentsInput', () => {
     for (const cents of [0, 1, 99, 100, 12_345, 450_000, 123_456_789, 9_007_199_254_740]) {
       assert.equal(parseCents(formatCentsInput(cents)), cents, String(cents));
     }
+  });
+});
+
+describe('totalsByKind', () => {
+  it('soma por situação, com a situação já embutida', () => {
+    const t = totalsByKind([
+      { kind: 'open', valueCents: 100 },
+      { kind: 'open', valueCents: 250 },
+      { kind: 'won', valueCents: 1000 },
+    ]);
+    assert.deepEqual(t.open, { count: 2, cents: 350 });
+    assert.deepEqual(t.won, { count: 1, cents: 1000 });
+    assert.deepEqual(t.lost, { count: 0, cents: 0 });
+  });
+
+  it('lista vazia dá zero em tudo, não indefinido', () => {
+    const t = totalsByKind([]);
+    for (const k of CRM_STAGE_KINDS) assert.deepEqual(t[k], { count: 0, cents: 0 });
   });
 });

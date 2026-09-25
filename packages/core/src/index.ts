@@ -61,6 +61,7 @@ export {
   orderStages,
   parseCents,
   stageTotals,
+  totalsByKind,
   type BoardDeal,
   type BoardStage,
   type CrmLeadStatus,

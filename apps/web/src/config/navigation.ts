@@ -89,7 +89,7 @@ export const navigation = [
         label: 'Empresas',
         href: '/crm/empresas',
         icon: Building2,
-        status: 'pending',
+        status: 'ready',
         term: 'crm.companies',
       },
       {

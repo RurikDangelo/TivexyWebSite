@@ -229,3 +229,25 @@ export function missingExits(stages: readonly Pick<BoardStage, 'kind'>[]): CrmSt
   const tipos = new Set(stages.map((s) => s.kind));
   return (['won', 'lost'] as const).filter((k) => !tipos.has(k));
 }
+
+/**
+ * Somas por situação de uma lista qualquer de oportunidades — as de uma conta,
+ * as de uma pessoa —, quando cada uma já traz o tipo da etapa em que está.
+ *
+ * É `boardTotals` sem precisar da lista de etapas: fora do quadro, as
+ * oportunidades vêm de funis diferentes, e a situação chega embutida.
+ */
+export function totalsByKind(
+  items: readonly { kind: CrmStageKind; valueCents: number }[],
+): Record<CrmStageKind, Totals> {
+  const soma: Record<CrmStageKind, Totals> = {
+    open: { count: 0, cents: 0 },
+    won: { count: 0, cents: 0 },
+    lost: { count: 0, cents: 0 },
+  };
+  for (const item of items) {
+    soma[item.kind].count += 1;
+    soma[item.kind].cents += item.valueCents;
+  }
+  return soma;
+}
