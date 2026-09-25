@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Viewer } from '@tivexy/core';
 import type { TenantOption } from '@/lib/auth/active-tenant';
+import type { Terms } from '@/lib/terms/vocabulary';
 import { Logo } from '@/components/brand/logo';
 import { SidebarNav } from '@/components/shell/sidebar-nav';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -18,12 +19,15 @@ export function AppShell({
   email,
   empresa,
   empresas,
+  terms,
 }: {
   children: ReactNode;
   viewer: Viewer;
   email: string | null;
   empresa: TenantOption | null;
   empresas: readonly TenantOption[];
+  /** O vocabulário do tenant, para o menu falar a língua do nicho. */
+  terms: Terms;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -94,7 +98,7 @@ export function AppShell({
         {/* Desktop: coluna fixa. Mobile: escondida, vira gaveta. */}
         <aside className="hidden w-64 shrink-0 border-r border-line-subtle bg-surface-subtle lg:block">
           <div className="sticky top-14 max-h-[calc(100dvh-3.5rem)] overflow-y-auto">
-            <SidebarNav viewer={viewer} />
+            <SidebarNav viewer={viewer} terms={terms} />
           </div>
         </aside>
 
@@ -126,7 +130,7 @@ export function AppShell({
                   <X aria-hidden />
                 </Button>
               </div>
-              <SidebarNav viewer={viewer} onNavigate={() => setOpen(false)} />
+              <SidebarNav viewer={viewer} terms={terms} onNavigate={() => setOpen(false)} />
             </div>
           </div>
         )}

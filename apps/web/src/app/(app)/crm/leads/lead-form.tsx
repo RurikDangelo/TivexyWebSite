@@ -59,12 +59,12 @@ export function LeadForm({ singular }: { singular: string }) {
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={() => setAberto(true)}>
           <Plus aria-hidden />
-          Novo {singular}
+          Cadastrar {singular}
         </Button>
         {estado.criado !== null && (
           <p role="status" className="flex items-center gap-1.5 text-sm text-success">
             <CheckCircle2 className="size-4" aria-hidden />
-            {estado.criado} foi cadastrado.
+            {estado.criado} entrou na lista.
           </p>
         )}
       </div>
@@ -78,7 +78,7 @@ export function LeadForm({ singular }: { singular: string }) {
       className="rounded-lg border border-line-subtle bg-surface-raised p-4"
     >
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-medium text-content">Novo {singular}</h2>
+        <h2 className="font-medium text-content">Cadastrar {singular}</h2>
         <Button
           type="button"
           variant="ghost"

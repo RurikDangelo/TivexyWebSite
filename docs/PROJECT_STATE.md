@@ -2,7 +2,7 @@
 
 > Estado real do ecossistema Tivexy. **Atualize junto com a entrega, não depois.**
 >
-> Última atualização: **20/09/2026**
+> Última atualização: **25/09/2026**
 
 ## Legenda
 
@@ -407,23 +407,37 @@ real, não.
 
 ## 3. O que está quebrado
 
-### O menu não fala o vocabulário do nicho — visto em 24/09/2026
+### Corrigido em 25/09/2026 — o menu não falava o vocabulário do nicho
 
-**Estado:** 🟡 · **Onde:** `apps/web/src/config/navigation.ts`
+**Estado:** 🟡 testado, não verificado contra o banco real · **Onde:**
+`apps/web/src/config/navigation.ts`
 
-A página de leads diz "Interessados" para a clínica, e o **menu lateral**
-continua dizendo "Leads". O vocabulário do Blueprint chega na tela e não
-chega na navegação, que é a superfície mais visível do sistema.
+A página de leads dizia "Interessados" para a clínica, e o **menu lateral**
+continuava dizendo "Leads". Cada superfície resolvia o nome do seu jeito, e o
+menu não resolvia.
 
-Para quem usa, lê como inconsistência. Para o produto, é a promessa central
-vazando pelo menu — o mesmo defeito que `tenants.terms` foi criado para
-fechar, uma camada acima.
+**A correção não é o menu ler os termos; é haver uma função só.** O título da
+página vem de `sectionTitle()`, que é `labelOf()` — a mesma que desenha o
+item do menu. Os dois não têm mais como discordar, porque não são dois.
 
-`navigation.ts` é configuração estática e precisa passar a ser resolvida com
-os termos do tenant, como a página já faz em `lib/crm/terms.ts`.
+- Cada item declara o recurso que lista (`term: 'crm.leads'`). Um item novo
+  precisa declarar o seu ou entrar numa lista de seções com o motivo: o teste
+  não deixa esquecer.
+- O título da **aba** também seguia fixo em "Leads". Passou a vir da mesma
+  função, por `generateMetadata`.
+- O vocabulário padrão cobre exatamente `TERM_KEYS`, com teste nos dois
+  sentidos — nenhuma tela precisa trazer o próprio padrão.
+- **Frase com rótulo não leva artigo.** "Nenhum {singular}" vira "Nenhum
+  consulta" quando o nicho troca o gênero do nome. As frases da tela de leads
+  foram reescritas, e a regra está em `lib/terms/vocabulary.ts`.
 
-Apareceu ao abrir o sistema para olhar, não em teste. Nenhum teste compara o
-rótulo do menu com o da página.
+**O menu passou a esconder o que a página negaria**, pela mesma
+`decideAccess()` contra `routeRules`: módulo não contratado some, item sem
+permissão some, grupo vazio some. O comentário antigo adiava isso "até haver
+módulo pronto para esconder" — agora há.
+
+**Verificado quebrando de propósito:** com `labelOf` devolvendo o rótulo fixo,
+quatro testes falham, entre eles "a clínica lê Interessados no menu".
 
 Corrigido em 18–19/09/2026:
 
