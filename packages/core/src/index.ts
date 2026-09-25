@@ -71,6 +71,17 @@ export {
 export { addDays, dateIn, daysBetween, isIsoDate, startOfMonth, todayIn } from './calendar.ts';
 
 export {
+  DOCUMENT_PATTERN,
+  checkDocument,
+  formatDocument,
+  isValidCnpj,
+  isValidCpf,
+  normalizeDocument,
+  type DocumentCheck,
+  type DocumentKind,
+} from './documents.ts';
+
+export {
   TENANT_SETTINGS,
   checkSettingValue,
   resolveSettings,

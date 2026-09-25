@@ -315,6 +315,10 @@ por SQL — sem erro, só relatório errado.
 **Tela pronta: `/crm/leads`.** Cadastro, transições de estado, validação por
 campo, estado vazio e 375px conferidos no navegador, contra o banco real.
 
+**`/crm/contatos`** desde 25/09/2026 — 🟡 testado, não verificado contra o banco
+real. Lista paginada com busca no banco, cadastro, edição e a página da pessoa
+com as oportunidades dela e o lead de onde veio.
+
 **`/crm/oportunidades`** desde 25/09/2026 — 🟡 testado, não verificado contra o
 banco real. O funil em colunas, com arrastar e "Mover para" pela mesma função,
 a página de cada oportunidade e o editor de funis. Ver
@@ -411,6 +415,15 @@ real, não.
 **Estado:** ⬜ NÃO EXISTE · **Trello:** `FINANCE` · **Depende de:** ERP
 
 ## 3. O que está quebrado
+
+### Corrigido em 25/09/2026 — o banco recusava o CNPJ novo, com letra
+
+**Estado:** 🟡 testado, não verificado contra o banco real · **Gravidade:** 🟠
+Alta · Ver [[04-CRM/CRM#A pessoa ganhou documento, e o CNPJ ganhou letra]]
+
+O CNPJ é alfanumérico desde julho de 2026. `tenants.document` e
+`crm_companies.document` aceitavam só dígitos: toda empresa aberta de julho em
+diante era recusada — inclusive como cliente da própria Tivexy.
 
 ### Corrigido em 25/09/2026 — colaborador apagava registros do CRM
 
@@ -526,20 +539,22 @@ rodar o fluxo numa máquina com o `.env`.
 
 O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 
-| Migration                               | O que traz              |
-| --------------------------------------- | ----------------------- |
-| `20260925010000_core_accept_invitation` | `accept_invitation()`   |
-| `20260925020000_crm_delete_permission`  | excluir exige `.delete` |
-| `20260925030000_crm_pipeline_integrity` | editor de funil seguro  |
+| Migration                               | O que traz                             |
+| --------------------------------------- | -------------------------------------- |
+| `20260925010000_core_accept_invitation` | `accept_invitation()`                  |
+| `20260925020000_crm_delete_permission`  | excluir exige `.delete`                |
+| `20260925030000_crm_pipeline_integrity` | editor de funil seguro                 |
+| `20260925040000_documents`              | documento da pessoa; CNPJ alfanumérico |
 
 ### Entregas
 
-| Entrega                                       | Estado | Onde conferir primeiro contra o banco real                                                                 |
-| --------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------- |
-| Menu no vocabulário do nicho                  | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba                                                |
-| `/convite` — aceitar convite                  | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel                                       |
-| Excluir no CRM exige `.delete`                | 🟡     | Colaborador tenta `DELETE` pela API REST e recebe zero linhas                                              |
-| `/crm/oportunidades` — quadro, página e funis | 🟡     | Arrastar, recarregar e ver o cartão onde ficou; embutido `company:crm_companies(name)` pela chave composta |
+| Entrega                                          | Estado | Onde conferir primeiro contra o banco real                                                                   |
+| ------------------------------------------------ | ------ | ------------------------------------------------------------------------------------------------------------ |
+| Menu no vocabulário do nicho                     | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba                                                  |
+| `/convite` — aceitar convite                     | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel                                         |
+| Excluir no CRM exige `.delete`                   | 🟡     | Colaborador tenta `DELETE` pela API REST e recebe zero linhas                                                |
+| `/crm/oportunidades` — quadro, página e funis    | 🟡     | Arrastar, recarregar e ver o cartão onde ficou; embutido `company:crm_companies(name)` pela chave composta   |
+| `/crm/contatos` — lista, busca, cadastro, página | 🟡     | Buscar por CPF com e sem pontuação; CNPJ com letra entra em conta e pessoa; o `not valid` passa no `db:push` |
 
 ### O Trello continua desconectado
 

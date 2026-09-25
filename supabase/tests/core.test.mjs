@@ -445,7 +445,7 @@ describe('restrições de integridade', () => {
           `insert into public.tenants (slug, name, document) values ('teste-doc', 'X', $1)`,
           ['12.345.678/0001-90'],
         ),
-      /tenants_document_digits/,
+      /tenants_document_format/,
     );
   });
 

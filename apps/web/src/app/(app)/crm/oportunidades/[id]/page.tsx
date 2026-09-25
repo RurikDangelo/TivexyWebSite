@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { type Fato, Facts } from '@/components/page/facts';
 import { NoTenant } from '@/components/page/no-tenant';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -105,7 +106,7 @@ export default async function OportunidadePage({ params }: PageProps<'/crm/oport
     })),
   );
 
-  const fatos: { rotulo: string; valor: string | null }[] = [
+  const fatos: Fato[] = [
     { rotulo: capitalizar(termOf(terms, 'crm.companies').singular), valor: conta?.name ?? null },
     { rotulo: capitalizar(termOf(terms, 'crm.contacts').singular), valor: pessoa?.name ?? null },
     { rotulo: 'Responsável', valor: nomeDe(membros, negocio.owner_id) },
@@ -199,16 +200,7 @@ export default async function OportunidadePage({ params }: PageProps<'/crm/oport
 
         <Card className="order-1 h-fit lg:order-2">
           <CardContent className="pt-5">
-            <dl className="flex flex-col gap-3 text-sm">
-              {fatos.map((fato) => (
-                <div key={fato.rotulo} className="flex flex-col gap-0.5">
-                  <dt className="text-xs text-content-muted">{fato.rotulo}</dt>
-                  <dd className={fato.valor === null ? 'text-content-subtle' : 'text-content'}>
-                    {fato.valor ?? '—'}
-                  </dd>
-                </div>
-              ))}
-            </dl>
+            <Facts fatos={fatos} />
           </CardContent>
         </Card>
       </div>

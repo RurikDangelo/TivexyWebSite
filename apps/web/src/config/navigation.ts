@@ -82,7 +82,7 @@ export const navigation = [
         label: 'Contatos',
         href: '/crm/contatos',
         icon: Contact,
-        status: 'pending',
+        status: 'ready',
         term: 'crm.contacts',
       },
       {

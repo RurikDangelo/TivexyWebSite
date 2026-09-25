@@ -18,6 +18,7 @@ import { checkBlueprint } from '../../packages/core/src/blueprint.ts';
 import {
   CRM_LEAD_STATUSES,
   CRM_STAGE_KINDS,
+  DOCUMENT_PATTERN,
   MEMBERSHIP_STATUSES,
   MODULE_CODES,
   PERMISSION_CODES,
@@ -357,4 +358,30 @@ describe('a matriz de permissões da documentação', () => {
     const noDocumento = permissionRows(readFileSync(AUTHORIZATION_MD, 'utf8'));
     assert.equal(noDocumento.length, PERMISSION_CODES.length);
   });
+});
+
+describe('documentos: a regra do Core é a do banco', () => {
+  /*
+   * `checkDocument()` decide o que a tela aceita; a constraint decide o que o
+   * banco grava. Se divergirem, a tela aceita e o banco recusa com erro de
+   * constraint — ou o contrário. Foi assim que o CNPJ alfanumérico ficou de
+   * fora: a regra vivia em um lugar só, e estava errada lá.
+   */
+  for (const constraint of [
+    'crm_contacts_document_format',
+    'crm_companies_document_format',
+    'tenants_document_format',
+  ]) {
+    it(constraint, async () => {
+      const { rows } = await db.query(
+        'select pg_get_constraintdef(oid) as def from pg_constraint where conname = $1',
+        [constraint],
+      );
+      assert.equal(rows.length, 1, `${constraint} sumiu`);
+      assert.ok(
+        rows[0].def.includes(`'${DOCUMENT_PATTERN}'`),
+        `${constraint}: ${rows[0].def} não usa ${DOCUMENT_PATTERN}`,
+      );
+    });
+  }
 });

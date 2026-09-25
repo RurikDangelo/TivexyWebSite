@@ -18,8 +18,8 @@
 | `crm_activity_types`  | Tipo de atividade — consulta, retorno, visita         |
 | `crm_activities`      | A atividade em si                                     |
 
-Telas prontas: **`/crm/leads`** e **`/crm/oportunidades`** — o quadro, a página
-de cada oportunidade e o editor de funis. As outras rotas existem em
+Telas prontas: **`/crm/leads`**, **`/crm/oportunidades`** — o quadro, a página
+de cada oportunidade e o editor de funis — e **`/crm/contatos`**. As outras rotas existem em
 `routes.ts` e ainda não têm página — a navegação as mostra desabilitadas, de
 propósito.
 
@@ -287,9 +287,48 @@ horizontal no desktop. Nenhum teste de unidade veria isso.
 A vitrine não entrou no repositório: ela carrega número inventado em tela, e o
 `CLAUDE.md` não deixa isso existir nem rotulado.
 
+## Pessoas — `/crm/contatos`
+
+Desde 25/09/2026 🟡 _testado, não verificado contra o banco real._
+
+Lista paginada no banco (50 por página, com o total de verdade por
+`count: 'exact'`), busca, cadastro, página de cada pessoa e edição.
+
+**A busca vai ao banco, não filtra a página.** Com mil pessoas, filtrar as
+cinquenta da tela acharia a Maria só se ela estivesse entre as cinquenta.
+Procura em nome, e-mail, telefone, cargo e documento — este sem pontuação, então
+"529.982" e "529982" acham a mesma pessoa. O termo passa por `ilikeTerm()`, que
+tira a sintaxe do filtro do PostgREST: uma vírgula digitada viraria uma
+condição a mais que ninguém escreveu.
+
+**A página da pessoa diz de onde ela veio.** Quando ela nasceu de uma
+conversão, o lead carimbado aponta para ela, e a página mostra quando chegou e
+por qual origem. É a resposta a "de onde vêm os clientes que fecham" — e só
+existe porque o lead não é apagado ao converter.
+
+### A pessoa ganhou documento, e o CNPJ ganhou letra
+
+`crm.contact_requires_document` sempre esteve no catálogo, e a clínica liga —
+mas `crm_contacts` não tinha onde guardar documento. Era uma configuração sem
+coluna. A migration `20260925040000_documents` cria a coluna, com CPF ou CNPJ
+e unicidade por tenant (o mesmo CPF duas vezes na mesma empresa é a mesma
+pessoa cadastrada duas vezes).
+
+E corrige um defeito maior, que não era do CRM: **o CNPJ é alfanumérico desde
+julho de 2026** (IN RFB nº 2.229/2024), e `tenants.document` e
+`crm_companies.document` aceitavam só dígitos — recusavam toda empresa aberta
+de julho em diante. A regra nova mora em `DOCUMENT_PATTERN`, no Core, e o teste
+de contratos compara a expressão com as três constraints do banco. O cálculo
+do dígito é o da Receita — módulo 11 sobre o código ASCII menos 48 — e o teste
+usa o exemplo da própria RFB, `12.ABC.345/01DE-35`.
+
+As constraints antigas foram trocadas com `not valid`: valem para toda escrita
+nova e não reprovam linha antiga, que a regra anterior aceitava com qualquer
+quantidade de dígitos.
+
 ## O que falta
 
-- Telas de contatos, contas e atividades
+- Telas de contas e atividades
 - Busca e filtro (hoje a listagem traz as 200 mais recentes)
 - Importação
 - Atendimento e conversas — dependem das credenciais Meta/WhatsApp 🔒
