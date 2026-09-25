@@ -399,7 +399,8 @@ async function aplicar(
     case 'create_admin': {
       // A identidade vem de fora: ver `IdentityPort`. O que é escrito aqui é
       // só o vínculo — e o vínculo nasce `invited`, porque convite não é
-      // acesso: ele só vira `active` no primeiro login.
+      // acesso: ele vira `active` quando a pessoa aceita em `/convite`, por
+      // `accept_invitation()`.
       const { id: userId, created } = await identity.ensureUser({
         email: op.email,
         fullName: op.fullName,

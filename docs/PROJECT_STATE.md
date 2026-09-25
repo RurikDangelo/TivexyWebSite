@@ -263,10 +263,10 @@ três delas: ligar a guarda antes teria trocado negação por 404.
 recuperação responde igual tenha o endereço conta ou não. Distinguir entregaria
 a lista de e-mails cadastrados a quem tentasse um por um.
 
-**Não existe ainda:** aceitar convite pela tela — exige uma função
-`SECURITY DEFINER`, porque o RLS nega essa escrita a quem ainda não é membro,
-que é exatamente quem está naquela página. Ela diz isso, em vez de mostrar um
-botão que falharia.
+**Aceitar convite pela tela** existe desde 25/09/2026 — 🟡 testado, não
+verificado contra o banco real. `accept_invitation()` é `SECURITY DEFINER`
+porque o RLS nega a escrita a quem ainda não é membro, e ativa só o vínculo de
+`auth.uid()`. Ver [[03-CORE/AUTHENTICATION#Aceitar convite — `accept_invitation()`]].
 
 ### Admin / Super Admin
 
@@ -500,6 +500,33 @@ Quais endereços atendem quais serviços fica **fora deste repositório**, de
 propósito — ele é público, e mapear serviço → e-mail de login entrega metade
 do trabalho a quem estiver tentando entrar.
 
+## 4.2 Sessão autônoma de 25/09/2026 — testado, não verificado contra o banco real
+
+Construído numa sessão de nuvem, **sem `.env`** (ver §6.2): tudo abaixo passou
+em `npm run validate` — tipos, lint, build dos dois apps e a suíte inteira —, e
+**nada** foi aberto contra o Postgres do projeto. Por isso é 🟡 até alguém
+rodar o fluxo numa máquina com o `.env`.
+
+### Migrations pendentes de `npm run db:push`
+
+O banco do projeto está em `20260920040000`. Estas ficaram para trás:
+
+| Migration                               | O que traz            |
+| --------------------------------------- | --------------------- |
+| `20260925010000_core_accept_invitation` | `accept_invitation()` |
+
+### Entregas
+
+| Entrega                      | Estado | Onde conferir primeiro contra o banco real                           |
+| ---------------------------- | ------ | -------------------------------------------------------------------- |
+| Menu no vocabulário do nicho | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba          |
+| `/convite` — aceitar convite | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel |
+
+### O Trello continua desconectado
+
+O que iria para o quadro está na coluna "Entregas" acima. Nenhum card foi
+movido nesta sessão.
+
 ## 5. Decisões tomadas
 
 | #       | Decisão                                                                  | Data       |
@@ -629,7 +656,7 @@ exatamente o risco nº 5 desta página acontecendo. O que precisa entrar:
 | Provisionamento no backend          | Concluído                                     |
 | Painel Super Admin                  | Concluído em parte — criar, retomar, desfazer |
 | **Novo:** SMTP próprio no Supabase  | Bloqueado — externo, 🔴                       |
-| **Novo:** aceitar convite pela tela | A fazer — precisa de função SECURITY DEFINER  |
+| **Novo:** aceitar convite pela tela | Feito em 25/09 — 🟡 falta passada no banco    |
 | **Novo:** escolher CRM ou ERP       | Precisa de decisão                            |
 
 ## 6.2 O que for construído em sessão de nuvem não é verificado contra o banco
@@ -747,8 +774,6 @@ provisionamento e o Blueprint já sustentam os dois.
 ### O que dá para fazer sem esperar nada
 
 - Telas de funil, contatos e contas — a conversão já cria as três coisas
-- Aceitar convite pela tela (falta a função `SECURITY DEFINER` que confere o
-  convite — o RLS nega essa escrita a quem ainda não é membro)
 - Conferir se o destino do formulário de contato da landing ainda responde
 - Revisar as variáveis de outro projeto no ambiente Vercel (`DATABASE_URL`,
   `AUTH_SECRET`, `STORE_TIMEZONE` e outras) — a landing não usa nenhuma, mas

@@ -106,18 +106,48 @@ sessão** — exigir vínculo ativo criaria laço:
 | `/entrar`     | sem sessão                                        |
 | `/onboarding` | sem empresa nenhuma                               |
 | `/empresas`   | com mais de uma, e nenhuma escolhida              |
-| `/convite`    | vínculo `invited`                                 |
+| `/convite`    | vínculo `invited` ou `suspended`                  |
 | `/preparando` | empresa em provisionamento, suspensa ou cancelada |
 
 `/acesso-negado` é onde param as negações **sem** destino — falta de permissão
 e módulo não contratado. Redirecionar quem simplesmente não tem permissão o
 deixaria em laço sem entender o que houve.
 
-> `/convite` não tem botão de aceitar, e a ausência é deliberada: ativar o
-> vínculo é escrita em `tenant_users`, e o RLS nega essa escrita a quem ainda
-> não é membro ativo — que é exatamente quem está nessa tela. Fazer funcionar
-> exige uma função `SECURITY DEFINER` que confira o convite. Um botão que
-> parecesse aceitar e falhasse seria pior do que dizer a verdade.
+### Aceitar convite — `accept_invitation()`
+
+Desde 25/09/2026 🟡 _testado, não verificado contra o banco real._
+
+O vínculo nasce `invited` e só vira `active` quando a pessoa aceita. Até então,
+nada fazia essa passagem: o administrador de um cliente recém-provisionado
+entrava, caía em `/convite` e não tinha como sair.
+
+**Por que SECURITY DEFINER.** Ativar é escrever em `tenant_users`, e a política
+de escrita exige `core.users.write` na empresa. Quem aceita ainda não é membro
+ativo — é exatamente quem a política nega. Com INVOKER, a função falharia para
+toda pessoa que precisa dela.
+
+**A autorização inteira mora dentro dela, e é uma frase: o convite é seu.** A
+única linha tocada é a de `user_id = auth.uid()`. Não há parâmetro de usuário.
+A função não cria vínculo — só ativa o que já existe —, então quem pode
+convidar continua decidido pela política de `tenant_users`.
+
+| Caso                             | Resposta                                       |
+| -------------------------------- | ---------------------------------------------- |
+| convite seu, pendente            | ativa, carimba `joined_at`, registra auditoria |
+| já ativo (segundo clique)        | sucesso, sem segundo registro                  |
+| convite de outra pessoa          | `convite não encontrado`                       |
+| empresa de um estranho           | `convite não encontrado` — igual à inexistente |
+| vínculo suspenso                 | recusa: suspensão é decisão de quem administra |
+| empresa cancelada                | recusa                                         |
+| empresa ainda em provisionamento | aceita; a pessoa espera em `/preparando`       |
+| visitante sem sessão             | sem `EXECUTE`                                  |
+
+A tela separa **convite** de **suspensão**, que chegam pelo mesmo motivo de
+negação (`membership-inactive`): um se resolve com um clique, o outro não, e
+oferecer "aceitar" a quem foi suspenso seria um botão que só dá erro.
+
+Verificado quebrando de propósito: sem o filtro por `auth.uid()`, o teste "não
+aceita o convite de outra pessoa" falha.
 
 ## Não dizer quem existe
 
@@ -165,7 +195,6 @@ o Super Admin repassar. Ver [[../06-ADMIN/PROVISIONING|PROVISIONING]].
 
 ## O que ainda não existe
 
-- Aceitar convite pela tela (falta a função `SECURITY DEFINER`)
 - Segundo fator
 - Sessão revogável pelo administrador da empresa
 - Registro de tentativas de login por conta — hoje o limite é o do Supabase
