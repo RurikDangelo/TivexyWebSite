@@ -169,3 +169,26 @@ export {
 } from './provisioning.ts';
 
 export { normalizeDecimal } from './decimal.ts';
+
+export {
+  AUTOMATION_ACTIONS,
+  AUTOMATION_TRIGGERS,
+  AUTOMATION_TRIGGER_CODES,
+  CONDITION_OPERATORS,
+  OPERADORES_POR_TIPO,
+  ROTULO_DO_OPERADOR,
+  actionAllowedFor,
+  automationMatches,
+  checkAutomationRule,
+  isAutomationTrigger,
+  renderAutomationTemplate,
+  type AutomationAction,
+  type AutomationCondition,
+  type AutomationRuleCheck,
+  type AutomationRuleInput,
+  type AutomationTrigger,
+  type CampoDoGatilho,
+  type ConditionOperator,
+  type DefinicaoDeGatilho,
+  type TipoDeCampo,
+} from './automation.ts';

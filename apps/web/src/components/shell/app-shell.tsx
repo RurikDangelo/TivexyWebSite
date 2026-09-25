@@ -7,6 +7,7 @@ import type { Viewer } from '@tivexy/core';
 import type { TenantOption } from '@/lib/auth/active-tenant';
 import type { Terms } from '@/lib/terms/vocabulary';
 import { Logo } from '@/components/brand/logo';
+import { NotificationBell } from '@/components/shell/notification-bell';
 import { SidebarNav } from '@/components/shell/sidebar-nav';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { UserMenu } from '@/components/shell/user-menu';
@@ -20,6 +21,7 @@ export function AppShell({
   empresa,
   empresas,
   terms,
+  avisos,
 }: {
   children: ReactNode;
   viewer: Viewer;
@@ -28,6 +30,11 @@ export function AppShell({
   empresas: readonly TenantOption[];
   /** O vocabulário do tenant, para o menu falar a língua do nicho. */
   terms: Terms;
+  /**
+   * O sino. `null` sem empresa escolhida — aviso é de uma empresa, e então não
+   * há sino. `naoLidos: null` quando a contagem falhou: sino sem número.
+   */
+  avisos: { naoLidos: number | null } | null;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -89,7 +96,11 @@ export function AppShell({
         </Badge>
 
         <div className="ml-auto flex items-center gap-1">
-          <ThemeToggle />
+          {avisos !== null && <NotificationBell naoLidos={avisos.naoLidos} />}
+          {/* Em 375 px, sino + tema + conta não cabem ao lado do logo: o tema desce para a gaveta. */}
+          <div className="hidden sm:block">
+            <ThemeToggle />
+          </div>
           <UserMenu email={email} empresa={empresa} empresas={empresas} />
         </div>
       </header>
@@ -131,6 +142,10 @@ export function AppShell({
                 </Button>
               </div>
               <SidebarNav viewer={viewer} terms={terms} onNavigate={() => setOpen(false)} />
+              <div className="mt-auto flex items-center justify-between gap-3 border-t border-line-subtle px-4 py-3 sm:hidden">
+                <span className="text-sm text-content-muted">Tema</span>
+                <ThemeToggle />
+              </div>
             </div>
           </div>
         )}

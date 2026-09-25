@@ -137,7 +137,7 @@ export const navigation = [
         label: 'Automações',
         href: '/automacoes',
         icon: Zap,
-        status: 'pending',
+        status: 'ready',
         term: 'automation.rules',
       },
       {

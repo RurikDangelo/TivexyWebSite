@@ -16,6 +16,8 @@ import { after, before, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { checkBlueprint } from '../../packages/core/src/blueprint.ts';
 import {
+  AUTOMATION_ACTIONS,
+  AUTOMATION_TRIGGER_CODES,
   CRM_LEAD_STATUSES,
   CRM_STAGE_KINDS,
   DOCUMENT_PATTERN,
@@ -33,14 +35,17 @@ import {
   TENANT_SETTINGS,
   TENANT_STATUSES,
   UNIT_INFO,
+  actionAllowedFor,
+  automationMatches,
   isActive,
   isTerminal,
   lineTotalCents,
   moduleOf,
+  renderAutomationTemplate,
 } from '../../packages/core/src/index.ts';
 import { planProvisioning } from '../../packages/core/src/provisioning-plan.ts';
 import { permissionMatrix, permissionRows } from '../../scripts/permission-matrix.mjs';
-import { createDatabase } from './harness.mjs';
+import { createDatabase, createTenant } from './harness.mjs';
 
 /** O caminho do documento que carrega a matriz copiada à mão. */
 const AUTHORIZATION_MD = fileURLToPath(
@@ -484,5 +489,141 @@ describe('ERP: a regra do Core é a do banco', () => {
       (d) => `${d.key} | ${d.module} | ${JSON.stringify(d.default)}`,
     );
     assertSameSet(doCore, doBanco, 'padrões de configuração');
+  });
+});
+
+describe('automações: o motor do banco é o do Core', () => {
+  /*
+   * A tela mostra "esta regra valeria para este evento" e "o aviso vai sair
+   * assim" antes de salvar, com as funções do Core. Quem executa é o banco.
+   * Se divergirem, a prévia mente.
+   */
+  const venda = { numero: 12, total: 15000, cliente: 'Rita Moraes', responsavel_id: null };
+  const oportunidade = { titulo: 'Loja nova', situacao: 'won', etapa: 'Fechado', valor: 250000 };
+  const saldo = { produto: 'Grão', saldo: 4.5, minimo: 5, unidade: 'kg' };
+
+  it('gatilhos e ações: Core × constraints, nos dois sentidos', async () => {
+    const { rows } = await db.query(
+      `select conname, pg_get_constraintdef(oid) as def from pg_constraint
+       where conname in ('automation_rules_trigger_known', 'automation_rules_action_known')`,
+    );
+    const valores = (nome) =>
+      [...rows.find((r) => r.conname === nome).def.matchAll(/'([a-z._]+)'::text/g)].map(
+        (m) => m[1],
+      );
+    assertSameSet(AUTOMATION_TRIGGER_CODES, valores('automation_rules_trigger_known'), 'gatilhos');
+    assertSameSet(AUTOMATION_ACTIONS, valores('automation_rules_action_known'), 'ações');
+  });
+
+  it('que ação cabe em que gatilho: actionAllowedFor × o banco, par por par', async () => {
+    const tenantId = await createTenant(db, { slug: 'contrato-automacao', name: 'Contrato' });
+    const divergentes = [];
+    for (const gatilho of AUTOMATION_TRIGGER_CODES) {
+      for (const acao of AUTOMATION_ACTIONS) {
+        let banco = true;
+        try {
+          await db.query(
+            `insert into public.automation_rules (tenant_id, name, trigger, action) values ($1, 'x', $2, $3)`,
+            [tenantId, gatilho, acao],
+          );
+        } catch (erro) {
+          // Só a recusa da constraint conta; qualquer outro erro é defeito do teste.
+          if (erro.code !== '23514') throw erro;
+          banco = false;
+        }
+        if (banco !== actionAllowedFor(acao, gatilho)) {
+          divergentes.push(`${gatilho} → ${acao}: banco ${banco}, Core ${!banco}`);
+        }
+      }
+    }
+    await db.query('delete from public.automation_rules where tenant_id = $1', [tenantId]);
+    assert.deepEqual(divergentes, []);
+  });
+
+  it('condições: automationMatches × automation_matches(), caso por caso', async () => {
+    const casos = [
+      [[], venda],
+      [[{ campo: 'total', operador: 'gte', valor: 10000 }], venda],
+      [[{ campo: 'total', operador: 'gte', valor: 15001 }], venda],
+      [[{ campo: 'total', operador: 'lte', valor: 15000 }], venda],
+      [[{ campo: 'total', operador: 'eq', valor: 15000 }], venda],
+      [[{ campo: 'total', operador: 'eq', valor: '15000' }], venda],
+      [[{ campo: 'total', operador: 'gte', valor: '100' }], venda],
+      [[{ campo: 'cliente', operador: 'contains', valor: 'RITA' }], venda],
+      [[{ campo: 'cliente', operador: 'contains', valor: '' }], venda],
+      [[{ campo: 'cliente', operador: 'eq', valor: 'rita moraes' }], venda],
+      [[{ campo: 'cliente', operador: 'neq', valor: 'rita moraes' }], venda],
+      [[{ campo: 'cliente', operador: 'gte', valor: 1 }], venda],
+      [[{ campo: 'cliente', operador: 'eq', valor: null }], venda],
+      [[{ campo: 'cliente', operador: 'neq', valor: 'x' }], { cliente: null }],
+      [[{ campo: 'responsavel_id', operador: 'neq', valor: 'x' }], venda],
+      [[{ campo: 'origem', operador: 'eq', valor: 'x' }], {}],
+      [[{ campo: 'total', operador: 'parecido', valor: 1 }], venda],
+      [[{ campo: 'saldo', operador: 'lte', valor: 5 }], saldo],
+      [[{ campo: 'saldo', operador: 'gte', valor: 4.5 }], saldo],
+      [[{ campo: 'saldo', operador: 'gte', valor: 4.51 }], saldo],
+      [
+        [
+          { campo: 'situacao', operador: 'eq', valor: 'WON' },
+          { campo: 'valor', operador: 'gte', valor: 100000 },
+        ],
+        oportunidade,
+      ],
+      [
+        [
+          { campo: 'situacao', operador: 'eq', valor: 'won' },
+          { campo: 'valor', operador: 'gte', valor: 300000 },
+        ],
+        oportunidade,
+      ],
+    ];
+    const divergentes = [];
+    for (const [condicoes, evento] of casos) {
+      const { rows } = await db.query(
+        'select public.automation_matches($1::text::jsonb, $2::text::jsonb) as ok',
+        [JSON.stringify(condicoes), JSON.stringify(evento)],
+      );
+      const core = automationMatches(condicoes, evento);
+      if (rows[0].ok !== core) {
+        divergentes.push(`${JSON.stringify(condicoes)}: banco ${rows[0].ok}, Core ${core}`);
+      }
+    }
+    assert.deepEqual(divergentes, []);
+  });
+
+  it('texto do aviso: renderAutomationTemplate × automation_render(), caso por caso', async () => {
+    const casos = [
+      ['Venda nº {{numero}}: {{total}} — {{cliente}}', { ...venda, total: 123456, cliente: null }],
+      ['{{produto}}: {{saldo}} {{unidade}} (mínimo {{minimo}})', saldo],
+      ['{{saldo}}', { saldo: 4 }],
+      ['{{saldo}}', { saldo: -2.25 }],
+      ['{{saldo}}', { saldo: 0.001 }],
+      ['{{total}}', { total: 5 }],
+      ['{{valor}}', { valor: 100000000 }],
+      ['{{numero}}', { numero: 1234567 }],
+      ['{{total}}', { total: 'sem número' }],
+      ['{{cliente}}', { cliente: 'Rita,' }],
+      ['Olá {{ninguem}}!', {}],
+      ['{{nome}} e {{nome}}', { nome: 'Ana' }],
+      ['{{Nome}} {{ nome }} {nome}', { nome: 'Ana' }],
+      ['{{nome}}', { nome: '{{origem}}', origem: 'Indicação' }],
+      ['{{constructor}}{{__proto__}}', {}],
+      ['{{{nome}}}', { nome: 'Ana' }],
+      ['', venda],
+    ];
+    const divergentes = [];
+    for (const [modelo, evento] of casos) {
+      const { rows } = await db.query(
+        'select public.automation_render($1, $2::text::jsonb) as texto',
+        [modelo, JSON.stringify(evento)],
+      );
+      const core = renderAutomationTemplate(modelo, evento);
+      if (rows[0].texto !== core) {
+        divergentes.push(
+          `${modelo}: banco ${JSON.stringify(rows[0].texto)}, Core ${JSON.stringify(core)}`,
+        );
+      }
+    }
+    assert.deepEqual(divergentes, []);
   });
 });

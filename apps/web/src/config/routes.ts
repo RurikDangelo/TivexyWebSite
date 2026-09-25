@@ -56,6 +56,8 @@ export const routeRules: readonly RouteMatcher[] = [
 
   /* Operação do tenant. */
   { prefix: '/painel', rule: { kind: 'member' } },
+  /* Os avisos são da própria pessoa: basta o vínculo. */
+  { prefix: '/avisos', rule: { kind: 'member' } },
 
   { prefix: '/crm/leads', rule: { kind: 'permission', permission: 'crm.leads.read' } },
   { prefix: '/crm/contatos', rule: { kind: 'permission', permission: 'crm.contacts.read' } },

@@ -128,6 +128,12 @@ verificação no banco é `public.has_permission(tenant_id, 'crm.leads.write')`.
 | `automation.rules.read`  | Ver automações            |  ✅   |   ✅   |      —      |
 | `automation.rules.write` | Criar e editar automações |  ✅   |   ✅   |      —      |
 
+A ação da automação roda como o banco (é gatilho), então a permissão é
+conferida ao **escrever** a regra: regra que cria atividade no CRM pede também
+`crm.activities.write` de quem a cria, edita ou liga — senão
+`automation.rules.write` seria porta lateral para escrever no CRM. Ver
+[[09-AUTOMATIONS/AUTOMATIONS#As três decisões]].
+
 ### IA
 
 | Permissão          | O que permite     | Admin | Gestor | Colaborador |

@@ -80,7 +80,7 @@ sem implementação atrás vira ficção.
 | `BANKING.md`                           | `10-INTEGRATIONS/` | ⬜ quando houver provedor        |
 | `FISCAL.md`                            | `11-FISCAL/`       | ⬜ quando houver provedor        |
 | `WHATSAPP.md`                          | `10-INTEGRATIONS/` | ⬜ quando houver credencial Meta |
-| `AUTOMATIONS.md`                       | `09-AUTOMATIONS/`  | ⬜ com o motor                   |
+| `AUTOMATIONS.md`                       | `09-AUTOMATIONS/`  | ✅ escrito                       |
 | `API.md`                               | `02-ARCHITECTURE/` | ⬜ com as primeiras rotas        |
 | `SECURITY.md`                          | `12-SECURITY/`     | ⬜ com o Core                    |
 | `TESTING.md`                           | `00-SYSTEM/`       | ✅ escrito                       |
