@@ -1,7 +1,7 @@
 # ERP — cadastro e venda
 
-> Estado: 🟡 **esquema testado, não verificado contra o banco real** (25/09/2026).
-> Migrations `20260925070000` a `20260925100000`, pendentes de `npm run db:push`.
+> Estado: 🟡 **testado, não verificado contra o banco real** (25/09/2026).
+> Migrations `20260925070000` a `20260925110000`, pendentes de `npm run db:push`.
 > Testes: `supabase/tests/erp.test.mjs` (37), contratos em
 > `supabase/tests/contracts.test.mjs`. Estoque em [[INVENTORY]], financeiro em
 > [[FINANCE]].
@@ -192,11 +192,57 @@ na auditoria e não volta atrás. `erp_cancel_sale()` existe pela mensagem; a
 garantia é a política de `update`, e um teste cancela direto na tabela para
 provar.
 
+## Tela: `/erp/vendas`
+
+🟡 testado, não verificado contra o banco real (25/09/2026).
+
+| Parte               | Onde                                                       | O que faz                                                                |
+| ------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Lista e resumo      | `erp/vendas/page.tsx`                                      | Período no dia do tenant; resumo de `erp_sales_summary()`; filtro e nº   |
+| Balcão              | `erp/vendas/nova/`, `sale-form.tsx`                        | Montar, cobrar e registrar; `erp.sales.write` pela regra de rota própria |
+| Comprovante         | `erp/vendas/[id]/`                                         | Itens, pagamento e quando cada um entra no caixa; cancelar com motivo    |
+| Formas de pagamento | `erp/vendas/formas/`                                       | Nome, tipo e prazo; editar pede `core.settings.write`                    |
+| Conferência         | `lib/erp/sale-input.ts` (8), `payment-method-input.ts` (5) | Forma do formulário; preço e unidade vêm do cadastro                     |
+
+**O balcão foi feito para o leitor de código de barras e para o teclado.** O
+foco começa na busca; o leitor digita o código e manda Enter, e o produto
+entra — passar o mesmo código duas vezes faz 2, não duas linhas. Produto por
+peso leva o foco para a quantidade; Enter na quantidade volta para a busca em
+vez de enviar a venda pela metade. Conferido por interação na vitrine: foco,
+leitor, peso, dividir pagamento, troco, cadastro rápido de cliente.
+
+- **Não há campo de preço.** O que a tela mostra é o do cadastro, e é o que
+  o banco grava. Desconto é da venda inteira.
+- **O total que a tela mostra é o que o banco grava**: `saleTotals()` no Core,
+  linha a linha com `lineTotalCents` — a mesma conta de `erp_register_sale()`.
+  A ação refaz a conta antes de chamar o banco, para a recusa sair em reais e
+  no campo certo ("Faltam R$ 21,12 para fechar R$ 41,12") em vez de centavos
+  numa frase do banco.
+- **Pagamento único acompanha o total** até alguém mexer nele; "dividir"
+  abre outra linha. O botão só habilita quando os pagamentos fecham com o total.
+- **Troco** para a forma do tipo dinheiro: "Recebido R$ 50,00 → troco R$ 8,88".
+  Só na tela — o que se grava é o valor da venda.
+- Forma a prazo diz na hora que **vira conta a receber**, e em quantos dias.
+- **Cliente**: obrigatório quando a configuração exige; quem tem
+  `erp.customers.write` cadastra ali mesmo, sem sair da venda (sem formulário
+  aninhado: a ação é chamada pelo botão).
+- **O comprovante mostra o rastro**: para quem vê o financeiro, cada pagamento
+  diz se já entrou, se está a receber ou se não vai entrar; cancelada depois de
+  recebida, a devolução a pagar aparece ali. "Comprovante interno. Não é
+  documento fiscal", escrito.
+- **Cancelar** diz o que vai acontecer antes de acontecer — o estoque volta, o
+  que não entrou deixa de ser esperado, o que entrou vira devolução — e exige
+  motivo.
+- **Sem boleto** na lista de tipos de forma: o nome sugeriria que o sistema
+  emite boleto, e ele não emite.
+
+Frases com o nome da venda não concordam em gênero ("Registro feito: Pedido nº
+12", "Cancelamento", "Em vigor"): o nicho pode chamar venda de pedido.
+
 ## Pendente
 
 | Item                         | Por quê                                                         |
 | ---------------------------- | --------------------------------------------------------------- |
-| Tela `/erp/vendas`           | Vem depois do estoque                                           |
 | Reordenar categorias         | Novas entram no fim; a ordem do nicho vem do Blueprint          |
 | Fornecedor e compra          | `erp.suppliers.*` e `erp.purchases.*` são permissões sem tabela |
 | Custo médio                  | A entrada guarda custo unitário; ninguém recalcula o do produto |

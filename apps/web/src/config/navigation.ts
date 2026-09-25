@@ -116,7 +116,7 @@ export const navigation = [
         label: 'Vendas',
         href: '/erp/vendas',
         icon: ShoppingCart,
-        status: 'pending',
+        status: 'ready',
         term: 'erp.sales',
       },
       {

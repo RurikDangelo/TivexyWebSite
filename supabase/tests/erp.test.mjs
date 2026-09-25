@@ -1195,3 +1195,74 @@ describe('financeiro', () => {
     );
   });
 });
+
+/* ── 5. Resumo de vendas ───────────────────────────────────────────────── */
+
+describe('erp_sales_summary', () => {
+  const resumo = (userId, tenantId, de, ate) =>
+    asUser(db, userId, async () => {
+      const { rows } = await db.query(
+        'select * from public.erp_sales_summary($1, $2::timestamptz, $3::timestamptz)',
+        [tenantId, de, ate],
+      );
+      const r = rows[0];
+      return {
+        vendas: Number(r.sales_count),
+        total: Number(r.total_cents),
+        desconto: Number(r.discount_cents),
+        canceladas: Number(r.cancelled_count),
+      };
+    });
+
+  it('soma o que foi concluído no período, e conta à parte o cancelado', async () => {
+    await vender(
+      fx.adminA,
+      fx.a,
+      [{ product_id: fx.cafe, quantity: 2 }],
+      [{ payment_method_id: fx.dinheiro, amount_cents: 1000 }],
+      { desconto: 100 },
+    );
+    const outra = await vender(
+      fx.adminA,
+      fx.a,
+      [{ product_id: fx.cafe, quantity: 1 }],
+      [{ payment_method_id: fx.dinheiro, amount_cents: 550 }],
+    );
+    await cancelar(fx.adminA, outra.id, 'errado');
+
+    const r = await resumo(fx.gestorA, fx.a, '2000-01-01', '2100-01-01');
+    assert.deepEqual(r, { vendas: 1, total: 1000, desconto: 100, canceladas: 1 });
+  });
+
+  it('o período é [de, até): o fim de um dia é o começo do outro', async () => {
+    const r1 = await vender(
+      fx.adminA,
+      fx.a,
+      [{ product_id: fx.cafe, quantity: 1 }],
+      [{ payment_method_id: fx.dinheiro, amount_cents: 550 }],
+    );
+    await db.query(`update public.erp_sales set sold_at = '2026-09-24T03:00:00Z' where id = $1`, [
+      r1.id,
+    ]);
+    // 24/09 00:00 em São Paulo é 03:00 UTC: a venda é do dia 24, não do 23.
+    assert.equal(
+      (await resumo(fx.adminA, fx.a, '2026-09-23T03:00:00Z', '2026-09-24T03:00:00Z')).vendas,
+      0,
+    );
+    assert.equal(
+      (await resumo(fx.adminA, fx.a, '2026-09-24T03:00:00Z', '2026-09-25T03:00:00Z')).vendas,
+      1,
+    );
+  });
+
+  it('o tenant alheio recebe zero — não erro, nada', async () => {
+    await vender(
+      fx.adminA,
+      fx.a,
+      [{ product_id: fx.cafe, quantity: 1 }],
+      [{ payment_method_id: fx.dinheiro, amount_cents: 550 }],
+    );
+    const r = await resumo(fx.adminB, fx.a, '2000-01-01', '2100-01-01');
+    assert.deepEqual(r, { vendas: 0, total: 0, desconto: 0, canceladas: 0 });
+  });
+});

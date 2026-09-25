@@ -359,7 +359,7 @@ carimbado apontando para os três.
 | Venda: número, itens, pagamentos, cancelamento      | 🟡     | `20260925080000_erp_sales`          |
 | Sementes do Blueprint (categorias e formas)         | 🟡     | `TABELA_DA_SEMENTE` em `execute.ts` |
 | `/erp/produtos` — lista, cadastro, categorias       | 🟡     | `erp/produtos/`                     |
-| `/erp/vendas`                                       | ⬜     | depois de `/erp/estoque`            |
+| `/erp/vendas` — balcão, comprovante, formas         | 🟡     | `erp/vendas/`                       |
 
 A venda é registrada por `erp_register_sale()` (INVOKER); a baixa de estoque e a
 conta a receber nascem por gatilho, no módulo de cada uma. Venda registrada não
@@ -631,25 +631,27 @@ O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 | `20260925080000_erp_sales`              | venda; `erp.sales.cancel`                           |
 | `20260925090000_erp_inventory`          | razão e saldo de estoque                            |
 | `20260925100000_erp_finance`            | contas a receber e a pagar                          |
+| `20260925110000_erp_sales_summary`      | resumo de vendas do período                         |
 
 ### Entregas
 
-| Entrega                                               | Estado | Onde conferir primeiro contra o banco real                                                                                                              |
-| ----------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Menu no vocabulário do nicho                          | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba                                                                                             |
-| `/convite` — aceitar convite                          | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel                                                                                    |
-| Excluir no CRM exige `.delete`                        | 🟡     | Colaborador tenta `DELETE` pela API REST e recebe zero linhas                                                                                           |
-| `/crm/oportunidades` — quadro, página e funis         | 🟡     | Arrastar, recarregar e ver o cartão onde ficou; embutido `company:crm_companies(name)` pela chave composta                                              |
-| `/crm/contatos` — lista, busca, cadastro, página      | 🟡     | Buscar por CPF com e sem pontuação; CNPJ com letra entra em conta e pessoa; o `not valid` passa no `db:push`                                            |
-| `/crm/empresas` — contas, pessoas e oportunidades     | 🟡     | A página da conta com pessoas e oportunidades ligadas; site sem esquema vira link absoluto                                                              |
-| `/crm/atividades` — agenda e painel nas páginas       | 🟡     | Agendar 14:30 e ver 14:30 (não 11:30); concluir e recarregar; o embutido dos quatro alvos                                                               |
-| `/configuracoes` — empresa, preferências, tipos       | 🟡     | Mudar o fuso e ver a agenda mudar de hora; gestor recebe recusa; a auditoria guarda antes e depois                                                      |
-| `/equipe` — membros, papéis, convite                  | 🟡     | Gestor tenta se promover e recebe a recusa; convidar conta nova e abrir o link; convidar conta existente e ela ver em `/convite`                        |
-| `/conta` — nome, senha, empresas, sair                | 🟡     | Trocar a senha com a atual errada e certa; "sair de todos" derrubar a sessão de outro navegador                                                         |
-| `tenant_id` travado pelo privilégio                   | 🟡     | Rodar `has_column_privilege` como no teste de integridade; editar uma oportunidade pela tela depois do `db:push`                                        |
-| Esquema do ERP — cadastro, venda, estoque, financeiro | 🟡     | Provisionar o mercado e ver categorias e formas; `erp_register_sale` pela API como operador de caixa; `set constraints` dentro da função no PostgREST   |
-| `/erp/produtos` — lista, cadastro, categorias         | 🟡     | O embutido `category:erp_product_categories(name)` e a contagem `erp_products(count)` pela chave composta; apagar produto vendido e ler a recusa        |
-| `/erp/estoque` — saldo, resumo, movimentar, razão     | 🟡     | Contar um produto com uma venda chegando ao mesmo tempo; o embutido `product:erp_products(...)` no razão; o saldo novo na mensagem para quem só escreve |
+| Entrega                                               | Estado | Onde conferir primeiro contra o banco real                                                                                                                                   |
+| ----------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Menu no vocabulário do nicho                          | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba                                                                                                                  |
+| `/convite` — aceitar convite                          | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel                                                                                                         |
+| Excluir no CRM exige `.delete`                        | 🟡     | Colaborador tenta `DELETE` pela API REST e recebe zero linhas                                                                                                                |
+| `/crm/oportunidades` — quadro, página e funis         | 🟡     | Arrastar, recarregar e ver o cartão onde ficou; embutido `company:crm_companies(name)` pela chave composta                                                                   |
+| `/crm/contatos` — lista, busca, cadastro, página      | 🟡     | Buscar por CPF com e sem pontuação; CNPJ com letra entra em conta e pessoa; o `not valid` passa no `db:push`                                                                 |
+| `/crm/empresas` — contas, pessoas e oportunidades     | 🟡     | A página da conta com pessoas e oportunidades ligadas; site sem esquema vira link absoluto                                                                                   |
+| `/crm/atividades` — agenda e painel nas páginas       | 🟡     | Agendar 14:30 e ver 14:30 (não 11:30); concluir e recarregar; o embutido dos quatro alvos                                                                                    |
+| `/configuracoes` — empresa, preferências, tipos       | 🟡     | Mudar o fuso e ver a agenda mudar de hora; gestor recebe recusa; a auditoria guarda antes e depois                                                                           |
+| `/equipe` — membros, papéis, convite                  | 🟡     | Gestor tenta se promover e recebe a recusa; convidar conta nova e abrir o link; convidar conta existente e ela ver em `/convite`                                             |
+| `/conta` — nome, senha, empresas, sair                | 🟡     | Trocar a senha com a atual errada e certa; "sair de todos" derrubar a sessão de outro navegador                                                                              |
+| `tenant_id` travado pelo privilégio                   | 🟡     | Rodar `has_column_privilege` como no teste de integridade; editar uma oportunidade pela tela depois do `db:push`                                                             |
+| Esquema do ERP — cadastro, venda, estoque, financeiro | 🟡     | Provisionar o mercado e ver categorias e formas; `erp_register_sale` pela API como operador de caixa; `set constraints` dentro da função no PostgREST                        |
+| `/erp/produtos` — lista, cadastro, categorias         | 🟡     | O embutido `category:erp_product_categories(name)` e a contagem `erp_products(count)` pela chave composta; apagar produto vendido e ler a recusa                             |
+| `/erp/estoque` — saldo, resumo, movimentar, razão     | 🟡     | Contar um produto com uma venda chegando ao mesmo tempo; o embutido `product:erp_products(...)` no razão; o saldo novo na mensagem para quem só escreve                      |
+| `/erp/vendas` — balcão, comprovante, cancelar, formas | 🟡     | `rpc(erp_register_sale)` com jsonb pelo PostgREST; `set constraints` dentro da função; o embutido `payments:erp_sale_payments(method_name)`; cancelar e ver o estoque voltar |
 
 ### O Trello continua desconectado
 

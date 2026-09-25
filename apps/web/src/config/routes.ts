@@ -65,6 +65,8 @@ export const routeRules: readonly RouteMatcher[] = [
 
   { prefix: '/erp/produtos', rule: { kind: 'permission', permission: 'erp.products.read' } },
   { prefix: '/erp/vendas', rule: { kind: 'permission', permission: 'erp.sales.read' } },
+  /* Registrar pede escrever: quem só consulta vendas não chega ao balcão. */
+  { prefix: '/erp/vendas/nova', rule: { kind: 'permission', permission: 'erp.sales.write' } },
   { prefix: '/erp/estoque', rule: { kind: 'permission', permission: 'inventory.stock.read' } },
   { prefix: '/erp/financeiro', rule: { kind: 'permission', permission: 'finance.cashflow.read' } },
 
