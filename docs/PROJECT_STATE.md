@@ -586,6 +586,7 @@ O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 | `/crm/atividades` — agenda e painel nas páginas   | 🟡     | Agendar 14:30 e ver 14:30 (não 11:30); concluir e recarregar; o embutido dos quatro alvos                                        |
 | `/configuracoes` — empresa, preferências, tipos   | 🟡     | Mudar o fuso e ver a agenda mudar de hora; gestor recebe recusa; a auditoria guarda antes e depois                               |
 | `/equipe` — membros, papéis, convite              | 🟡     | Gestor tenta se promover e recebe a recusa; convidar conta nova e abrir o link; convidar conta existente e ela ver em `/convite` |
+| `/conta` — nome, senha, empresas, sair            | 🟡     | Trocar a senha com a atual errada e certa; "sair de todos" derrubar a sessão de outro navegador                                  |
 
 ### O Trello continua desconectado
 
@@ -605,19 +606,19 @@ movido nesta sessão.
 
 Ordenadas por urgência:
 
-| #   | Tarefa                                          | Bloqueia                 | Urgência    |
-| --- | ----------------------------------------------- | ------------------------ | ----------- |
-| 1   | **Abrir o PR** da branch `monorepo-tivexy-core` | Primeira execução do CI  | 🔴 Imediata |
-| 2   | **SMTP próprio no Supabase**                    | Convite e recuperação    | 🔴 Imediata |
-| 3   | Conferir o destino do formulário de contato     | Leads da landing         | 🟠 Alta     |
-| 4   | **Trocar a conta do conector Vercel**           | Qualquer coisa na Vercel | 🟠 Alta     |
-| 5   | Projeto Vercel do `apps/web` + variáveis        | Deploy do SaaS           | 🟡 Depois   |
-| 6   | Domínio `tivexy.com.br` + DNS                   | SEO, e-mail              | 🟠 Média    |
-| 7   | E-mail corporativo + SPF/DKIM/DMARC             | Convites do SaaS         | 🟠 Média    |
-| 8   | Credenciais OpenAI                              | AI Engine                | 🟡 Depois   |
-| 9   | Meta Business + WhatsApp Business API           | Atendimento              | 🟡 Depois   |
-| 10  | Provedor fiscal + certificado digital           | Fiscal                   | 🟡 Depois   |
-| 11  | CNPJ, contador, conta PJ, contratos             | Venda formal             | 🟡 Paralelo |
+| #   | Tarefa                                          | Bloqueia                              | Urgência    |
+| --- | ----------------------------------------------- | ------------------------------------- | ----------- |
+| 1   | **Abrir o PR** da branch `monorepo-tivexy-core` | Primeira execução do CI               | 🔴 Imediata |
+| 2   | **SMTP próprio no Supabase**                    | Convite, recuperação, troca de e-mail | 🔴 Imediata |
+| 3   | Conferir o destino do formulário de contato     | Leads da landing                      | 🟠 Alta     |
+| 4   | **Trocar a conta do conector Vercel**           | Qualquer coisa na Vercel              | 🟠 Alta     |
+| 5   | Projeto Vercel do `apps/web` + variáveis        | Deploy do SaaS                        | 🟡 Depois   |
+| 6   | Domínio `tivexy.com.br` + DNS                   | SEO, e-mail                           | 🟠 Média    |
+| 7   | E-mail corporativo + SPF/DKIM/DMARC             | Convites do SaaS                      | 🟠 Média    |
+| 8   | Credenciais OpenAI                              | AI Engine                             | 🟡 Depois   |
+| 9   | Meta Business + WhatsApp Business API           | Atendimento                           | 🟡 Depois   |
+| 10  | Provedor fiscal + certificado digital           | Fiscal                                | 🟡 Depois   |
+| 11  | CNPJ, contador, conta PJ, contratos             | Venda formal                          | 🟡 Paralelo |
 
 ### O SMTP é o que separa "conta criada" de "cliente atendido"
 

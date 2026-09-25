@@ -1,6 +1,7 @@
 'use client';
 
-import { Building2, Check, ChevronsUpDown, LogOut } from 'lucide-react';
+import { Building2, Check, ChevronsUpDown, LogOut, UserRound } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
 import { trocarEmpresa } from '@/app/(app)/actions';
@@ -111,6 +112,16 @@ export function UserMenu({
               ))}
             </div>
           )}
+
+          <Link
+            href="/conta"
+            role="menuitem"
+            onClick={() => setAberto(false)}
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-content-default transition-colors hover:bg-surface-muted"
+          >
+            <UserRound className="size-3.5 shrink-0 opacity-60" aria-hidden />
+            Minha conta
+          </Link>
 
           <form action={sair}>
             <button

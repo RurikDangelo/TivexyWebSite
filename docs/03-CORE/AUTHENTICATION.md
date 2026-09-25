@@ -193,8 +193,30 @@ O plano já separava as duas coisas — `create_admin` cria, `send_invite` entre
 **não diz que mandou e-mail**: diz que não mandou, e gera o link de acesso para
 o Super Admin repassar. Ver [[../06-ADMIN/PROVISIONING|PROVISIONING]].
 
+## A própria conta — `/conta`
+
+Desde 25/09/2026 🟡 _testado, não verificado contra o banco real._
+
+Nome, senha, as empresas da pessoa e sair. `authenticated`, não `member`: quem
+tem convite pendente ou acesso suspenso também precisa trocar a senha e sair.
+
+**Trocar a senha pede a atual.** A sessão sozinha não basta — quem esqueceu o
+sistema aberto num computador alheio entregaria a conta. O Supabase não tem
+"confira esta senha" sem abrir sessão, e o `reauthenticate` dele manda código
+por e-mail, que ainda não sai; então a conferência é entrar de novo com a senha
+atual. A regra da senha nova é `conferirSenhaNova()`, a mesma de
+`/definir-senha`.
+
+**Sair de todos os aparelhos** revoga os tokens de renovação de toda sessão da
+conta (`signOut({ scope: 'global' })`).
+
+**O e-mail não se edita, e a tela diz por quê.** Trocar e-mail manda
+confirmação para o endereço novo — SMTP 🔒. Um campo que "salvasse" sem
+confirmação seria funcionalidade fingida.
+
 ## O que ainda não existe
 
+- Trocar o próprio e-mail — depende de SMTP 🔒
 - Segundo fator
 - Sessão revogável pelo administrador da empresa
 - Registro de tentativas de login por conta — hoje o limite é o do Supabase
