@@ -91,15 +91,19 @@ export {
   checkQuantity,
   financeStatus,
   formatQuantity,
+  formatQuantityInput,
+  grossMargin,
   isProductUnit,
   lineTotalCents,
   movementSign,
   parseQuantity,
+  stockStatus,
   type ErpSaleStatus,
   type FinanceDirection,
   type FinanceStatus,
   type InventoryMovementKind,
   type ProductUnit,
+  type StockStatus,
 } from './erp.ts';
 
 export { AGENDA_BUCKETS, agendaBucket, groupByBucket, type AgendaBucket } from './agenda.ts';

@@ -97,7 +97,58 @@ export function formatQuantity(quantidade: number, unidade: ProductUnit): string
   return `${texto} ${unidade}`;
 }
 
+/* ── Margem ────────────────────────────────────────────────────────────── */
+
+/**
+ * A margem bruta sobre o preço, em porcentagem com uma casa: (preço − custo) / preço.
+ *
+ * `null` quando não dá para calcular — sem custo cadastrado, ou preço zero —,
+ * e a tela mostra travessão, não "0%": margem zero é vender pelo custo, que é
+ * outra coisa. Margem negativa é informação e aparece: vende-se abaixo do
+ * custo.
+ */
+export function grossMargin(precoCentavos: number, custoCentavos: number | null): number | null {
+  if (custoCentavos === null || precoCentavos <= 0) return null;
+  return Math.round(((precoCentavos - custoCentavos) / precoCentavos) * 1000) / 10;
+}
+
+/**
+ * Quantidade para o campo de edição: `1.5` → `1,5`; `1234` → `1234`.
+ *
+ * O inverso de `parseQuantity`, sem separador de milhar — que `parseQuantity`
+ * leria, mas que num campo de quantidade só confunde. O teste confere a volta
+ * completa: salvar sem mudar nada não pode falhar na validação.
+ */
+export function formatQuantityInput(quantidade: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    maximumFractionDigits: QUANTITY_DECIMALS,
+    useGrouping: false,
+  }).format(quantidade);
+}
+
 /* ── Estoque ───────────────────────────────────────────────────────────── */
+
+/**
+ * A situação do saldo de um produto, para a tela destacar o que precisa de ação.
+ *
+ * `low` é "chegou no mínimo", e não "passou dele": o mínimo é o ponto de
+ * repor, e esperar ficar abaixo é repor atrasado. Produto que não controla
+ * estoque não tem situação — serviço e item feito na hora não acabam.
+ */
+export type StockStatus = 'untracked' | 'negative' | 'out' | 'low' | 'ok';
+
+export function stockStatus(produto: {
+  trackStock: boolean;
+  quantity: number | null;
+  minStock: number | null;
+}): StockStatus {
+  if (!produto.trackStock) return 'untracked';
+  const saldo = produto.quantity ?? 0;
+  if (saldo < 0) return 'negative';
+  if (saldo === 0) return 'out';
+  if (produto.minStock !== null && produto.minStock > 0 && saldo <= produto.minStock) return 'low';
+  return 'ok';
+}
 
 /**
  * O que moveu o estoque.

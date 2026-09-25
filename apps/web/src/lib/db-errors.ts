@@ -34,6 +34,17 @@ const ESCRITAS_PARA_GENTE = [
   /^o valor /,
   /^a quantidade /,
   /^o pagamento /,
+  // ERP — as mensagens dos gatilhos e funções de 20260925070000 em diante.
+  /^"[^"]+" (está desativad[ao]|se vende por|se conta por|não controla estoque)/,
+  /^(produto|venda|cliente|forma de pagamento) não encontrad[ao]/,
+  /^esta empresa exige /,
+  /^os (itens|pagamentos) /,
+  /^o desconto /,
+  /^quantidade precisa /,
+  /^diga o motivo/,
+  /^(este )?lançamento /,
+  /^a data do pagamento /,
+  /^a contagem /,
 ];
 
 function frase(texto: string): string {

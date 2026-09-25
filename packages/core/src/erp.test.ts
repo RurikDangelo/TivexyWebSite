@@ -5,6 +5,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  formatQuantityInput,
+  grossMargin,
+  stockStatus,
   INVENTORY_MOVEMENT_KINDS,
   PRODUCT_UNITS,
   UNIT_INFO,
@@ -95,5 +98,54 @@ describe('formatQuantity', () => {
   it('vírgula e unidade', () => {
     assert.equal(formatQuantity(1.5, 'kg'), '1,5 kg');
     assert.equal(formatQuantity(3, 'un'), '3 un');
+  });
+});
+
+describe('grossMargin', () => {
+  it('calcula sobre o preço, com uma casa', () => {
+    assert.equal(grossMargin(1000, 600), 40);
+    assert.equal(grossMargin(550, 180), 67.3);
+  });
+
+  it('sem custo, ou com preço zero, não há margem — e não é zero', () => {
+    assert.equal(grossMargin(1000, null), null);
+    assert.equal(grossMargin(0, 100), null);
+  });
+
+  it('vender abaixo do custo dá margem negativa, e aparece', () => {
+    assert.equal(grossMargin(1000, 1200), -20);
+  });
+});
+
+describe('stockStatus', () => {
+  const p = (quantity: number | null, minStock: number | null = null, trackStock = true) => ({
+    trackStock,
+    quantity,
+    minStock,
+  });
+
+  it('quem não controla estoque não tem situação', () => {
+    assert.equal(stockStatus(p(-5, 10, false)), 'untracked');
+  });
+
+  it('negativo, zerado, no mínimo e em dia', () => {
+    assert.equal(stockStatus(p(-0.5)), 'negative');
+    assert.equal(stockStatus(p(0)), 'out');
+    assert.equal(stockStatus(p(null)), 'out', 'sem movimento nenhum é zero');
+    assert.equal(stockStatus(p(5, 5)), 'low', 'chegar no mínimo já é hora de repor');
+    assert.equal(stockStatus(p(6, 5)), 'ok');
+    assert.equal(stockStatus(p(3)), 'ok', 'sem mínimo, só o zero alerta');
+  });
+});
+
+describe('formatQuantityInput', () => {
+  it('volta pelo parseQuantity sem mudar', () => {
+    for (const q of [1, 1.5, 0.335, 1234, 12345.678]) {
+      assert.equal(parseQuantity(formatQuantityInput(q)), q, String(q));
+    }
+  });
+
+  it('sem separador de milhar', () => {
+    assert.equal(formatQuantityInput(1234.5), '1234,5');
   });
 });

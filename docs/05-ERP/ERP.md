@@ -79,6 +79,40 @@ O nicho declara a forma pelo código (`cash`, `pix`, `debit`, `credit`,
 configuração, não número de negócio — a tela de vendas deixa corrigir para o
 prazo da maquininha de cada um.
 
+## Tela: `/erp/produtos`
+
+🟡 testado, não verificado contra o banco real (25/09/2026).
+
+| Parte                     | Onde                                   | O que faz                                                                                    |
+| ------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Lista                     | `erp/produtos/page.tsx`                | Busca em nome, código e código de barras; filtro por categoria e situação, no endereço       |
+| Cadastro e edição         | `product-form.tsx`, `actions.ts`       | Preço, custo com prévia da margem, unidade, categoria, códigos, controle e mínimo de estoque |
+| Página do produto         | `erp/produtos/[id]/page.tsx`           | Fatos, últimas dez movimentações, tirar de venda, apagar de vez                              |
+| Categorias                | `erp/produtos/categorias/`             | Criar, renomear, apagar — com quantos produtos cada uma tem                                  |
+| Conferência do formulário | `lib/erp/product-input.ts` (10 testes) | As regras do Core: `parseCents`, `parseQuantity`, `checkQuantity`                            |
+
+- **O nome é o do nicho.** Título, botão e estado vazio usam `erp.products`:
+  a cafeteria cadastra "item do cardápio".
+- **Saldo ao lado do preço**, quando o tenant tem estoque, com a situação
+  escrita e um ícone — "no mínimo", "sem estoque", "saldo negativo". Cor nunca
+  sozinha. A regra é `stockStatus()` no Core: o mínimo é o ponto de repor,
+  então chegar nele já alerta.
+- **Margem** é `grossMargin()` no Core, sobre o preço, com uma casa. Sem custo
+  não há margem — travessão, não "0%". Abaixo do custo aparece em vermelho **e**
+  escrito.
+- **Tirar de venda, não apagar.** Produto com venda ou movimentação a chave
+  estrangeira não deixa apagar, e a mensagem diz o caminho. Apagar de vez
+  aparece só para quem tem `erp.products.delete`, e confirma antes.
+- **Sem o módulo de estoque**, o interruptor e o mínimo nem aparecem — e salvar
+  não mexe em `track_stock`, para não desligar o controle de todo produto no dia
+  em que o módulo for contratado.
+- Código interno e código de barras repetidos voltam como erro **no campo**,
+  pelo nome do índice na mensagem do banco (`campoRepetido()`).
+
+Conferida na vitrine (componentes reais, dados de exemplo, Playwright): claro e
+escuro, 1440 e 375 px, sem erro de página e sem rolagem lateral. No celular o
+selo "Fora de venda" desce de linha — ao lado do nome, ele engolia o nome.
+
 ## Venda
 
 ### Quem escreve o quê
@@ -160,10 +194,11 @@ provar.
 
 ## Pendente
 
-| Item                                 | Por quê                                                         |
-| ------------------------------------ | --------------------------------------------------------------- |
-| Telas `/erp/produtos`, `/erp/vendas` | Vêm a seguir, nesta ordem                                       |
-| Fornecedor e compra                  | `erp.suppliers.*` e `erp.purchases.*` são permissões sem tabela |
-| Custo médio                          | A entrada guarda custo unitário; ninguém recalcula o do produto |
-| Nota fiscal da venda                 | 🔒 provedor fiscal + certificado — ver `11-FISCAL/`             |
-| Venda ligada à pessoa do CRM         | Coluna opcional, quando houver pedido — ADR-004                 |
+| Item                         | Por quê                                                         |
+| ---------------------------- | --------------------------------------------------------------- |
+| Tela `/erp/vendas`           | Vem depois do estoque                                           |
+| Reordenar categorias         | Novas entram no fim; a ordem do nicho vem do Blueprint          |
+| Fornecedor e compra          | `erp.suppliers.*` e `erp.purchases.*` são permissões sem tabela |
+| Custo médio                  | A entrada guarda custo unitário; ninguém recalcula o do produto |
+| Nota fiscal da venda         | 🔒 provedor fiscal + certificado — ver `11-FISCAL/`             |
+| Venda ligada à pessoa do CRM | Coluna opcional, quando houver pedido — ADR-004                 |

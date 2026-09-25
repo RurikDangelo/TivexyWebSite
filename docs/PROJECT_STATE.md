@@ -353,12 +353,13 @@ carimbado apontando para os três.
 **Docs:** [[05-ERP/ERP|ERP]] · [[16-DECISIONS/ADR-004-cliente-do-erp-nao-e-pessoa-do-crm|ADR-004]] ·
 **Trello:** `ERP`
 
-| Parte                                               | Estado | Onde                                     |
-| --------------------------------------------------- | ------ | ---------------------------------------- |
-| Categorias, produtos, clientes, formas de pagamento | 🟡     | `20260925070000_erp_catalog`             |
-| Venda: número, itens, pagamentos, cancelamento      | 🟡     | `20260925080000_erp_sales`               |
-| Sementes do Blueprint (categorias e formas)         | 🟡     | `TABELA_DA_SEMENTE` em `execute.ts`      |
-| Telas                                               | ⬜     | `/erp/produtos` e `/erp/vendas` a seguir |
+| Parte                                               | Estado | Onde                                |
+| --------------------------------------------------- | ------ | ----------------------------------- |
+| Categorias, produtos, clientes, formas de pagamento | 🟡     | `20260925070000_erp_catalog`        |
+| Venda: número, itens, pagamentos, cancelamento      | 🟡     | `20260925080000_erp_sales`          |
+| Sementes do Blueprint (categorias e formas)         | 🟡     | `TABELA_DA_SEMENTE` em `execute.ts` |
+| `/erp/produtos` — lista, cadastro, categorias       | 🟡     | `erp/produtos/`                     |
+| `/erp/vendas`                                       | ⬜     | depois de `/erp/estoque`            |
 
 A venda é registrada por `erp_register_sale()` (INVOKER); a baixa de estoque e a
 conta a receber nascem por gatilho, no módulo de cada uma. Venda registrada não
@@ -632,6 +633,7 @@ O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 | `/conta` — nome, senha, empresas, sair                | 🟡     | Trocar a senha com a atual errada e certa; "sair de todos" derrubar a sessão de outro navegador                                                       |
 | `tenant_id` travado pelo privilégio                   | 🟡     | Rodar `has_column_privilege` como no teste de integridade; editar uma oportunidade pela tela depois do `db:push`                                      |
 | Esquema do ERP — cadastro, venda, estoque, financeiro | 🟡     | Provisionar o mercado e ver categorias e formas; `erp_register_sale` pela API como operador de caixa; `set constraints` dentro da função no PostgREST |
+| `/erp/produtos` — lista, cadastro, categorias         | 🟡     | O embutido `category:erp_product_categories(name)` e a contagem `erp_products(count)` pela chave composta; apagar produto vendido e ler a recusa      |
 
 ### O Trello continua desconectado
 

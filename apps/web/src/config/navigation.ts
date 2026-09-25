@@ -109,7 +109,7 @@ export const navigation = [
         label: 'Produtos',
         href: '/erp/produtos',
         icon: Package,
-        status: 'pending',
+        status: 'ready',
         term: 'erp.products',
       },
       {
