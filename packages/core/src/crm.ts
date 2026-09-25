@@ -116,3 +116,116 @@ export function parseCents(raw: string): number | null {
   const centavos = Math.round(Number(normalizado) * 100);
   return Number.isSafeInteger(centavos) ? centavos : null;
 }
+
+/**
+ * Centavos para o texto que a pessoa digitaria: `450000` → `4.500,00`.
+ *
+ * O inverso de `parseCents`, para preencher o campo de edição. Sem símbolo de
+ * moeda, que o campo não aceita de volta — e o teste confere a volta completa,
+ * porque um formato que `parseCents` não lê faria "salvar sem mudar nada"
+ * falhar na validação.
+ */
+export function formatCentsInput(cents: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: true,
+  }).format(cents / 100);
+}
+
+/* ── Funil ─────────────────────────────────────────────────────────────── */
+
+/** O mínimo que uma etapa precisa ter para ser posta no quadro. */
+export interface BoardStage {
+  id: string;
+  name: string;
+  kind: CrmStageKind;
+  position: number;
+}
+
+/** O mínimo que uma oportunidade precisa ter para ser somada. */
+export interface BoardDeal {
+  stageId: string;
+  valueCents: number;
+}
+
+const ORDEM_DO_TIPO: Record<CrmStageKind, number> = { open: 0, won: 1, lost: 2 };
+
+/**
+ * As colunas do quadro, na ordem em que o negócio anda.
+ *
+ * As abertas pela posição; depois ganho; depois perda. **O tipo vence a
+ * posição**, de propósito: um funil semeado com "Perdido" na posição 3 e
+ * "Proposta" na 4 desenharia a perda no meio do caminho, e o quadro contaria
+ * uma história em que se perde antes de propor. Empate de posição cai no
+ * nome, para a ordem não depender do plano de execução da consulta.
+ */
+export function orderStages<T extends BoardStage>(stages: readonly T[]): T[] {
+  return [...stages].sort(
+    (a, b) =>
+      ORDEM_DO_TIPO[a.kind] - ORDEM_DO_TIPO[b.kind] ||
+      a.position - b.position ||
+      a.name.localeCompare(b.name, 'pt-BR'),
+  );
+}
+
+export interface Totals {
+  count: number;
+  cents: number;
+}
+
+/**
+ * Quantas oportunidades e quanto dinheiro há em cada etapa.
+ *
+ * Toda etapa aparece, inclusive as vazias: coluna sem total na tela é
+ * ambígua — "zero" ou "não calculado"? E oportunidade numa etapa que não está
+ * na lista **não** é somada em lugar nenhum; ela não pertence a este quadro.
+ *
+ * Soma em centavos inteiros, nunca em reais: ver `formatCents`.
+ */
+export function stageTotals(
+  stages: readonly BoardStage[],
+  deals: readonly BoardDeal[],
+): Map<string, Totals> {
+  const totais = new Map<string, Totals>(stages.map((s) => [s.id, { count: 0, cents: 0 }]));
+  for (const deal of deals) {
+    const t = totais.get(deal.stageId);
+    if (t === undefined) continue;
+    t.count += 1;
+    t.cents += deal.valueCents;
+  }
+  return totais;
+}
+
+/** Os totais do quadro por situação — que é a da etapa, não da oportunidade. */
+export function boardTotals(
+  stages: readonly BoardStage[],
+  deals: readonly BoardDeal[],
+): Record<CrmStageKind, Totals> {
+  const porEtapa = stageTotals(stages, deals);
+  const soma: Record<CrmStageKind, Totals> = {
+    open: { count: 0, cents: 0 },
+    won: { count: 0, cents: 0 },
+    lost: { count: 0, cents: 0 },
+  };
+  for (const stage of stages) {
+    const t = porEtapa.get(stage.id);
+    if (t === undefined) continue;
+    soma[stage.kind].count += t.count;
+    soma[stage.kind].cents += t.cents;
+  }
+  return soma;
+}
+
+/**
+ * O funil tem por onde sair?
+ *
+ * A mesma regra que `checkBlueprint()` cobra dos documentos de nicho, agora
+ * para o funil editado pela tela: sem etapa de ganho nenhum negócio fecha, e
+ * sem etapa de perda não há onde registrar quem não comprou. Devolve o que
+ * falta, para a tela dizer.
+ */
+export function missingExits(stages: readonly Pick<BoardStage, 'kind'>[]): CrmStageKind[] {
+  const tipos = new Set(stages.map((s) => s.kind));
+  return (['won', 'lost'] as const).filter((k) => !tipos.has(k));
+}

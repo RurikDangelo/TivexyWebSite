@@ -82,9 +82,14 @@
   --state-warning-soft: var(--tvx-warning-50);
 
   --focus-ring: var(--tvx-blue-500);
+
+  /* Controles nativos — seletor de data, lista do select, barra de rolagem — seguem o tema. */
+  color-scheme: light;
 }
 
 .dark {
+  color-scheme: dark;
+
   --surface: var(--tvx-navy-900);
   --surface-subtle: var(--tvx-navy-950);
   --surface-muted: var(--tvx-navy-800);
@@ -217,6 +222,28 @@
     background-color: var(--tvx-blue-200);
     color: var(--tvx-ink-900);
   }
+}
+
+/*
+ * Movimento com propósito: o que entra na lista chega, não aparece.
+ *
+ * Curto e sem quique — 280 ms é o bastante para o olho seguir o cartão novo
+ * e pouco para atrasar quem já sabe o que quer. `both` segura o estado
+ * inicial durante o atraso de quem entra em sequência.
+ */
+@keyframes tvx-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-enter {
+  animation: tvx-enter 280ms var(--ease-out) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

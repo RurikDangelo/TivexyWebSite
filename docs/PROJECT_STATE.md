@@ -315,6 +315,11 @@ por SQL — sem erro, só relatório errado.
 **Tela pronta: `/crm/leads`.** Cadastro, transições de estado, validação por
 campo, estado vazio e 375px conferidos no navegador, contra o banco real.
 
+**`/crm/oportunidades`** desde 25/09/2026 — 🟡 testado, não verificado contra o
+banco real. O funil em colunas, com arrastar e "Mover para" pela mesma função,
+a página de cada oportunidade e o editor de funis. Ver
+[[04-CRM/CRM#O quadro — `/crm/oportunidades`]].
+
 **O vocabulário do nicho chegou na tela.** Uma clínica lê "interessados" onde
 uma consultoria lê "leads" — verificado provisionando a clínica odontológica e
 abrindo a listagem. Ver abaixo.
@@ -525,14 +530,16 @@ O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 | --------------------------------------- | ----------------------- |
 | `20260925010000_core_accept_invitation` | `accept_invitation()`   |
 | `20260925020000_crm_delete_permission`  | excluir exige `.delete` |
+| `20260925030000_crm_pipeline_integrity` | editor de funil seguro  |
 
 ### Entregas
 
-| Entrega                        | Estado | Onde conferir primeiro contra o banco real                           |
-| ------------------------------ | ------ | -------------------------------------------------------------------- |
-| Menu no vocabulário do nicho   | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba          |
-| `/convite` — aceitar convite   | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel |
-| Excluir no CRM exige `.delete` | 🟡     | Colaborador tenta `DELETE` pela API REST e recebe zero linhas        |
+| Entrega                                       | Estado | Onde conferir primeiro contra o banco real                                                                 |
+| --------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------- |
+| Menu no vocabulário do nicho                  | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba                                                |
+| `/convite` — aceitar convite                  | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel                                       |
+| Excluir no CRM exige `.delete`                | 🟡     | Colaborador tenta `DELETE` pela API REST e recebe zero linhas                                              |
+| `/crm/oportunidades` — quadro, página e funis | 🟡     | Arrastar, recarregar e ver o cartão onde ficou; embutido `company:crm_companies(name)` pela chave composta |
 
 ### O Trello continua desconectado
 

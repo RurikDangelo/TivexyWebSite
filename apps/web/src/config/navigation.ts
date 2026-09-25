@@ -75,7 +75,7 @@ export const navigation = [
         label: 'Oportunidades',
         href: '/crm/oportunidades',
         icon: Workflow,
-        status: 'pending',
+        status: 'ready',
         term: 'crm.deals',
       },
       {

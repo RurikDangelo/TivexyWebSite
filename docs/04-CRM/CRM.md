@@ -18,8 +18,10 @@
 | `crm_activity_types`  | Tipo de atividade — consulta, retorno, visita         |
 | `crm_activities`      | A atividade em si                                     |
 
-Tela pronta: **`/crm/leads`**. As outras rotas existem em `routes.ts` e ainda
-não têm página — a navegação as mostra desabilitadas, de propósito.
+Telas prontas: **`/crm/leads`** e **`/crm/oportunidades`** — o quadro, a página
+de cada oportunidade e o editor de funis. As outras rotas existem em
+`routes.ts` e ainda não têm página — a navegação as mostra desabilitadas, de
+propósito.
 
 ## A decisão estrutural: chave estrangeira composta
 
@@ -219,9 +221,75 @@ Isso apareceu na verificação: a clínica odontológica tinha cinco etapas, tod
 `open`. O funil estava lá, bonito na tela, e nenhum tratamento teria como ser
 dado por concluído.
 
+## O quadro — `/crm/oportunidades`
+
+Desde 25/09/2026 🟡 _testado, não verificado contra o banco real._
+
+As colunas são as etapas do funil, na ordem de `orderStages()`: as em
+andamento pela posição, depois ganho, depois perda. **O tipo vence a
+posição** — um funil semeado com "Perdido" na posição 3 desenharia a perda no
+meio do caminho.
+
+**Duas formas de mover, pela mesma função.** Arrastar é o gesto com mouse, e o
+arrastar do HTML não existe em toque, teclado nem leitor de tela. "Mover
+para…", em cada cartão, é um `<details>` com um botão por etapa: alcançável por
+qualquer um, e anunciado numa região `aria-live`. O cartão muda de coluna na
+hora (`useOptimistic`) e volta sozinho se o servidor recusar.
+
+**A etapa de origem vai no `where`.** Dois cliques rápidos, ou duas pessoas
+arrastando o mesmo cartão, não aplicam o movimento duas vezes.
+
+**As colunas de ganho e perda mostram 30 dias.** Sem corte, a coluna de ganho
+cresceria para sempre e esconderia o funil que está andando. São dias de
+calendário do tenant (`core.timezone`), não 30 × 24 h.
+
+O cartão mostra só fato: previsão (vencida em vermelho, com texto — cor não é a
+única portadora), e **"sem mudança há N dias"** a partir de 7, contado de
+`updated_at` no calendário do tenant. Não é "esfriando" nem "em risco": é a
+medida, e quem lê tira a conclusão.
+
+Os totais — por coluna e no resumo — saem de `stageTotals()` e `boardTotals()`,
+em centavos inteiros, sobre o **mesmo** estado otimista dos cartões. A soma
+anda junto com o cartão arrastado, e o filtro "Sou responsável" filtra os dois.
+
+### O editor de funis — `/crm/oportunidades/funis`
+
+| O que se muda                         | O que protege                                            |
+| ------------------------------------- | -------------------------------------------------------- |
+| Criar funil                           | `crm_create_pipeline()` — nasce com Ganho e Perdido      |
+| Trocar o padrão                       | `crm_set_default_pipeline()` — uma transação, não duas   |
+| Tipo ou funil de etapa com negócio    | gatilho `crm_pipeline_stages_keeps_deals` recusa         |
+| Excluir etapa ou funil com negócio    | `on delete restrict` da chave composta                   |
+| Excluir a última etapa de ganho/perda | a action recusa, pela mesma `missingExits()` do quadro   |
+| Reordenar                             | só entre etapas em andamento; ganho e perda ficam no fim |
+
+**Por que o gatilho de tipo existe.** `closed_at` é carimbado quando a
+oportunidade **muda de etapa**. Se a etapa mudasse de `open` para `won`, as
+oportunidades dela passariam a ganhas sem data de fechamento — o relatório de
+ciclo de venda deixaria de fechar, sem erro. Propagar seria pior: carimbaria
+`now()` em negócios que fecharam em outro dia. Recusar é o certo, e a
+mensagem da recusa **fala o vocabulário do tenant**: o gatilho lê
+`tenants.terms` e diz "ainda tem tratamentos" para a clínica.
+
+Salvar o tipo de etapa é um clique à parte, não a troca do seletor: com
+teclado, cada seta muda o valor, e salvar na troca gravaria um tipo por tecla.
+
+### Conferido numa vitrine, não contra o banco
+
+Sem `.env` na sessão de nuvem, o quadro foi montado com dados de fixture num
+Chromium de verdade (Playwright), a 1440 e 375 px, nos dois temas: arrastar,
+mover pelo teclado, recusa do servidor voltando o cartão, e o filtro levando o
+resumo junto. **Foi a vitrine que achou o defeito mais sério da tela:** o texto
+`sr-only` é `position: absolute`, e escapava do contêiner que rola porque ele
+não era o bloco de contenção — a página inteira ganhava 500 px de rolagem
+horizontal no desktop. Nenhum teste de unidade veria isso.
+
+A vitrine não entrou no repositório: ela carrega número inventado em tela, e o
+`CLAUDE.md` não deixa isso existir nem rotulado.
+
 ## O que falta
 
-- Telas de contatos, contas, funil e atividades
+- Telas de contatos, contas e atividades
 - Busca e filtro (hoje a listagem traz as 200 mais recentes)
 - Importação
 - Atendimento e conversas — dependem das credenciais Meta/WhatsApp 🔒

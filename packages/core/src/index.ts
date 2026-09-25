@@ -51,14 +51,24 @@ export { RESERVED_SUBDOMAINS, isReservedSubdomain, tenantSlugFromHost } from './
 export {
   CRM_LEAD_STATUSES,
   CRM_STAGE_KINDS,
+  boardTotals,
   formatCents,
+  formatCentsInput,
   isClosedStage,
   isLeadClosed,
+  missingExits,
   nextLeadStatuses,
+  orderStages,
   parseCents,
+  stageTotals,
+  type BoardDeal,
+  type BoardStage,
   type CrmLeadStatus,
   type CrmStageKind,
+  type Totals,
 } from './crm.ts';
+
+export { addDays, dateIn, daysBetween, isIsoDate, startOfMonth, todayIn } from './calendar.ts';
 
 export {
   TENANT_SETTINGS,
