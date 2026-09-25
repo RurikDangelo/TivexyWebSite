@@ -1267,6 +1267,81 @@ describe('erp_sales_summary', () => {
   });
 });
 
+describe('erp_sales_daily', () => {
+  const porDia = (userId, tenantId, de, ate, fuso = 'America/Sao_Paulo') =>
+    asUser(db, userId, async () => {
+      const { rows } = await db.query(
+        'select day::text as dia, sales_count, total_cents from public.erp_sales_daily($1, $2::date, $3::date, $4)',
+        [tenantId, de, ate, fuso],
+      );
+      return rows.map((r) => [r.dia, Number(r.sales_count), Number(r.total_cents)]);
+    });
+
+  it('todo dia do período aparece — o dia sem venda é zero, não buraco', async () => {
+    const r = await vender(
+      fx.adminA,
+      fx.a,
+      [{ product_id: fx.cafe, quantity: 2 }],
+      [{ payment_method_id: fx.dinheiro, amount_cents: 1100 }],
+    );
+    await db.query(`update public.erp_sales set sold_at = '2026-09-24T15:00:00Z' where id = $1`, [
+      r.id,
+    ]);
+    assert.deepEqual(await porDia(fx.gestorA, fx.a, '2026-09-23', '2026-09-25'), [
+      ['2026-09-23', 0, 0],
+      ['2026-09-24', 1, 1100],
+      ['2026-09-25', 0, 0],
+    ]);
+  });
+
+  it('o dia é o do fuso da empresa: 23h30 em São Paulo ainda é o mesmo dia', async () => {
+    const r = await vender(
+      fx.adminA,
+      fx.a,
+      [{ product_id: fx.cafe, quantity: 1 }],
+      [{ payment_method_id: fx.dinheiro, amount_cents: 550 }],
+    );
+    // 25/09 02:30 UTC = 24/09 23:30 em São Paulo.
+    await db.query(`update public.erp_sales set sold_at = '2026-09-25T02:30:00Z' where id = $1`, [
+      r.id,
+    ]);
+    const sp = await porDia(fx.adminA, fx.a, '2026-09-24', '2026-09-25');
+    assert.deepEqual(sp, [
+      ['2026-09-24', 1, 550],
+      ['2026-09-25', 0, 0],
+    ]);
+    const utc = await porDia(fx.adminA, fx.a, '2026-09-24', '2026-09-25', 'UTC');
+    assert.deepEqual(utc, [
+      ['2026-09-24', 0, 0],
+      ['2026-09-25', 1, 550],
+    ]);
+  });
+
+  it('cancelada não conta; a empresa alheia recebe zeros', async () => {
+    const r = await vender(
+      fx.adminA,
+      fx.a,
+      [{ product_id: fx.cafe, quantity: 1 }],
+      [{ payment_method_id: fx.dinheiro, amount_cents: 550 }],
+    );
+    await db.query(`update public.erp_sales set sold_at = '2026-09-24T15:00:00Z' where id = $1`, [
+      r.id,
+    ]);
+    assert.deepEqual(await porDia(fx.adminB, fx.a, '2026-09-24', '2026-09-24'), [
+      ['2026-09-24', 0, 0],
+    ]);
+    await cancelar(fx.adminA, r.id, 'errado');
+    assert.deepEqual(await porDia(fx.adminA, fx.a, '2026-09-24', '2026-09-24'), [
+      ['2026-09-24', 0, 0],
+    ]);
+  });
+
+  it('período invertido ou longo demais é recusado', async () => {
+    await assert.rejects(porDia(fx.adminA, fx.a, '2026-09-25', '2026-09-24'), /três meses/);
+    await assert.rejects(porDia(fx.adminA, fx.a, '2026-01-01', '2026-09-24'), /três meses/);
+  });
+});
+
 /* ── 6. Relatórios do financeiro ───────────────────────────────────────── */
 
 describe('finance_summary e finance_cashflow', () => {

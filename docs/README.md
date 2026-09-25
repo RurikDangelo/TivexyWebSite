@@ -73,6 +73,7 @@ sem implementação atrás vira ficção.
 | `AUTHENTICATION.md`                    | `03-CORE/`         | ✅ escrito                       |
 | `SETTINGS.md`                          | `03-CORE/`         | ✅ escrito                       |
 | `TEAM.md`                              | `03-CORE/`         | ✅ escrito                       |
+| `PAINEL.md`                            | `03-CORE/`         | ✅ escrito                       |
 | `CRM.md`                               | `04-CRM/`          | ✅ escrito                       |
 | `RODAR-LOCAL.md`                       | `15-OPERATIONS/`   | ✅ escrito                       |
 | `TUTORIAL.md`                          | `15-OPERATIONS/`   | ✅ escrito                       |

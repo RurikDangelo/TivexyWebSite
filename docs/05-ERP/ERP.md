@@ -248,3 +248,9 @@ Frases com o nome da venda não concordam em gênero ("Registro feito: Pedido n�
 | Custo médio                  | A entrada guarda custo unitário; ninguém recalcula o do produto |
 | Nota fiscal da venda         | 🔒 provedor fiscal + certificado — ver `11-FISCAL/`             |
 | Venda ligada à pessoa do CRM | Coluna opcional, quando houver pedido — ADR-004                 |
+
+## Vendas por dia — `erp_sales_daily()`
+
+Para o painel (20260925150000): um registro por dia do fuso da empresa, com
+contagem e total das vendas concluídas — o dia sem venda vem como zero.
+`SECURITY INVOKER`, como `erp_sales_summary()`. Ver [[03-CORE/PAINEL|PAINEL]].

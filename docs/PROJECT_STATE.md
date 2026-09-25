@@ -210,8 +210,9 @@ build sem erro; conferido no navegador em claro, escuro e 375px):
   trava de scroll
 - Troca de tema em três estados, persistida, sem piscar na primeira pintura
 - Primitivos: botão, card, badge, campo
-- `/painel` com o estado real da plataforma — **não é dashboard de produto**,
-  não há dado de negócio
+- `/painel` é o painel do negócio desde 25/09/2026 (🟡): vendas, dinheiro, CRM e
+  estoque, cada número uma consulta ao banco da empresa — ver
+  [[03-CORE/PAINEL|PAINEL]]
 - Estados de 404, erro e carregamento (esqueleto, não spinner)
 - Mapa de regras por rota em `src/config/routes.ts`, **fechado por padrão**, com
   teste que cruza navegação e rotas
@@ -677,6 +678,7 @@ O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 | `20260925120000_finance_reports`         | resumo e fluxo de caixa do financeiro                  |
 | `20260925130000_automation_engine`       | automações, execuções e avisos                         |
 | `20260925140000_admin_tenant_management` | suspensão corta a API; editar, suspender, trocar plano |
+| `20260925150000_erp_sales_daily`         | vendas por dia, no fuso da empresa                     |
 
 ### Entregas
 
@@ -702,6 +704,56 @@ O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 | `/integracoes` — lista honesta, nada conectado                 | 🟡     | O CNPJ lido de `tenants` como membro comum (política de leitura do tenant); `modules` legível por qualquer sessão                                                                                  |
 | `/tutorial` — do Admin à primeira venda, progresso contado     | 🟡     | Contagens com `head: true` pelo PostgREST em cada tabela; o `payload` de `provisioning_runs` legível pelo membro (política `provisioning_runs_read`)                                               |
 | Admin — cliente: editar, suspender, reativar, plano, histórico | 🟡     | `rpc(admin_set_tenant_status)` com o enum `tenant_status` pelo PostgREST; suspender e tentar ler o CRM pela API com o token de alguém da empresa; o embutido `provisioning_steps(...)`             |
+| `/painel` — o painel do negócio, só com número do banco        | 🟡     | `rpc(erp_sales_daily)` com o fuso como texto; as contagens `head: true`; o dia de hoje perto da meia-noite no fuso da empresa                                                                      |
+
+### O que não coube, e por quê
+
+| Item                                              | Por quê                                                                              |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `/erp/clientes` (tela própria de clientes do ERP) | Fora das 16 telas; o cliente nasce e se escolhe no balcão (cadastro rápido)          |
+| Custo médio, ficha técnica, fornecedor e compra   | Cada um é módulo; sem eles o estoque usa o custo do cadastro e a contraparte é texto |
+| Plano de contas e parcelamento no financeiro      | Categoria é texto livre; crédito em N vezes vira N lançamentos quando houver pedido  |
+| Reordenar categorias de produto                   | Ordem alfabética atende; a coluna `position` existe para quando precisar             |
+| Gatilho por tempo nas automações ("vence amanhã") | Precisa de agendador (`pg_cron` ou função agendada) — o motor hoje só reage a evento |
+| Automação por e-mail, WhatsApp ou webhook         | 🔒 externo — SMTP, Meta, e um destino que receba; não existe nem simulado            |
+| Aviso em tempo real no sino                       | Realtime do Supabase não foi ligado; o número atualiza a cada página                 |
+| Cancelar empresa e ligar módulo avulso no Admin   | Decisões de outro tamanho — dados, prazos, cobrança; a troca de plano cobre o comum  |
+| Conexão de qualquer integração                    | 🔒 externo, uma por uma em `/integracoes`; nenhuma tem adaptador nem credencial      |
+
+### O que eu espero ver só contra o banco real
+
+Nada abaixo falhou nos testes (PGlite); é o que o PGlite não reproduz, ou
+reproduz diferente do Supabase:
+
+- **Embutidos pela chave composta** do PostgREST (`category:erp_product_categories(name)`,
+  `erp_products(count)`, `payments:erp_sale_payments(...)`, `provisioning_steps(...)`):
+  o PostgREST precisa inferir a relação por `(tenant_id, id)`, e pode pedir o nome
+  da constraint.
+- **`rpc` com `jsonb`, `date` e enum** pelo PostgREST: `erp_register_sale` (jsonb),
+  `finance_cashflow`/`erp_sales_daily` (date), `admin_set_tenant_status`
+  (`tenant_status`). Os testes passam texto com cast explícito; o PostgREST
+  converte do JSON.
+- **`set constraints ... immediate` dentro de função `INVOKER`** chamada pelo
+  PostgREST, e os gatilhos de constraint **adiados** conferindo no `commit` da
+  transação que o PostgREST abre por requisição.
+- **`created_at = now()`** como "filho só na mesma transação" (itens e
+  pagamentos da venda): depende de o PostgREST não reaproveitar transação.
+- **A variável `tivexy.automation_running`** (`set_config(..., true)`) dentro de
+  gatilho `SECURITY DEFINER`, no pooler do Supabase.
+- **`auth.uid()` dentro de gatilho `SECURITY DEFINER`** (quem criou a regra, quem
+  cancelou a venda) — deve ler o JWT da requisição.
+- **`lock_tenant_id()` no `db:push`**: os privilégios padrão do Supabase dão
+  `ALL` a `anon` e `authenticated` em tabela nova; a função revoga e concede por
+  coluna — conferir com `has_column_privilege` depois do push.
+- **Constraints `not valid` e índices únicos novos** sobre dado já existente.
+- **`bigint` como número no JSON**: somas grandes podem chegar como texto; a
+  tela converte, mas vale olhar.
+- **`.not('paid_on', 'is', null)`** e `.is('done_at', null)` no PostgREST.
+- **O dia da empresa perto da meia-noite** — venda às 23h30 de São Paulo no
+  painel, baixa no financeiro, agenda de hoje.
+- **`has_permission()` exigindo empresa ativa**: conferir que nada do
+  provisionamento pela tela dependa de permissão com a empresa ainda em
+  `provisioning` (nos testes, o provisionamento escreve como dono do banco).
 
 ### O Trello continua desconectado
 
