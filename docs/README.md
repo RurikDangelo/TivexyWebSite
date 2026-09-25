@@ -88,7 +88,7 @@ sem implementação atrás vira ficção.
 | `API.md`                               | `02-ARCHITECTURE/` | ⬜ com as primeiras rotas        |
 | `SECURITY.md`                          | `12-SECURITY/`     | ⬜ com o Core                    |
 | `TESTING.md`                           | `00-SYSTEM/`       | ✅ escrito                       |
-| `DEPLOYMENT.md`                        | `15-OPERATIONS/`   | ⬜ com o primeiro deploy do SaaS |
+| `DEPLOYMENT.md`                        | `15-OPERATIONS/`   | ✅ escrito                       |
 | `TROUBLESHOOTING.md`                   | `15-OPERATIONS/`   | ⬜ com a operação                |
 | `CHANGELOG.md`                         | `18-RELEASES/`     | ⬜ com a primeira release        |
 | `FINAL_AUDIT.md`                       | raiz de `docs/`    | ⬜ na auditoria final            |
