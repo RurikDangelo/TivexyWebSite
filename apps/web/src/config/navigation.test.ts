@@ -42,6 +42,7 @@ function recursoDaRota(href: string): string | null {
  */
 const SEM_RECURSO: Readonly<Record<string, string>> = {
   '/painel': 'resumo do negócio, não uma lista',
+  '/tutorial': 'guia de ponta a ponta, não uma lista',
   '/erp/financeiro': 'junta contas a receber, a pagar e o fluxo de caixa',
   '/equipe': 'nome da seção, não do recurso — "Equipe" continua certo para qualquer nicho',
   '/configuracoes': 'nome da seção',

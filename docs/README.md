@@ -75,6 +75,7 @@ sem implementação atrás vira ficção.
 | `TEAM.md`                              | `03-CORE/`         | ✅ escrito                       |
 | `CRM.md`                               | `04-CRM/`          | ✅ escrito                       |
 | `RODAR-LOCAL.md`                       | `15-OPERATIONS/`   | ✅ escrito                       |
+| `TUTORIAL.md`                          | `15-OPERATIONS/`   | ✅ escrito                       |
 | `PROVISIONING.md`                      | `06-ADMIN/`        | ✅ especificado                  |
 | `ERP.md`, `INVENTORY.md`, `FINANCE.md` | `05-ERP/`          | ✅ escrito                       |
 | `INTEGRATIONS.md`                      | `10-INTEGRATIONS/` | ✅ escrito                       |

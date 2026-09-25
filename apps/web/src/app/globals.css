@@ -263,6 +263,17 @@
   transform-box: fill-box;
 }
 
+/* Barra de progresso que enche da esquerda. `origin-left` na barra. */
+@keyframes tvx-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@utility animate-fill {
+  animation: tvx-fill 700ms var(--ease-out) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

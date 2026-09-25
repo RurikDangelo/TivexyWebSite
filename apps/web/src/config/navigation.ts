@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Contact,
   CreditCard,
+  GraduationCap,
   LayoutDashboard,
   Package,
   Settings,
@@ -64,7 +65,10 @@ export const navigation = [
   {
     label: null,
     module: 'core',
-    items: [{ label: 'Visão geral', href: '/painel', icon: LayoutDashboard, status: 'ready' }],
+    items: [
+      { label: 'Visão geral', href: '/painel', icon: LayoutDashboard, status: 'ready' },
+      { label: 'Tutorial', href: '/tutorial', icon: GraduationCap, status: 'ready' },
+    ],
   },
   {
     label: 'CRM',

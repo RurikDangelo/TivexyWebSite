@@ -58,6 +58,8 @@ export const routeRules: readonly RouteMatcher[] = [
   { prefix: '/painel', rule: { kind: 'member' } },
   /* Os avisos são da própria pessoa: basta o vínculo. */
   { prefix: '/avisos', rule: { kind: 'member' } },
+  /* O guia conta o progresso da empresa: precisa de uma. */
+  { prefix: '/tutorial', rule: { kind: 'member' } },
 
   { prefix: '/crm/leads', rule: { kind: 'permission', permission: 'crm.leads.read' } },
   { prefix: '/crm/contatos', rule: { kind: 'permission', permission: 'crm.contacts.read' } },
