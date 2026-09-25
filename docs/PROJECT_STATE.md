@@ -452,6 +452,19 @@ real, não.
 
 ## 3. O que está quebrado
 
+### Corrigido em 25/09/2026 — "5.50" num campo de valor virava R$ 550,00
+
+**Estado:** 🟡 testado, não verificado contra o banco real · **Gravidade:** 🟠
+Alta — silencioso · **Onde:** `packages/core/src/decimal.ts`
+
+`parseCents` tratava todo ponto como milhar. O teclado numérico do celular
+manda ponto como decimal: quem digitava `5.50` no valor de uma oportunidade
+gravava R$ 550,00, sem erro nenhum. A regra nova, única para dinheiro e
+quantidade: o ponto só é milhar quando forma grupos de milhar (`1.000`,
+`12.345`); sozinho, sem formar grupo (`5.50`, `0.335`), é decimal. Os testes
+antigos — `1.234` são mil duzentos e trinta e quatro reais — continuam
+passando.
+
 ### Corrigido em 25/09/2026 — `tenant_id` era editável em toda tabela de tenant
 
 **Estado:** 🟡 testado, não verificado contra o banco real · **Gravidade:** 🟡

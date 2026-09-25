@@ -99,6 +99,13 @@ describe('dinheiro', () => {
     assert.equal(parseCents('1.234,56'), 123456);
   });
 
+  it('ponto sozinho que não forma milhar é decimal — o teclado do celular', () => {
+    // Até 25/09/2026 isto era R$ 550,00: o erro de cem vezes, num campo de valor.
+    assert.equal(parseCents('5.50'), 550);
+    assert.equal(parseCents('0.99'), 99);
+    assert.equal(parseCents('10.5'), 1050);
+  });
+
   it('a vírgula é o decimal', () => {
     assert.equal(parseCents('1234,56'), 123456);
     assert.equal(parseCents('0,99'), 99);

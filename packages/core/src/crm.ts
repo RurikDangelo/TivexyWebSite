@@ -8,6 +8,8 @@
  * existe.
  */
 
+import { normalizeDecimal } from './decimal.ts';
+
 /**
  * O que uma etapa do funil significa para o negócio.
  *
@@ -102,16 +104,15 @@ export function formatCents(cents: number, locale = 'pt-BR', currency = 'BRL'): 
  * relatório de faturamento.
  */
 export function parseCents(raw: string): number | null {
-  const limpo = raw.trim();
-  if (limpo === '') return null;
-
   /*
    * O ponto é separador de milhar no Brasil, e a vírgula é o decimal. Tratar
-   * o ponto como decimal faria `1.234` virar R$ 1,23 — um erro de mil vezes
-   * que passa despercebido justamente porque o número continua plausível.
+   * o ponto como decimal sempre faria `1.234` virar R$ 1,23 — um erro de mil
+   * vezes. Tratá-lo como milhar sempre fazia `5.50`, do teclado do celular,
+   * virar R$ 550,00 — um erro de cem vezes, que existiu até 25/09/2026. A
+   * regra que resolve os dois está em `normalizeDecimal`.
    */
-  const normalizado = limpo.replace(/\./g, '').replace(',', '.');
-  if (!/^\d+(\.\d{1,2})?$/.test(normalizado)) return null;
+  const normalizado = normalizeDecimal(raw, 2);
+  if (normalizado === null) return null;
 
   const centavos = Math.round(Number(normalizado) * 100);
   return Number.isSafeInteger(centavos) ? centavos : null;

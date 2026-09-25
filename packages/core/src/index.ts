@@ -98,6 +98,7 @@ export {
   lineTotalCents,
   movementSign,
   parseQuantity,
+  saleTotals,
   stockStatus,
   stockSummary,
   type ErpSaleStatus,
@@ -166,3 +167,5 @@ export {
   type ProvisioningStepStatus,
   type ProvisioningStep,
 } from './provisioning.ts';
+
+export { normalizeDecimal } from './decimal.ts';

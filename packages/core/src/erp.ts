@@ -5,6 +5,8 @@
  * contratos compara cada uma com o enum ou a constraint do banco.
  */
 
+import { normalizeDecimal } from './decimal.ts';
+
 /* ── Unidades ──────────────────────────────────────────────────────────── */
 
 /**
@@ -43,8 +45,9 @@ export const QUANTITY_DECIMALS = 3;
 /**
  * Texto digitado para quantidade, ou `null`.
  *
- * As mesmas regras de `parseCents`: vírgula é decimal, ponto é milhar. Até três
- * casas — um grama de um quilo. Aceita negativo só quando pedido (ajuste de
+ * As mesmas regras de `parseCents` — `normalizeDecimal`: vírgula é decimal,
+ * ponto em grupo de milhar é milhar, ponto sozinho (`0.5`, do celular) é
+ * decimal. Até três casas — um grama de um quilo. Aceita negativo só quando pedido (ajuste de
  * estoque); zero nunca, porque movimentar zero não é movimento.
  */
 export function parseQuantity(raw: string, { negativo = false } = {}): number | null {
@@ -52,9 +55,9 @@ export function parseQuantity(raw: string, { negativo = false } = {}): number | 
   if (limpo === '') return null;
   const sinal = limpo.startsWith('-') ? -1 : 1;
   if (sinal < 0 && !negativo) return null;
-  const corpo = limpo.replace(/^[-+]/, '').replace(/\./g, '').replace(',', '.');
-  if (!/^\d+(\.\d{1,3})?$/.test(corpo)) return null;
-  const valor = sinal * Number(corpo);
+  const normalizado = normalizeDecimal(limpo.replace(/^[-+]/, ''), QUANTITY_DECIMALS);
+  if (normalizado === null) return null;
+  const valor = sinal * Number(normalizado);
   if (valor === 0 || !Number.isFinite(valor) || Math.abs(valor) >= 1e11) return null;
   return Math.round(valor * 1000) / 1000;
 }
@@ -227,6 +230,26 @@ export function stockSummary(
 /* ── Venda ─────────────────────────────────────────────────────────────── */
 
 export const ERP_SALE_STATUSES = ['completed', 'cancelled'] as const;
+
+/**
+ * Subtotal e total de uma venda, linha a linha com `lineTotalCents`.
+ *
+ * É a conta que a tela mostra enquanto a venda é montada, que a ação confere
+ * antes de chamar o banco, e que `erp_register_sale()` refaz lá dentro —
+ * `sum(round(quantidade × preço))`. As três precisam dar o mesmo centavo, e o
+ * teste de contratos confere `lineTotalCents` contra o `round()` do Postgres.
+ * Desconto maior que o subtotal não vira total negativo: a ação recusa antes.
+ */
+export function saleTotals(
+  itens: readonly { quantidade: number; precoCentavos: number }[],
+  descontoCentavos = 0,
+): { subtotal: number; total: number } {
+  const subtotal = itens.reduce(
+    (soma, i) => soma + lineTotalCents(i.quantidade, i.precoCentavos),
+    0,
+  );
+  return { subtotal, total: Math.max(0, subtotal - descontoCentavos) };
+}
 
 export type ErpSaleStatus = (typeof ERP_SALE_STATUSES)[number];
 

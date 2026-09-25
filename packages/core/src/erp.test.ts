@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  saleTotals,
   STOCK_STATUS_ORDER,
   stockSummary,
   formatQuantityInput,
@@ -27,6 +28,11 @@ describe('parseQuantity', () => {
     assert.equal(parseQuantity('0,350'), 0.35);
     assert.equal(parseQuantity('1.000'), 1000);
     assert.equal(parseQuantity('3'), 3);
+  });
+
+  it('ponto sozinho que não forma milhar é decimal — o teclado do celular', () => {
+    assert.equal(parseQuantity('0.335'), 0.335);
+    assert.equal(parseQuantity('1.5'), 1.5);
   });
 
   it('recusa zero, torto e mais de três casas', () => {
@@ -191,5 +197,39 @@ describe('stockSummary', () => {
   it('a ordem de urgência começa pelo negativo', () => {
     assert.equal(STOCK_STATUS_ORDER[0], 'negative');
     assert.equal(STOCK_STATUS_ORDER.length, 5);
+  });
+});
+
+describe('saleTotals', () => {
+  it('soma linha a linha, cada uma arredondada', () => {
+    // 2 × 5,50 = 11,00; 0,335 × 59,90 = 20,0665 → 20,07
+    const r = saleTotals([
+      { quantidade: 2, precoCentavos: 550 },
+      { quantidade: 0.335, precoCentavos: 5990 },
+    ]);
+    assert.deepEqual(r, { subtotal: 3107, total: 3107 });
+  });
+
+  it('arredondar por linha não é arredondar a soma', () => {
+    // 3 linhas de 0,005 × 100 = 0,5 cada → 1 centavo cada, 3 no total.
+    // Somar antes e arredondar depois daria 2 — e o banco grava 3.
+    const r = saleTotals([
+      { quantidade: 0.005, precoCentavos: 100 },
+      { quantidade: 0.005, precoCentavos: 100 },
+      { quantidade: 0.005, precoCentavos: 100 },
+    ]);
+    assert.equal(r.subtotal, 3);
+  });
+
+  it('o desconto sai do total, que nunca fica negativo', () => {
+    assert.deepEqual(saleTotals([{ quantidade: 1, precoCentavos: 1000 }], 250), {
+      subtotal: 1000,
+      total: 750,
+    });
+    assert.equal(saleTotals([{ quantidade: 1, precoCentavos: 100 }], 500).total, 0);
+  });
+
+  it('venda vazia soma zero', () => {
+    assert.deepEqual(saleTotals([]), { subtotal: 0, total: 0 });
   });
 });
