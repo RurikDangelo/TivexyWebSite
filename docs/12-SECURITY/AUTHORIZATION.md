@@ -196,12 +196,22 @@ honesto.
 `for all`. Tabela sem ela — funil, etapa, tipo de atividade, atividade — pode
 usar, porque ali excluir é parte de escrever.
 
+## A permissão de configurações não era a que valia
+
+Corrigido em 25/09/2026 — 🟡 testado, não verificado contra o banco real.
+`tenants.settings` era escrita pela política de `tenants`, que confere
+`core.tenant.write`. Agora a coluna está fora do `GRANT UPDATE` e a escrita
+passa por `update_tenant_settings()`, que confere `core.settings.write`. Ver
+[[../03-CORE/SETTINGS|SETTINGS]].
+
 ## Regras para código novo
 
 - Toda rota protegida verifica permissão **no servidor**
 - Toda tabela de negócio ganha política de escrita com `has_permission(...)`
 - Tabela com permissão `.delete` no catálogo tem política de `delete` própria —
   `for all` com `.write` deixa quem edita apagar
+- Coluna cuja escrita tem permissão própria no catálogo não fica sob a política
+  da tabela: sai do `GRANT UPDATE` e ganha função que confere a permissão dela
 - Permissão nova entra no catálogo em migration, com os vínculos de papel
 - Depois de mudar o catálogo, rode `npm run docs:matrix` e atualize este documento
 - Teste de autorização chama a API direto, sem passar pela interface

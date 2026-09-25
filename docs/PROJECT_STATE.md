@@ -423,6 +423,14 @@ real, não.
 
 ## 3. O que está quebrado
 
+### Corrigido em 25/09/2026 — a permissão de configurações não era a que valia
+
+**Estado:** 🟡 testado, não verificado contra o banco real · Ver
+[[03-CORE/SETTINGS#Quem pode mudar — e o defeito que havia]]
+
+`tenants.settings` se escrevia com `core.tenant.write`, pela política da
+tabela. `core.settings.write` existia no catálogo e não valia nada.
+
 ### Corrigido em 25/09/2026 — o banco recusava o CNPJ novo, com letra
 
 **Estado:** 🟡 testado, não verificado contra o banco real · **Gravidade:** 🟠
@@ -552,6 +560,7 @@ O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 | `20260925020000_crm_delete_permission`  | excluir exige `.delete`                |
 | `20260925030000_crm_pipeline_integrity` | editor de funil seguro                 |
 | `20260925040000_documents`              | documento da pessoa; CNPJ alfanumérico |
+| `20260925050000_tenant_settings_write`  | configurações com a permissão certa    |
 
 ### Entregas
 
@@ -564,6 +573,7 @@ O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 | `/crm/contatos` — lista, busca, cadastro, página  | 🟡     | Buscar por CPF com e sem pontuação; CNPJ com letra entra em conta e pessoa; o `not valid` passa no `db:push` |
 | `/crm/empresas` — contas, pessoas e oportunidades | 🟡     | A página da conta com pessoas e oportunidades ligadas; site sem esquema vira link absoluto                   |
 | `/crm/atividades` — agenda e painel nas páginas   | 🟡     | Agendar 14:30 e ver 14:30 (não 11:30); concluir e recarregar; o embutido dos quatro alvos                    |
+| `/configuracoes` — empresa, preferências, tipos   | 🟡     | Mudar o fuso e ver a agenda mudar de hora; gestor recebe recusa; a auditoria guarda antes e depois           |
 
 ### O Trello continua desconectado
 

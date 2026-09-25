@@ -107,12 +107,13 @@ describe('colunas que o papel authenticated pode atualizar', () => {
   });
 
   it('em public.tenants, só o que a empresa administra sobre si', async () => {
-    assert.deepEqual(await colunasAtualizaveis('tenants'), [
-      'document',
-      'legal_name',
-      'name',
-      'settings',
-    ]);
+    /*
+     * `settings` saiu em 25/09/2026: a escrita passou para
+     * `update_tenant_settings()`, que confere `core.settings.write` — a
+     * política da tabela conferia `core.tenant.write`. Ver
+     * docs/03-CORE/SETTINGS.md.
+     */
+    assert.deepEqual(await colunasAtualizaveis('tenants'), ['document', 'legal_name', 'name']);
   });
 
   it('nenhuma coluna que concede privilégio ou define cobrança é atualizável', async () => {

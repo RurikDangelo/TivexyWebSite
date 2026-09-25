@@ -31,6 +31,8 @@ export interface SettingDefinition {
   default: string | number | boolean;
   /** Valores aceitos, só para `enum`. */
   options?: readonly string[];
+  /** O nome curto, para o rótulo do campo. */
+  label: string;
   /** Como explicar isto para quem vai configurar. */
   description: string;
 }
@@ -51,6 +53,7 @@ export const TENANT_SETTINGS: readonly SettingDefinition[] = [
     type: 'enum',
     options: CURRENCIES,
     default: 'BRL',
+    label: 'Moeda',
     description: 'Moeda em que os valores são exibidos e registrados.',
   },
   {
@@ -58,20 +61,23 @@ export const TENANT_SETTINGS: readonly SettingDefinition[] = [
     module: 'core',
     type: 'string',
     default: 'America/Sao_Paulo',
-    description: 'Fuso horário do tenant. Define o que é "hoje" em relatórios.',
+    label: 'Fuso horário',
+    description: 'Define o que é "hoje" na agenda, nos vencimentos e nos relatórios.',
   },
   {
     key: 'crm.contact_requires_document',
     module: 'crm',
     type: 'boolean',
     default: false,
-    description: 'Exigir CPF ou CNPJ ao cadastrar contato.',
+    label: 'Exigir CPF ou CNPJ no cadastro de pessoa',
+    description: 'Sem documento, o cadastro não é salvo. Convênio e nota fiscal costumam exigir.',
   },
   {
     key: 'erp.sales_requires_customer',
     module: 'erp',
     type: 'boolean',
     default: true,
+    label: 'Venda exige cliente identificado',
     description: 'Exigir cliente identificado na venda. Balcão costuma desligar.',
   },
   {
@@ -79,6 +85,7 @@ export const TENANT_SETTINGS: readonly SettingDefinition[] = [
     module: 'inventory',
     type: 'boolean',
     default: true,
+    label: 'Baixar o estoque ao vender',
     description: 'Baixar estoque automaticamente ao registrar venda.',
   },
 ];
@@ -174,4 +181,45 @@ export function resolveSettings(
   }
 
   return efetivas;
+}
+
+/**
+ * O que gravar em `tenants.settings` depois de uma edição: só a diferença.
+ *
+ * `valores` é o que a tela mandou para os módulos habilitados. O que ficou
+ * igual ao padrão **sai** do registro — senão, mudar um padrão no Core nunca
+ * mais alcançaria este tenant, porque ele teria gravado o padrão antigo como
+ * escolha. Valor inválido é recusado, não guardado: quem chama recebe os
+ * problemas e não grava nada.
+ *
+ * As chaves de módulos **não** habilitados passam intactas. O módulo pode
+ * voltar, e a escolha que o tenant fez antes deve voltar com ele.
+ */
+export function overridesFrom(
+  anteriores: Readonly<Record<string, unknown>>,
+  valores: Readonly<Record<string, unknown>>,
+  enabledModules: readonly ModuleCode[],
+):
+  | { ok: true; overrides: Record<string, unknown> }
+  | { ok: false; problems: Record<string, string> } {
+  const habilitados = new Set<string>(enabledModules);
+  const overrides: Record<string, unknown> = {};
+  const problems: Record<string, string> = {};
+
+  /* O que não é deste formulário fica como estava — inclusive chave que o Core não conhece mais. */
+  for (const [chave, valor] of Object.entries(anteriores)) {
+    const def = PORCHAVE.get(chave);
+    if (def === undefined || !habilitados.has(def.module)) overrides[chave] = valor;
+  }
+
+  for (const def of TENANT_SETTINGS) {
+    if (!habilitados.has(def.module)) continue;
+    const valor = def.key in valores ? valores[def.key] : anteriores[def.key];
+    if (valor === undefined || valor === def.default) continue;
+    const problema = checkSettingValue(def, valor);
+    if (problema !== null) problems[def.key] = problema;
+    else overrides[def.key] = valor;
+  }
+
+  return Object.keys(problems).length > 0 ? { ok: false, problems } : { ok: true, overrides };
 }

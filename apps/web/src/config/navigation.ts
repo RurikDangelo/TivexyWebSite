@@ -148,7 +148,7 @@ export const navigation = [
         term: 'integrations.connections',
       },
       { label: 'Equipe', href: '/equipe', icon: Users, status: 'pending' },
-      { label: 'Configurações', href: '/configuracoes', icon: Settings, status: 'pending' },
+      { label: 'Configurações', href: '/configuracoes', icon: Settings, status: 'ready' },
     ],
   },
   {

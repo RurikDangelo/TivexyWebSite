@@ -97,6 +97,7 @@ export {
 export {
   TENANT_SETTINGS,
   checkSettingValue,
+  overridesFrom,
   resolveSettings,
   settingDefinition,
   type SettingDefinition,
