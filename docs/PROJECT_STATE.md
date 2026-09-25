@@ -437,6 +437,11 @@ atividade. **Nenhuma ação fala com serviço externo.**
 
 **Estado:** ⬜ NÃO EXISTE · 🔒 Meta Business + WhatsApp Business API · **Trello:** `META`
 
+A tela `/integracoes` existe desde 25/09/2026 (🟡) e diz isso, uma por uma: as
+sete integrações previstas, todas **não configuradas**, com o que falta da
+empresa (🔒 externo) e da Tivexy (interno), sem botão de conectar. Ver
+[[10-INTEGRATIONS/INTEGRATIONS|INTEGRATIONS]].
+
 Adapter pode ser construído com mock **rotulado** antes das credenciais. A conexão
 real, não.
 
@@ -670,6 +675,7 @@ O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 | `/erp/vendas` — balcão, comprovante, cancelar, formas     | 🟡     | `rpc(erp_register_sale)` com jsonb pelo PostgREST; `set constraints` dentro da função; o embutido `payments:erp_sale_payments(method_name)`; cancelar e ver o estoque voltar                       |
 | `/erp/financeiro` — resumo, fluxo, a receber, a pagar     | 🟡     | Datas `date` pelo `rpc` do PostgREST; `.not(paid_on, is, null)`; a baixa com o dia do tenant perto da meia-noite                                                                                   |
 | `/automacoes` — regras, modelos, execuções; avisos e sino | 🟡     | Registrar venda acima do valor e ver o aviso no sino de quem tem a permissão; `set_config('tivexy.automation_running')` dentro do gatilho pelo PostgREST; `auth.uid()` no `before insert` da regra |
+| `/integracoes` — lista honesta, nada conectado            | 🟡     | O CNPJ lido de `tenants` como membro comum (política de leitura do tenant); `modules` legível por qualquer sessão                                                                                  |
 
 ### O Trello continua desconectado
 
