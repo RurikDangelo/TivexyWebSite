@@ -204,6 +204,14 @@ Corrigido em 25/09/2026 — 🟡 testado, não verificado contra o banco real.
 passa por `update_tenant_settings()`, que confere `core.settings.write`. Ver
 [[../03-CORE/SETTINGS|SETTINGS]].
 
+## O gestor se promovia a administrador
+
+Corrigido em 25/09/2026 — 🟡 testado, não verificado contra o banco real. O
+Gestor não tem `core.roles.write`, mas tinha `core.users.write`, que bastava
+para escrever `role_id = tenant_admin` no próprio vínculo. Agora quem atribui
+um papel precisa ter cada permissão dele. E a última pessoa administradora não
+sai, não é rebaixada nem suspensa. Ver [[../03-CORE/TEAM|TEAM]].
+
 ## Regras para código novo
 
 - Toda rota protegida verifica permissão **no servidor**
@@ -212,6 +220,8 @@ passa por `update_tenant_settings()`, que confere `core.settings.write`. Ver
   `for all` com `.write` deixa quem edita apagar
 - Coluna cuja escrita tem permissão própria no catálogo não fica sob a política
   da tabela: sai do `GRANT UPDATE` e ganha função que confere a permissão dela
+- Permissão de escrever uma referência a papel é permissão de dar poder: confira
+  que quem escreve já tem o poder que está dando
 - Permissão nova entra no catálogo em migration, com os vínculos de papel
 - Depois de mudar o catálogo, rode `npm run docs:matrix` e atualize este documento
 - Teste de autorização chama a API direto, sem passar pela interface

@@ -56,9 +56,13 @@ before(async () => {
  * vínculo ativado num teste mudaria o que o seguinte encontra.
  */
 beforeEach(async () => {
+  /*
+   * Apagar a empresa leva os vínculos em cascata. Apagar vínculo por vínculo
+   * não dá mais: o último administrador ativo não sai sozinho — ver
+   * `20260925060000_team_keeps_admin`.
+   */
   await db.exec(`
     delete from public.audit_logs;
-    delete from public.tenant_users;
     delete from public.tenants;
     delete from auth.users;
   `);

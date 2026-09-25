@@ -423,6 +423,16 @@ real, não.
 
 ## 3. O que está quebrado
 
+### Corrigido em 25/09/2026 — o gestor se promovia a administrador
+
+**Estado:** 🟡 testado, não verificado contra o banco real · **Gravidade:** 🔴
+Crítica · Ver [[03-CORE/TEAM#Ninguém dá um papel com mais poder que o seu]]
+
+`core.users.write` bastava para escrever `role_id = tenant_admin` em qualquer
+vínculo — inclusive o próprio. A porta que o catálogo fechou em `roles`
+(o gestor não tem `core.roles.write`) estava aberta em `tenant_users`. Junto,
+a empresa passou a não poder ficar sem administrador.
+
 ### Corrigido em 25/09/2026 — a permissão de configurações não era a que valia
 
 **Estado:** 🟡 testado, não verificado contra o banco real · Ver
@@ -554,26 +564,28 @@ rodar o fluxo numa máquina com o `.env`.
 
 O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 
-| Migration                               | O que traz                             |
-| --------------------------------------- | -------------------------------------- |
-| `20260925010000_core_accept_invitation` | `accept_invitation()`                  |
-| `20260925020000_crm_delete_permission`  | excluir exige `.delete`                |
-| `20260925030000_crm_pipeline_integrity` | editor de funil seguro                 |
-| `20260925040000_documents`              | documento da pessoa; CNPJ alfanumérico |
-| `20260925050000_tenant_settings_write`  | configurações com a permissão certa    |
+| Migration                               | O que traz                                |
+| --------------------------------------- | ----------------------------------------- |
+| `20260925010000_core_accept_invitation` | `accept_invitation()`                     |
+| `20260925020000_crm_delete_permission`  | excluir exige `.delete`                   |
+| `20260925030000_crm_pipeline_integrity` | editor de funil seguro                    |
+| `20260925040000_documents`              | documento da pessoa; CNPJ alfanumérico    |
+| `20260925050000_tenant_settings_write`  | configurações com a permissão certa       |
+| `20260925060000_team_keeps_admin`       | último administrador; papel dentro do seu |
 
 ### Entregas
 
-| Entrega                                           | Estado | Onde conferir primeiro contra o banco real                                                                   |
-| ------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------ |
-| Menu no vocabulário do nicho                      | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba                                                  |
-| `/convite` — aceitar convite                      | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel                                         |
-| Excluir no CRM exige `.delete`                    | 🟡     | Colaborador tenta `DELETE` pela API REST e recebe zero linhas                                                |
-| `/crm/oportunidades` — quadro, página e funis     | 🟡     | Arrastar, recarregar e ver o cartão onde ficou; embutido `company:crm_companies(name)` pela chave composta   |
-| `/crm/contatos` — lista, busca, cadastro, página  | 🟡     | Buscar por CPF com e sem pontuação; CNPJ com letra entra em conta e pessoa; o `not valid` passa no `db:push` |
-| `/crm/empresas` — contas, pessoas e oportunidades | 🟡     | A página da conta com pessoas e oportunidades ligadas; site sem esquema vira link absoluto                   |
-| `/crm/atividades` — agenda e painel nas páginas   | 🟡     | Agendar 14:30 e ver 14:30 (não 11:30); concluir e recarregar; o embutido dos quatro alvos                    |
-| `/configuracoes` — empresa, preferências, tipos   | 🟡     | Mudar o fuso e ver a agenda mudar de hora; gestor recebe recusa; a auditoria guarda antes e depois           |
+| Entrega                                           | Estado | Onde conferir primeiro contra o banco real                                                                                       |
+| ------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| Menu no vocabulário do nicho                      | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba                                                                      |
+| `/convite` — aceitar convite                      | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel                                                             |
+| Excluir no CRM exige `.delete`                    | 🟡     | Colaborador tenta `DELETE` pela API REST e recebe zero linhas                                                                    |
+| `/crm/oportunidades` — quadro, página e funis     | 🟡     | Arrastar, recarregar e ver o cartão onde ficou; embutido `company:crm_companies(name)` pela chave composta                       |
+| `/crm/contatos` — lista, busca, cadastro, página  | 🟡     | Buscar por CPF com e sem pontuação; CNPJ com letra entra em conta e pessoa; o `not valid` passa no `db:push`                     |
+| `/crm/empresas` — contas, pessoas e oportunidades | 🟡     | A página da conta com pessoas e oportunidades ligadas; site sem esquema vira link absoluto                                       |
+| `/crm/atividades` — agenda e painel nas páginas   | 🟡     | Agendar 14:30 e ver 14:30 (não 11:30); concluir e recarregar; o embutido dos quatro alvos                                        |
+| `/configuracoes` — empresa, preferências, tipos   | 🟡     | Mudar o fuso e ver a agenda mudar de hora; gestor recebe recusa; a auditoria guarda antes e depois                               |
+| `/equipe` — membros, papéis, convite              | 🟡     | Gestor tenta se promover e recebe a recusa; convidar conta nova e abrir o link; convidar conta existente e ela ver em `/convite` |
 
 ### O Trello continua desconectado
 

@@ -13,6 +13,7 @@ pasta (`docs/`). É versionada em git: documentação e código andam no mesmo c
 | [[REPOSITORY_STRUCTURE]]                   | O que cada diretório é, e o que não é                      |
 | [[03-CORE/AUTHENTICATION\|AUTHENTICATION]] | Como uma requisição vira um `Viewer`                       |
 | [[03-CORE/SETTINGS\|SETTINGS]]             | O que a empresa ajusta, e quem pode mudar                  |
+| [[03-CORE/TEAM\|TEAM]]                     | Quem trabalha na empresa, e como entra                     |
 | [[04-CRM/CRM\|CRM]]                        | O primeiro módulo de negócio                               |
 | [[15-OPERATIONS/RODAR-LOCAL\|RODAR-LOCAL]] | Como subir o sistema aqui e ter o que olhar                |
 
@@ -68,6 +69,7 @@ sem implementação atrás vira ficção.
 | `AUTHORIZATION.md`                     | `12-SECURITY/`     | ✅ escrito                       |
 | `AUTHENTICATION.md`                    | `03-CORE/`         | ✅ escrito                       |
 | `SETTINGS.md`                          | `03-CORE/`         | ✅ escrito                       |
+| `TEAM.md`                              | `03-CORE/`         | ✅ escrito                       |
 | `CRM.md`                               | `04-CRM/`          | ✅ escrito                       |
 | `RODAR-LOCAL.md`                       | `15-OPERATIONS/`   | ✅ escrito                       |
 | `PROVISIONING.md`                      | `06-ADMIN/`        | ✅ especificado                  |

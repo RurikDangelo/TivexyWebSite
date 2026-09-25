@@ -26,6 +26,7 @@ const ESCRITAS_PARA_GENTE = [
   /^etapa não encontrada/,
   /^lead não encontrado/,
   /^você não tem permissão/,
+  /^você não pode /,
   /^converter cria/,
   /^convite não encontrado/,
   /^seu acesso /,
