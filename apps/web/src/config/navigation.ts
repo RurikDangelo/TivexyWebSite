@@ -126,7 +126,7 @@ export const navigation = [
         status: 'ready',
         term: 'inventory.stock',
       },
-      { label: 'Financeiro', href: '/erp/financeiro', icon: CreditCard, status: 'pending' },
+      { label: 'Financeiro', href: '/erp/financeiro', icon: CreditCard, status: 'ready' },
     ],
   },
   {

@@ -1266,3 +1266,104 @@ describe('erp_sales_summary', () => {
     assert.deepEqual(r, { vendas: 0, total: 0, desconto: 0, canceladas: 0 });
   });
 });
+
+/* ── 6. Relatórios do financeiro ───────────────────────────────────────── */
+
+describe('finance_summary e finance_cashflow', () => {
+  /** Lançamento avulso, direto como superusuário — o cenário, não o que se testa. */
+  async function lancar(direcao, valor, vencimento, pagoEm = null, cancelado = false) {
+    const { rows } = await db.query(
+      `insert into public.finance_entries (tenant_id, direction, description, amount_cents, due_date, paid_on)
+       values ($1, $2::public.finance_direction, 'x', $3, $4::date, $5::date) returning id`,
+      [fx.a, direcao, valor, vencimento, pagoEm],
+    );
+    if (cancelado) {
+      await db.query(
+        `update public.finance_entries set cancelled_at = now(), cancel_reason = 'x' where id = $1`,
+        [rows[0].id],
+      );
+    }
+  }
+
+  const resumo = (userId, hoje, inicioDoMes) =>
+    asUser(db, userId, async () => {
+      const { rows } = await db.query(
+        'select * from public.finance_summary($1, $2::date, $3::date)',
+        [fx.a, hoje, inicioDoMes],
+      );
+      return Object.fromEntries(Object.entries(rows[0]).map(([k, v]) => [k, Number(v)]));
+    });
+
+  it('em aberto, vencido, realizado no mês e previsto em 30 dias', async () => {
+    await lancar('receivable', 1000, '2026-09-20'); // vencido
+    await lancar('receivable', 2000, '2026-10-10'); // a vencer, dentro de 30 dias
+    await lancar('receivable', 4000, '2026-12-01'); // a vencer, fora de 30 dias
+    await lancar('receivable', 500, '2026-09-10', '2026-09-12'); // recebido no mês
+    await lancar('receivable', 700, '2026-08-10', '2026-08-12'); // recebido no mês anterior
+    await lancar('receivable', 9999, '2026-09-21', null, true); // cancelado: não conta
+    await lancar('payable', 300, '2026-09-24'); // vencido
+    await lancar('payable', 800, '2026-09-25', '2026-09-25'); // pago hoje
+
+    const r = await resumo(fx.adminA, '2026-09-25', '2026-09-01');
+    assert.deepEqual(r, {
+      receivable_open_cents: 7000,
+      receivable_overdue_cents: 1000,
+      receivable_open_count: 3,
+      payable_open_cents: 300,
+      payable_overdue_cents: 300,
+      payable_open_count: 1,
+      received_month_cents: 500,
+      paid_month_cents: 800,
+      receivable_next30_cents: 2000,
+      payable_next30_cents: 0,
+    });
+  });
+
+  it('quem só vê o que se paga soma só o que se paga', async () => {
+    await lancar('receivable', 1000, '2026-10-01');
+    await lancar('payable', 300, '2026-10-01');
+    const papelPagar = await papel(fx.a, 'so_pagar', ['finance.payables.read']);
+    const quem = await createUser(db, { email: 'sopagar@a.test' });
+    await membroCom(fx.a, quem, papelPagar);
+
+    const r = await resumo(quem, '2026-09-25', '2026-09-01');
+    assert.equal(r.receivable_open_cents, 0);
+    assert.equal(r.payable_open_cents, 300);
+  });
+
+  it('o fluxo põe o realizado no dia em que se moveu e o previsto no vencimento', async () => {
+    await lancar('receivable', 500, '2026-09-01', '2026-09-24');
+    await lancar('payable', 200, '2026-09-24', '2026-09-24');
+    await lancar('receivable', 1000, '2026-09-26');
+    await lancar('receivable', 777, '2026-09-10'); // atrasado: não aparece em dia nenhum
+
+    const dias = await asUser(db, fx.adminA, async () => {
+      const { rows } = await db.query(
+        `select day::text, received_cents, paid_cents, to_receive_cents, to_pay_cents
+         from public.finance_cashflow($1, '2026-09-24'::date, '2026-09-26'::date)`,
+        [fx.a],
+      );
+      return rows.map((r) => [
+        r.day,
+        Number(r.received_cents),
+        Number(r.paid_cents),
+        Number(r.to_receive_cents),
+        Number(r.to_pay_cents),
+      ]);
+    });
+    assert.deepEqual(dias, [
+      ['2026-09-24', 500, 200, 0, 0],
+      ['2026-09-25', 0, 0, 0, 0],
+      ['2026-09-26', 0, 0, 1000, 0],
+    ]);
+  });
+
+  it('período invertido ou longo demais é recusado com frase', async () => {
+    await assert.rejects(
+      asUser(db, fx.adminA, () =>
+        db.query(`select * from public.finance_cashflow($1, '2026-09-26', '2026-09-24')`, [fx.a]),
+      ),
+      /o período do fluxo de caixa/,
+    );
+  });
+});

@@ -448,7 +448,8 @@ real, não.
   entrou. **Nada cobra, paga ou fala com banco.**
 - Tela `/erp/estoque`: 🟡 — saldo por urgência, resumo com valor a custo,
   entrada/saída/contagem, razão. Ver [[05-ERP/INVENTORY#Tela: `/erp/estoque`]].
-- Tela `/erp/financeiro`: ⬜, na fila depois de `/erp/vendas`.
+- Tela `/erp/financeiro`: 🟡 — resumo, fluxo de caixa em SVG próprio, a receber e a
+  pagar com baixa, desfazer e cancelar. Ver [[05-ERP/FINANCE#Tela: `/erp/financeiro`]].
 
 ## 3. O que está quebrado
 
@@ -632,6 +633,7 @@ O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 | `20260925090000_erp_inventory`          | razão e saldo de estoque                            |
 | `20260925100000_erp_finance`            | contas a receber e a pagar                          |
 | `20260925110000_erp_sales_summary`      | resumo de vendas do período                         |
+| `20260925120000_finance_reports`        | resumo e fluxo de caixa do financeiro               |
 
 ### Entregas
 
@@ -652,6 +654,7 @@ O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 | `/erp/produtos` — lista, cadastro, categorias         | 🟡     | O embutido `category:erp_product_categories(name)` e a contagem `erp_products(count)` pela chave composta; apagar produto vendido e ler a recusa                             |
 | `/erp/estoque` — saldo, resumo, movimentar, razão     | 🟡     | Contar um produto com uma venda chegando ao mesmo tempo; o embutido `product:erp_products(...)` no razão; o saldo novo na mensagem para quem só escreve                      |
 | `/erp/vendas` — balcão, comprovante, cancelar, formas | 🟡     | `rpc(erp_register_sale)` com jsonb pelo PostgREST; `set constraints` dentro da função; o embutido `payments:erp_sale_payments(method_name)`; cancelar e ver o estoque voltar |
+| `/erp/financeiro` — resumo, fluxo, a receber, a pagar | 🟡     | Datas `date` pelo `rpc` do PostgREST; `.not(paid_on, is, null)`; a baixa com o dia do tenant perto da meia-noite                                                             |
 
 ### O Trello continua desconectado
 

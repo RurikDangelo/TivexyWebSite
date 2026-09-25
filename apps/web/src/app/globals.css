@@ -246,6 +246,23 @@
   animation: tvx-enter 280ms var(--ease-out) both;
 }
 
+/*
+ * Barra de gráfico que cresce a partir do eixo. Com `transform-box: fill-box`
+ * a origem é a da própria barra no SVG — `origin-bottom` para quem sobe,
+ * `origin-top` para quem desce. Movimento reduzido zera a duração, e a barra
+ * aparece pronta.
+ */
+@keyframes tvx-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@utility animate-grow {
+  animation: tvx-grow 520ms var(--ease-out) both;
+  transform-box: fill-box;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
