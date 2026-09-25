@@ -42,7 +42,7 @@ verificação no banco é `public.has_permission(tenant_id, 'crm.leads.write')`.
 > rode o script depois de mudar o catálogo. Matriz de permissões errada na
 > documentação é pior que nenhuma.
 >
-> Totais: `tenant_admin` = 51 · `manager` = 48 · `collaborator` = 21
+> Totais: `tenant_admin` = 52 · `manager` = 49 · `collaborator` = 21
 
 ### Core
 
@@ -90,6 +90,7 @@ verificação no banco é `public.has_permission(tenant_id, 'crm.leads.write')`.
 | `erp.products.write`  | Criar e editar produtos     |  ✅   |   ✅   |      —      |
 | `erp.purchases.read`  | Ver compras                 |  ✅   |   ✅   |      —      |
 | `erp.purchases.write` | Registrar compras           |  ✅   |   ✅   |      —      |
+| `erp.sales.cancel`    | Cancelar vendas             |  ✅   |   ✅   |      —      |
 | `erp.sales.read`      | Ver vendas                  |  ✅   |   ✅   |     ✅      |
 | `erp.sales.write`     | Registrar vendas            |  ✅   |   ✅   |     ✅      |
 | `erp.suppliers.read`  | Ver fornecedores            |  ✅   |   ✅   |      —      |
@@ -212,6 +213,40 @@ para escrever `role_id = tenant_admin` no próprio vínculo. Agora quem atribui
 um papel precisa ter cada permissão dele. E a última pessoa administradora não
 sai, não é rebaixada nem suspensa. Ver [[../03-CORE/TEAM|TEAM]].
 
+## Cancelar venda é permissão própria
+
+Desde 25/09/2026 — 🟡 testado, não verificado contra o banco real.
+
+`erp.sales.cancel` entrou no catálogo junto com as tabelas de venda.
+Administrador e Gestor têm; Colaborador não. Registrar e cancelar são riscos
+diferentes: o golpe clássico de caixa é registrar a venda, receber, cancelar e
+ficar com o dinheiro — por isso todo PDV separa as duas coisas.
+
+A garantia é a política de `update` de `erp_sales`, e não a mensagem da
+função `erp_cancel_sale()`. Um teste cancela direto na tabela, como faria quem
+chamasse o PostgREST, e confere que nada muda.
+
+## `tenant_id` era editável — a revogação por coluna não fazia nada
+
+Corrigido em 25/09/2026 — 🟡 testado, não verificado contra o banco real.
+
+A migration do CRM terminava com `revoke update (tenant_id) on ... from
+authenticated`, e isso não revogava nada: o Supabase concede `update` na
+tabela, e privilégio de tabela cobre todas as colunas — revogar uma coluna não
+subtrai dele. `has_column_privilege(..., 'tenant_id', 'UPDATE')` respondia
+`true` em todas as tabelas de tenant, do CRM e do Core.
+
+O teste que dizia cobrar aceitava `permission denied` **ou** o erro do RLS, e o
+RLS recusava pelo `with check`. Passava com o privilégio aberto.
+
+`20260925065000_tenant_id_immutable` cria `lock_tenant_id(tabela)`: revoga o
+`update` da tabela e concede coluna por coluna, menos `id` e `tenant_id`. Um
+teste de integridade varre **toda** tabela de `public` com `tenant_id` — tabela
+nova que esqueça a função falha no dia em que nasce.
+
+> Depois disto, coluna nova numa tabela travada nasce **sem** `update` para
+> `authenticated`. Chame `lock_tenant_id()` de novo depois do `add column`.
+
 ## Regras para código novo
 
 - Toda rota protegida verifica permissão **no servidor**
@@ -227,3 +262,8 @@ sai, não é rebaixada nem suspensa. Ver [[../03-CORE/TEAM|TEAM]].
 - Teste de autorização chama a API direto, sem passar pela interface
 - Coluna que concede privilégio, muda cobrança ou define identidade sai do
   `GRANT UPDATE` do papel `authenticated`
+- `revoke update (coluna)` **não** funciona sobre um `grant` de tabela. Tabela
+  de tenant chama `lock_tenant_id()`; teste de privilégio espera
+  `permission denied`, nunca "`permission denied` ou RLS"
+- Tabela com RLS e sem política é interna: declare em `INTERNAS`, em
+  `supabase/tests/core.test.mjs`, e revogue todo privilégio

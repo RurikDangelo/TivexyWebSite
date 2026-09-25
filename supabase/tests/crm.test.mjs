@@ -154,6 +154,11 @@ describe('isolamento entre tenants', () => {
     // O RLS recusaria de qualquer jeito, porque o `with check` olha o valor
     // novo. Mas depender disso é depender de a política continuar escrita do
     // jeito certo; o privilégio de coluna é a regra direta.
+    //
+    // Até 25/09/2026 este teste aceitava `permission denied` **ou** o erro do
+    // RLS — e passava com o privilégio aberto, porque o RLS recusava. O erro
+    // era do teste: ele não distinguia a regra que dizia cobrar. Agora só o
+    // privilégio satisfaz. Ver 20260925065000_tenant_id_immutable.sql.
     await assert.rejects(
       asUser(db, fx.adminA, () =>
         db.query('update public.crm_leads set tenant_id = $1 where id = $2', [
@@ -161,7 +166,7 @@ describe('isolamento entre tenants', () => {
           fx.leadA,
         ]),
       ),
-      /permission denied|row-level security/i,
+      /permission denied/i,
     );
   });
 });

@@ -81,6 +81,27 @@ export {
   todayIn,
 } from './calendar.ts';
 
+export {
+  ERP_SALE_STATUSES,
+  FINANCE_DIRECTIONS,
+  INVENTORY_MOVEMENT_KINDS,
+  PRODUCT_UNITS,
+  QUANTITY_DECIMALS,
+  UNIT_INFO,
+  checkQuantity,
+  financeStatus,
+  formatQuantity,
+  isProductUnit,
+  lineTotalCents,
+  movementSign,
+  parseQuantity,
+  type ErpSaleStatus,
+  type FinanceDirection,
+  type FinanceStatus,
+  type InventoryMovementKind,
+  type ProductUnit,
+} from './erp.ts';
+
 export { AGENDA_BUCKETS, agendaBucket, groupByBucket, type AgendaBucket } from './agenda.ts';
 
 export {

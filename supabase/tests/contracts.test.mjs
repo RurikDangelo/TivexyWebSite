@@ -19,16 +19,23 @@ import {
   CRM_LEAD_STATUSES,
   CRM_STAGE_KINDS,
   DOCUMENT_PATTERN,
+  ERP_SALE_STATUSES,
+  FINANCE_DIRECTIONS,
+  INVENTORY_MOVEMENT_KINDS,
   MEMBERSHIP_STATUSES,
   MODULE_CODES,
   PERMISSION_CODES,
   PLAN_CODES,
+  PRODUCT_UNITS,
   PROVISIONING_STATUSES,
   PROVISIONING_STEP_STATUSES,
   SYSTEM_ROLE_CODES,
+  TENANT_SETTINGS,
   TENANT_STATUSES,
+  UNIT_INFO,
   isActive,
   isTerminal,
+  lineTotalCents,
   moduleOf,
 } from '../../packages/core/src/index.ts';
 import { planProvisioning } from '../../packages/core/src/provisioning-plan.ts';
@@ -129,6 +136,18 @@ describe('enums: TypeScript espelha o SQL', () => {
 
   it('ciclo do lead', async () => {
     assert.deepEqual([...CRM_LEAD_STATUSES], await enumLabels('crm_lead_status'));
+  });
+
+  it('movimentação de estoque', async () => {
+    assert.deepEqual([...INVENTORY_MOVEMENT_KINDS], await enumLabels('inventory_movement_kind'));
+  });
+
+  it('situação da venda', async () => {
+    assert.deepEqual([...ERP_SALE_STATUSES], await enumLabels('erp_sale_status'));
+  });
+
+  it('direção do lançamento', async () => {
+    assert.deepEqual([...FINANCE_DIRECTIONS], await enumLabels('finance_direction'));
   });
 });
 
@@ -327,7 +346,7 @@ describe('o subdomínio: TypeScript × constraint', () => {
 
 describe('a matriz de permissões da documentação', () => {
   /**
-   * `docs/12-SECURITY/AUTHORIZATION.md` traz a matriz completa — 51 permissões
+   * `docs/12-SECURITY/AUTHORIZATION.md` traz a matriz completa — 52 permissões
    * contra três papéis. Ela é **copiada à mão** da saída de
    * `npm run docs:matrix`, e cópia manual diverge: basta uma permissão nova
    * entrar na migration para a documentação passar a mentir.
@@ -371,6 +390,7 @@ describe('documentos: a regra do Core é a do banco', () => {
     'crm_contacts_document_format',
     'crm_companies_document_format',
     'tenants_document_format',
+    'erp_customers_document_format',
   ]) {
     it(constraint, async () => {
       const { rows } = await db.query(
@@ -384,4 +404,85 @@ describe('documentos: a regra do Core é a do banco', () => {
       );
     });
   }
+});
+
+describe('ERP: a regra do Core é a do banco', () => {
+  /** Os valores entre aspas de uma constraint `in (...)`, na ordem. */
+  async function valoresDaConstraint(nome) {
+    const { rows } = await db.query(
+      'select pg_get_constraintdef(oid) as def from pg_constraint where conname = $1',
+      [nome],
+    );
+    assert.equal(rows.length, 1, `${nome} sumiu`);
+    return [...rows[0].def.matchAll(/'([a-z]+)'::text/g)].map((m) => m[1]);
+  }
+
+  for (const constraint of ['erp_products_unit_known', 'erp_sale_items_unit_known']) {
+    it(`unidades: PRODUCT_UNITS × ${constraint}`, async () => {
+      assertSameSet(PRODUCT_UNITS, await valoresDaConstraint(constraint), constraint);
+    });
+  }
+
+  it('unidade fracionada: UNIT_INFO × erp_unit_is_fractional(), unidade por unidade', async () => {
+    /*
+     * A função é a regra única do banco: a constraint do item e os gatilhos
+     * de venda e de estoque chamam ela. Se divergir do Core, a tela aceita
+     * 1,5 onde o banco recusa — ou o contrário.
+     */
+    const divergentes = [];
+    for (const unidade of PRODUCT_UNITS) {
+      const { rows } = await db.query('select public.erp_unit_is_fractional($1) as f', [unidade]);
+      if (rows[0].f !== UNIT_INFO[unidade].fracionada) {
+        divergentes.push(`${unidade}: banco ${rows[0].f}, Core ${UNIT_INFO[unidade].fracionada}`);
+      }
+    }
+    assert.deepEqual(divergentes, []);
+
+    const { rows } = await db.query(
+      `select pg_get_constraintdef(oid) as def from pg_constraint where conname = 'erp_sale_items_fraction'`,
+    );
+    assert.match(rows[0].def, /erp_unit_is_fractional\(unit\)/, 'a constraint usa a função');
+  });
+
+  it('total da linha: lineTotalCents × round() do Postgres', async () => {
+    const casos = [
+      [2, 550],
+      [0.335, 5990],
+      [0.5, 1],
+      [0.005, 1],
+      [0.004, 1],
+      [1.005, 1999],
+      [12.345, 9999999],
+      [3, 0],
+      [0.001, 99999999],
+    ];
+    const divergentes = [];
+    for (const [quantidade, preco] of casos) {
+      const { rows } = await db.query('select round($1::numeric(14,3) * $2::bigint)::bigint as t', [
+        String(quantidade),
+        preco,
+      ]);
+      const banco = Number(rows[0].t);
+      const core = lineTotalCents(quantidade, preco);
+      if (banco !== core)
+        divergentes.push(`${quantidade} × ${preco}: banco ${banco}, Core ${core}`);
+    }
+    assert.deepEqual(divergentes, []);
+  });
+
+  it('padrões de configuração: TENANT_SETTINGS × setting_defaults, nos dois sentidos', async () => {
+    /*
+     * A venda é registrada no banco e lê "venda exige cliente" dali. Se o
+     * padrão do banco divergir do Core, a tela de configurações mostra uma
+     * coisa e o caixa faz outra — para toda empresa que nunca mexeu nela.
+     */
+    const { rows } = await db.query(
+      'select key, module, default_value from public.setting_defaults order by key',
+    );
+    const doBanco = rows.map((r) => `${r.key} | ${r.module} | ${JSON.stringify(r.default_value)}`);
+    const doCore = TENANT_SETTINGS.map(
+      (d) => `${d.key} | ${d.module} | ${JSON.stringify(d.default)}`,
+    );
+    assertSameSet(doCore, doBanco, 'padrões de configuração');
+  });
 });

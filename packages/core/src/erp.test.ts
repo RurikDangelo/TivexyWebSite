@@ -1,0 +1,99 @@
+/**
+ *   npm run test:core
+ */
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+
+import {
+  INVENTORY_MOVEMENT_KINDS,
+  PRODUCT_UNITS,
+  UNIT_INFO,
+  checkQuantity,
+  financeStatus,
+  formatQuantity,
+  lineTotalCents,
+  movementSign,
+  parseQuantity,
+} from './erp.ts';
+
+describe('parseQuantity', () => {
+  it('lê o que se digita no Brasil', () => {
+    assert.equal(parseQuantity('1,5'), 1.5);
+    assert.equal(parseQuantity('0,350'), 0.35);
+    assert.equal(parseQuantity('1.000'), 1000);
+    assert.equal(parseQuantity('3'), 3);
+  });
+
+  it('recusa zero, torto e mais de três casas', () => {
+    for (const torto of ['0', '0,000', 'abc', '1,2345', '', '1,2,3']) {
+      assert.equal(parseQuantity(torto), null, torto);
+    }
+  });
+
+  it('negativo só quando pedido — o ajuste de estoque pede', () => {
+    assert.equal(parseQuantity('-2'), null);
+    assert.equal(parseQuantity('-2', { negativo: true }), -2);
+  });
+});
+
+describe('checkQuantity', () => {
+  it('unidade inteira não aceita fração; peso aceita', () => {
+    assert.match(checkQuantity(1.5, 'un') ?? '', /fração/);
+    assert.equal(checkQuantity(2, 'un'), null);
+    assert.equal(checkQuantity(0.35, 'kg'), null);
+  });
+
+  it('toda unidade diz se é fracionada', () => {
+    for (const u of PRODUCT_UNITS) assert.equal(typeof UNIT_INFO[u].fracionada, 'boolean', u);
+  });
+});
+
+describe('lineTotalCents', () => {
+  it('quantidade × preço, meio centavo sobe', () => {
+    assert.equal(lineTotalCents(3, 450), 1350);
+    assert.equal(lineTotalCents(0.35, 4999), 1750); /* 1749,65 → 1750 */
+    assert.equal(lineTotalCents(0.001, 500), 1); /* 0,5 → 1 */
+    assert.equal(lineTotalCents(0.001, 499), 0); /* 0,499 → 0 */
+  });
+
+  it('não perde centavo em conta grande — onde ponto flutuante perderia', () => {
+    /* 12,345 × 9.999.999.999 = 123.449.999.987,655 → arredonda para ...988. */
+    assert.equal(lineTotalCents(12.345, 9_999_999_999), 123_449_999_988);
+  });
+});
+
+describe('estoque', () => {
+  it('todo tipo de movimento tem sinal definido', () => {
+    for (const k of INVENTORY_MOVEMENT_KINDS) assert.ok([1, -1, 0].includes(movementSign(k)), k);
+  });
+
+  it('venda tira, estorno devolve, ajuste vai para onde a contagem mandar', () => {
+    assert.equal(movementSign('sale'), -1);
+    assert.equal(movementSign('sale_return'), 1);
+    assert.equal(movementSign('adjustment'), 0);
+  });
+});
+
+describe('financeStatus', () => {
+  const base = { paidAt: null, cancelledAt: null, dueDate: '2026-09-25' };
+
+  it('vence amanhã é aberto; venceu ontem é vencido — pelo dia do tenant', () => {
+    assert.equal(financeStatus(base, '2026-09-25'), 'open');
+    assert.equal(financeStatus(base, '2026-09-26'), 'overdue');
+  });
+
+  it('pago e cancelado vencem a data', () => {
+    assert.equal(financeStatus({ ...base, paidAt: '2026-09-20T10:00:00Z' }, '2026-12-01'), 'paid');
+    assert.equal(
+      financeStatus({ ...base, cancelledAt: '2026-09-20T10:00:00Z' }, '2026-12-01'),
+      'cancelled',
+    );
+  });
+});
+
+describe('formatQuantity', () => {
+  it('vírgula e unidade', () => {
+    assert.equal(formatQuantity(1.5, 'kg'), '1,5 kg');
+    assert.equal(formatQuantity(3, 'un'), '3 un');
+  });
+});

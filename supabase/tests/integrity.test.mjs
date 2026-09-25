@@ -134,6 +134,37 @@ describe('colunas que o papel authenticated pode atualizar', () => {
       assert.equal(rows[0].pode, false, `${tabela}.${coluna} não deveria ser atualizável`);
     }
   });
+
+  it('`tenant_id` não se edita em tabela nenhuma — pelo privilégio, não só pelo RLS', async () => {
+    /*
+     * Até 25/09/2026 a migration do CRM dizia revogar isto e não revogava: o
+     * `update` concedido na tabela cobre todas as colunas, e revogar uma
+     * coluna não subtrai dele. Nas tabelas do Core ninguém tinha tentado.
+     * O RLS recusava pelo `with check`, então nenhum teste reparou.
+     *
+     * Por varredura, e não por lista: uma tabela nova de tenant que esqueça
+     * `lock_tenant_id()` falha aqui no dia em que nasce.
+     */
+    const { rows } = await db.query(`
+      select table_name, papel
+      from (
+        select c.table_name
+        from information_schema.columns c
+        join information_schema.tables t
+          on t.table_schema = c.table_schema and t.table_name = c.table_name
+        where c.table_schema = 'public' and c.column_name = 'tenant_id'
+          and t.table_type = 'BASE TABLE'
+        offset 0
+      ) tabelas
+      cross join (values ('authenticated'), ('anon')) as p(papel)
+      where has_column_privilege(papel, 'public.' || table_name, 'tenant_id', 'UPDATE')
+      order by 1, 2
+    `);
+    assert.deepEqual(
+      rows.map((r) => `${r.table_name} (${r.papel})`),
+      [],
+    );
+  });
 });
 
 /*

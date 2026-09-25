@@ -159,11 +159,11 @@ export type CompensateResult =
 /**
  * De que entidade do Blueprint sai cada tabela.
  *
- * O CRM entrou. `erp.product_categories` e `erp.payment_methods` continuam
- * fora, porque as tabelas do ERP ainda não existem — e semente sem tabela fica
- * **registrada como pendente**, com o motivo, em vez de aplicada. Fingir que
- * semeou é o que este projeto proíbe; apagar a semente perderia a
- * especificação do nicho.
+ * O CRM entrou primeiro; o ERP entrou em 25/09/2026, com categorias de
+ * produto e formas de pagamento. Entidade que ainda não tem tabela — um
+ * `erp.suppliers`, por exemplo — continua **registrada como pendente**, com o
+ * motivo, em vez de aplicada. Fingir que semeou é o que este projeto proíbe;
+ * apagar a semente perderia a especificação do nicho.
  *
  * O nome da tabela sai daqui, nunca do documento: é o que permite
  * interpolá-lo no SQL abaixo sem abrir caminho para injeção.
@@ -172,7 +172,33 @@ const TABELA_DA_SEMENTE = {
   'crm.pipelines': 'crm_pipelines',
   'crm.pipeline_stages': 'crm_pipeline_stages',
   'crm.activity_types': 'crm_activity_types',
+  'erp.product_categories': 'erp_product_categories',
+  'erp.payment_methods': 'erp_payment_methods',
 } as const;
+
+/**
+ * Em quantos dias o dinheiro de cada forma de pagamento costuma chegar.
+ *
+ * O documento de nicho declara a forma pelo código (`credit`, `pix`) e pode
+ * declarar o prazo; quando não declara, vale o usual do mercado. É
+ * **configuração**, não número do negócio: aparece em `/erp/vendas` e o
+ * administrador corrige para o prazo da maquininha dele. Código fora da
+ * lista nasce à vista — o erro visível, que ninguém confunde com dinheiro que
+ * vai chegar.
+ */
+const PRAZO_PADRAO_EM_DIAS: Readonly<Record<string, number>> = {
+  cash: 0,
+  pix: 0,
+  debit: 1,
+  credit: 30,
+  voucher: 30,
+};
+
+function prazoPadrao(codigo: string | null): number {
+  return codigo !== null && Object.hasOwn(PRAZO_PADRAO_EM_DIAS, codigo)
+    ? (PRAZO_PADRAO_EM_DIAS[codigo] ?? 0)
+    : 0;
+}
 
 type SeedEntity = keyof typeof TABELA_DA_SEMENTE;
 type SeedTable = (typeof TABELA_DA_SEMENTE)[SeedEntity];
@@ -234,6 +260,31 @@ async function semear(
       [tenantId, nome, inteiro(values.position, 0)],
     );
     return { kind: 'seed', table: 'crm_activity_types', id: texto(rows[0]?.id) };
+  }
+
+  if (entity === 'erp.product_categories') {
+    const { rows } = await db.query(
+      `insert into public.erp_product_categories (tenant_id, name, position)
+       values ($1, $2, $3) returning id`,
+      [tenantId, nome, inteiro(values.position, 0)],
+    );
+    return { kind: 'seed', table: 'erp_product_categories', id: texto(rows[0]?.id) };
+  }
+
+  if (entity === 'erp.payment_methods') {
+    const codigo = texto_opcional(values.code);
+    const { rows } = await db.query(
+      `insert into public.erp_payment_methods (tenant_id, name, code, settlement_days, position)
+       values ($1, $2, $3, $4, $5) returning id`,
+      [
+        tenantId,
+        nome,
+        codigo,
+        inteiro(values.settlement_days, prazoPadrao(codigo)),
+        inteiro(values.position, 0),
+      ],
+    );
+    return { kind: 'seed', table: 'erp_payment_methods', id: texto(rows[0]?.id) };
   }
 
   const funil = texto_opcional(values.pipeline);

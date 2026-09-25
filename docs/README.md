@@ -15,6 +15,9 @@ pasta (`docs/`). É versionada em git: documentação e código andam no mesmo c
 | [[03-CORE/SETTINGS\|SETTINGS]]             | O que a empresa ajusta, e quem pode mudar                  |
 | [[03-CORE/TEAM\|TEAM]]                     | Quem trabalha na empresa, e como entra                     |
 | [[04-CRM/CRM\|CRM]]                        | O primeiro módulo de negócio                               |
+| [[05-ERP/ERP\|ERP]]                        | Cadastro e venda — e o que a venda provoca                 |
+| [[05-ERP/INVENTORY\|INVENTORY]]            | Estoque: razão imutável e saldo                            |
+| [[05-ERP/FINANCE\|FINANCE]]                | Contas a receber e a pagar, regime de caixa                |
 | [[15-OPERATIONS/RODAR-LOCAL\|RODAR-LOCAL]] | Como subir o sistema aqui e ter o que olhar                |
 
 ## As quatro fontes de verdade
@@ -73,7 +76,7 @@ sem implementação atrás vira ficção.
 | `CRM.md`                               | `04-CRM/`          | ✅ escrito                       |
 | `RODAR-LOCAL.md`                       | `15-OPERATIONS/`   | ✅ escrito                       |
 | `PROVISIONING.md`                      | `06-ADMIN/`        | ✅ especificado                  |
-| `ERP.md`, `INVENTORY.md`, `FINANCE.md` | `05-ERP/`          | ⬜ com o ERP                     |
+| `ERP.md`, `INVENTORY.md`, `FINANCE.md` | `05-ERP/`          | ✅ escrito                       |
 | `BANKING.md`                           | `10-INTEGRATIONS/` | ⬜ quando houver provedor        |
 | `FISCAL.md`                            | `11-FISCAL/`       | ⬜ quando houver provedor        |
 | `WHATSAPP.md`                          | `10-INTEGRATIONS/` | ⬜ quando houver credencial Meta |
