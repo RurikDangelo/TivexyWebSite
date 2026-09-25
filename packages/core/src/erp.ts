@@ -174,6 +174,56 @@ export function movementSign(kind: InventoryMovementKind): 1 | -1 | 0 {
   }
 }
 
+/** Da situação que mais pede ação para a que menos pede — a ordem da lista. */
+export const STOCK_STATUS_ORDER: readonly StockStatus[] = [
+  'negative',
+  'out',
+  'low',
+  'ok',
+  'untracked',
+];
+
+export interface StockSummary {
+  porSituacao: Record<StockStatus, number>;
+  /** Saldo positivo × custo, em centavos. Saldo negativo não vale dinheiro. */
+  valorACusto: number;
+  /** Quantos têm saldo e não têm custo — ficaram fora do valor, e a tela diz. */
+  semCusto: number;
+}
+
+/**
+ * O resumo do estoque: quantos em cada situação, e quanto vale a custo.
+ *
+ * O valor usa `lineTotalCents` — a mesma conta da venda —, para que 0,335 kg ×
+ * R$ 52,90 dê o mesmo centavo aqui e em qualquer outro lugar.
+ */
+export function stockSummary(
+  linhas: readonly {
+    trackStock: boolean;
+    quantity: number | null;
+    minStock: number | null;
+    costCents: number | null;
+  }[],
+): StockSummary {
+  const porSituacao: Record<StockStatus, number> = {
+    negative: 0,
+    out: 0,
+    low: 0,
+    ok: 0,
+    untracked: 0,
+  };
+  let valorACusto = 0;
+  let semCusto = 0;
+  for (const l of linhas) {
+    porSituacao[stockStatus(l)] += 1;
+    const saldo = l.quantity ?? 0;
+    if (!l.trackStock || saldo <= 0) continue;
+    if (l.costCents === null) semCusto += 1;
+    else valorACusto += lineTotalCents(saldo, l.costCents);
+  }
+  return { porSituacao, valorACusto, semCusto };
+}
+
 /* ── Venda ─────────────────────────────────────────────────────────────── */
 
 export const ERP_SALE_STATUSES = ['completed', 'cancelled'] as const;

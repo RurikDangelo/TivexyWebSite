@@ -60,6 +60,42 @@ sistema_ está zerado trava o caixa por um erro de cadastro. O saldo negativo
 aparece destacado na tela, que é onde ele pode ser corrigido — com uma entrada
 ou uma contagem.
 
+## Tela: `/erp/estoque`
+
+🟡 testado, não verificado contra o banco real (25/09/2026).
+
+O título é o nome do nicho: a cafeteria vê "Insumos".
+
+- **Saldo** (aba padrão): cada produto que controla estoque, **ordenado pela
+  urgência** — negativo, zerado, no mínimo, em dia —, porque quem abre esta tela
+  quer saber o que repor. Busca sem acento ("acucar" acha "Açúcar").
+- **Resumo no topo**, cada cartão é um filtro: pedem reposição, saldo
+  negativo, em dia, e **valor a custo** — saldo positivo × custo, com
+  `lineTotalCents`, a mesma conta da venda. Quem não tem custo fica fora da
+  soma e o cartão diz quantos ficaram, em vez de somar como zero
+  (`stockSummary()` no Core, com testes).
+- **Registrar movimentação**: um formulário para entrada, saída e contagem,
+  com o tipo escolhido em cartões (rádios nativos, foco visível). O rótulo da
+  quantidade muda com o tipo e mostra a unidade do produto escolhido.
+  **Contagem pede o que foi contado**, não a diferença — quem está na
+  prateleira sabe quantos tem, e a conta de cabeça é onde o erro entra.
+  Depois de registrar, a mensagem diz o saldo novo e o foco volta para a
+  quantidade: numa entrega com dez produtos, é escolher o próximo e digitar.
+- **Botões de entrada e contagem em cada linha**, que abrem o formulário já
+  com o produto escolhido (`?produto=…&tipo=…#registrar`).
+- **Movimentações** (aba, com `inventory.movements.read`): o razão de todos os
+  produtos, filtrável por tipo e produto, com quem registrou; baixa e devolução
+  de venda aparecem com o número da venda.
+- A unidade que decide a fração é lida **do banco** na ação, não do
+  formulário (`lib/erp/movement-input.ts`, 8 testes).
+
+Resumo e ordenação precisam de todos os produtos controlados: a tela lê até
+2.000 de uma vez e avisa quando há mais. Para o comércio pequeno é folga; um
+catálogo maior pede o resumo numa função do banco.
+
+Conferida na vitrine, claro e escuro, 1440 e 375 px, sem erro de página e sem
+rolagem lateral.
+
 ## Permissões
 
 | Permissão                   | Dá                                              |
@@ -72,7 +108,6 @@ ou uma contagem.
 
 | Item                               | Por quê                                                                |
 | ---------------------------------- | ---------------------------------------------------------------------- |
-| Tela `/erp/estoque`                | Vem depois de `/erp/produtos`                                          |
 | Custo médio do produto             | A entrada guarda custo unitário; ninguém recalcula                     |
 | Ficha técnica (insumo por produto) | A cafeteria vende café e controla grão: fica para quando houver pedido |
 | Mais de um depósito                | Um saldo por produto por tenant, por ora                               |

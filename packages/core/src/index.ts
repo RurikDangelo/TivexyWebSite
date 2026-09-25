@@ -87,6 +87,7 @@ export {
   INVENTORY_MOVEMENT_KINDS,
   PRODUCT_UNITS,
   QUANTITY_DECIMALS,
+  STOCK_STATUS_ORDER,
   UNIT_INFO,
   checkQuantity,
   financeStatus,
@@ -98,12 +99,14 @@ export {
   movementSign,
   parseQuantity,
   stockStatus,
+  stockSummary,
   type ErpSaleStatus,
   type FinanceDirection,
   type FinanceStatus,
   type InventoryMovementKind,
   type ProductUnit,
   type StockStatus,
+  type StockSummary,
 } from './erp.ts';
 
 export { AGENDA_BUCKETS, agendaBucket, groupByBucket, type AgendaBucket } from './agenda.ts';

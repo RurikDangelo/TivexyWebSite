@@ -123,7 +123,7 @@ export const navigation = [
         label: 'Estoque',
         href: '/erp/estoque',
         icon: Boxes,
-        status: 'pending',
+        status: 'ready',
         term: 'inventory.stock',
       },
       { label: 'Financeiro', href: '/erp/financeiro', icon: CreditCard, status: 'pending' },

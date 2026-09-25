@@ -5,6 +5,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  STOCK_STATUS_ORDER,
+  stockSummary,
   formatQuantityInput,
   grossMargin,
   stockStatus,
@@ -147,5 +149,47 @@ describe('formatQuantityInput', () => {
 
   it('sem separador de milhar', () => {
     assert.equal(formatQuantityInput(1234.5), '1234,5');
+  });
+});
+
+describe('stockSummary', () => {
+  const l = (
+    quantity: number | null,
+    minStock: number | null,
+    costCents: number | null,
+    trackStock = true,
+  ) => ({
+    trackStock,
+    quantity,
+    minStock,
+    costCents,
+  });
+
+  it('conta cada situação', () => {
+    const r = stockSummary([
+      l(-1, null, 100),
+      l(0, 5, 100),
+      l(3, 5, 100),
+      l(10, 5, 100),
+      l(4, null, null, false),
+    ]);
+    assert.deepEqual(r.porSituacao, { negative: 1, out: 1, low: 1, ok: 1, untracked: 1 });
+  });
+
+  it('valor a custo: só saldo positivo, com a conta da venda', () => {
+    // 0,335 × 5290 = 1772,15 → 1772; 10 × 100 = 1000; negativo não vale.
+    const r = stockSummary([l(0.335, null, 5290), l(10, null, 100), l(-3, null, 999)]);
+    assert.equal(r.valorACusto, 2772);
+  });
+
+  it('diz quantos ficaram fora do valor por falta de custo', () => {
+    const r = stockSummary([l(2, null, null), l(0, null, null), l(1, null, 50)]);
+    assert.equal(r.semCusto, 1, 'saldo zero sem custo não faz falta');
+    assert.equal(r.valorACusto, 50);
+  });
+
+  it('a ordem de urgência começa pelo negativo', () => {
+    assert.equal(STOCK_STATUS_ORDER[0], 'negative');
+    assert.equal(STOCK_STATUS_ORDER.length, 5);
   });
 });
