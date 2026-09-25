@@ -173,10 +173,35 @@ privilégio real foi fechada. Ver [[MULTI_TENANCY#O que o RLS **não** cobre]].
 **Promover alguém a Super Admin é operação de backend**, com `service_role` e
 auditoria. É a ação mais privilegiada da plataforma: não passa pelo cliente.
 
+## `for all` inclui `delete`
+
+Corrigido em 25/09/2026 — 🟡 testado, não verificado contra o banco real.
+
+O catálogo tem `crm.leads.delete`, `crm.contacts.delete`,
+`crm.companies.delete` e `crm.deals.delete`, e o Colaborador foi desenhado sem
+elas. As políticas de escrita dessas quatro tabelas eram `for all` com a
+permissão `.write` — e `for all` cobre `insert`, `update` **e `delete`**. O
+colaborador apagava pela API com a permissão de editar.
+
+Um teste tinha o nome "colaborador lê lead e não apaga" e só conferia a
+leitura. O título afirmava a garantia; o corpo não a testava.
+
+A migration `20260925020000_crm_delete_permission` separa cada política em
+três — `insert` e `update` com `.write`, `delete` com `.delete`.
+`crm-delete.test.mjs` cobra as quatro tabelas nos dois sentidos, e foi
+conferido sem a migration: cinco testes falham, inclusive o antigo, agora
+honesto.
+
+**Regra:** tabela com permissão de exclusão própria no catálogo **não** usa
+`for all`. Tabela sem ela — funil, etapa, tipo de atividade, atividade — pode
+usar, porque ali excluir é parte de escrever.
+
 ## Regras para código novo
 
 - Toda rota protegida verifica permissão **no servidor**
 - Toda tabela de negócio ganha política de escrita com `has_permission(...)`
+- Tabela com permissão `.delete` no catálogo tem política de `delete` própria —
+  `for all` com `.write` deixa quem edita apagar
 - Permissão nova entra no catálogo em migration, com os vínculos de papel
 - Depois de mudar o catálogo, rode `npm run docs:matrix` e atualize este documento
 - Teste de autorização chama a API direto, sem passar pela interface

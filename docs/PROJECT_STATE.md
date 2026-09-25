@@ -407,6 +407,16 @@ real, não.
 
 ## 3. O que está quebrado
 
+### Corrigido em 25/09/2026 — colaborador apagava registros do CRM
+
+**Estado:** 🟡 testado, não verificado contra o banco real · **Gravidade:** 🟠
+Alta · Ver [[12-SECURITY/AUTHORIZATION#`for all` inclui `delete`]]
+
+As políticas de escrita de leads, pessoas, contas e oportunidades eram
+`for all` com `.write`, e `for all` inclui `delete`. O Colaborador — desenhado
+"sem exclusão" — apagava pela API. A interface não oferecia o botão; o banco
+não negava. Um teste afirmava a garantia no nome e não a testava no corpo.
+
 ### Corrigido em 25/09/2026 — o menu não falava o vocabulário do nicho
 
 **Estado:** 🟡 testado, não verificado contra o banco real · **Onde:**
@@ -511,16 +521,18 @@ rodar o fluxo numa máquina com o `.env`.
 
 O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 
-| Migration                               | O que traz            |
-| --------------------------------------- | --------------------- |
-| `20260925010000_core_accept_invitation` | `accept_invitation()` |
+| Migration                               | O que traz              |
+| --------------------------------------- | ----------------------- |
+| `20260925010000_core_accept_invitation` | `accept_invitation()`   |
+| `20260925020000_crm_delete_permission`  | excluir exige `.delete` |
 
 ### Entregas
 
-| Entrega                      | Estado | Onde conferir primeiro contra o banco real                           |
-| ---------------------------- | ------ | -------------------------------------------------------------------- |
-| Menu no vocabulário do nicho | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba          |
-| `/convite` — aceitar convite | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel |
+| Entrega                        | Estado | Onde conferir primeiro contra o banco real                           |
+| ------------------------------ | ------ | -------------------------------------------------------------------- |
+| Menu no vocabulário do nicho   | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba          |
+| `/convite` — aceitar convite   | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel |
+| Excluir no CRM exige `.delete` | 🟡     | Colaborador tenta `DELETE` pela API REST e recebe zero linhas        |
 
 ### O Trello continua desconectado
 

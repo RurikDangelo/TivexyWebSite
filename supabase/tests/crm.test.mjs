@@ -172,10 +172,19 @@ describe('permissão, não só pertencimento', () => {
   it('colaborador lê lead e não apaga', async () => {
     // `collaborator` tem leads.read/write e não tem leads.delete — ver a
     // matriz em docs/12-SECURITY/AUTHORIZATION.md, gerada do próprio banco.
+    //
+    // Até 25/09/2026 este teste tinha este nome e só conferia a leitura. A
+    // política de escrita era `for all` com `.write`, e o colaborador
+    // apagava — o título afirmava a garantia que o corpo não testava.
     const leitura = await asUser(db, fx.colabA, () =>
       db.query('select id from public.crm_leads where id = $1', [fx.leadA]),
     );
     assert.equal(leitura.rows.length, 1, 'colaborador precisa enxergar o lead');
+
+    const apagadas = await asUser(db, fx.colabA, () =>
+      db.query('delete from public.crm_leads where id = $1 returning id', [fx.leadA]),
+    );
+    assert.equal(apagadas.rows.length, 0, 'colaborador apagou um lead');
   });
 
   it('quem não é membro não enxerga nada do CRM', async () => {
