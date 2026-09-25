@@ -65,3 +65,62 @@ export function addDays(iso: string, dias: number): string {
 export function startOfMonth(iso: string): string {
   return `${iso.slice(0, 7)}-01`;
 }
+
+/** Quantos minutos o fuso está à frente de UTC naquele instante (São Paulo: −180). */
+function deslocamento(utcMs: number, timeZone: string): number {
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(new Date(utcMs));
+  const valor = (tipo: string) => Number(partes.find((p) => p.type === tipo)?.value);
+  const comoUtc = Date.UTC(
+    valor('year'),
+    valor('month') - 1,
+    valor('day'),
+    valor('hour'),
+    valor('minute'),
+    valor('second'),
+  );
+  return Math.round((comoUtc - utcMs) / 60_000);
+}
+
+/**
+ * O instante de "tal dia, tal hora" no fuso do tenant.
+ *
+ * O formulário entrega `2026-09-25` e `14:30`, sem fuso — é a hora da parede
+ * de quem digitou. Gravar isso como UTC poria a consulta das 14h30 às 11h30 de
+ * São Paulo. A conta ajusta pelo deslocamento do fuso **naquele dia**, duas
+ * vezes, porque em fuso com horário de verão o deslocamento de um palpite pode
+ * não ser o do instante certo.
+ */
+export function instantFromLocal(date: string, time: string, timeZone: string): string {
+  const [ano, mes, dia] = date.split('-').map(Number) as [number, number, number];
+  const [hora, minuto] = time.split(':').map(Number) as [number, number];
+  const parede = Date.UTC(ano, mes - 1, dia, hora, minuto);
+  let utc = parede;
+  for (let i = 0; i < 2; i++) utc = parede - deslocamento(utc, timeZone) * 60_000;
+  return new Date(utc).toISOString();
+}
+
+/** A hora de um instante no fuso: `14:30`. */
+export function timeIn(instant: Date | string, timeZone: string): string {
+  const momento = typeof instant === 'string' ? new Date(instant) : instant;
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(momento);
+}
+
+/** É uma hora `HH:MM` que existe? */
+export function isTime(valor: string): boolean {
+  const m = /^(\d{2}):(\d{2})$/.exec(valor);
+  return m !== null && Number(m[1]) <= 23 && Number(m[2]) <= 59;
+}

@@ -4,7 +4,17 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { addDays, dateIn, daysBetween, isIsoDate, startOfMonth, todayIn } from './calendar.ts';
+import {
+  addDays,
+  dateIn,
+  daysBetween,
+  instantFromLocal,
+  isIsoDate,
+  isTime,
+  startOfMonth,
+  timeIn,
+  todayIn,
+} from './calendar.ts';
 
 describe('dateIn / todayIn', () => {
   it('às 22h de São Paulo ainda é hoje em São Paulo — e já é amanhã em UTC', () => {
@@ -51,5 +61,41 @@ describe('addDays / startOfMonth', () => {
 
   it('o primeiro dia do mês', () => {
     assert.equal(startOfMonth('2026-09-25'), '2026-09-01');
+  });
+});
+
+describe('instantFromLocal / timeIn', () => {
+  it('14h30 em São Paulo é 17h30 em UTC — não 14h30', () => {
+    assert.equal(
+      instantFromLocal('2026-09-25', '14:30', 'America/Sao_Paulo'),
+      '2026-09-25T17:30:00.000Z',
+    );
+  });
+
+  it('ida e volta: a hora que entrou é a hora que aparece', () => {
+    const instante = instantFromLocal('2026-12-31', '23:45', 'America/Sao_Paulo');
+    assert.equal(timeIn(instante, 'America/Sao_Paulo'), '23:45');
+    assert.equal(dateIn(instante, 'America/Sao_Paulo'), '2026-12-31');
+  });
+
+  it('em fuso com horário de verão, cada lado da mudança tem o seu deslocamento', () => {
+    /* Nova York: UTC−4 no verão, UTC−5 no inverno. */
+    assert.equal(
+      instantFromLocal('2026-07-01', '09:00', 'America/New_York'),
+      '2026-07-01T13:00:00.000Z',
+    );
+    assert.equal(
+      instantFromLocal('2026-12-01', '09:00', 'America/New_York'),
+      '2026-12-01T14:00:00.000Z',
+    );
+  });
+});
+
+describe('isTime', () => {
+  it('só HH:MM que existe', () => {
+    assert.equal(isTime('00:00'), true);
+    assert.equal(isTime('23:59'), true);
+    for (const torto of ['24:00', '12:60', '9:30', '12:3', ''])
+      assert.equal(isTime(torto), false, torto);
   });
 });

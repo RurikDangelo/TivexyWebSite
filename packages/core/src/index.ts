@@ -69,7 +69,19 @@ export {
   type Totals,
 } from './crm.ts';
 
-export { addDays, dateIn, daysBetween, isIsoDate, startOfMonth, todayIn } from './calendar.ts';
+export {
+  addDays,
+  dateIn,
+  daysBetween,
+  instantFromLocal,
+  isIsoDate,
+  isTime,
+  startOfMonth,
+  timeIn,
+  todayIn,
+} from './calendar.ts';
+
+export { AGENDA_BUCKETS, agendaBucket, groupByBucket, type AgendaBucket } from './agenda.ts';
 
 export {
   DOCUMENT_PATTERN,

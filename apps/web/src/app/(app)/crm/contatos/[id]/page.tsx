@@ -19,6 +19,7 @@ import { currentTerms } from '@/lib/terms/current';
 import { capitalizar, termOf } from '@/lib/terms/vocabulary';
 import { cn } from '@/lib/utils';
 
+import { ActivityPanel } from '../../atividades/panel';
 import { EditContactForm } from '../contact-form';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -226,6 +227,13 @@ export default async function ContatoPage({ params }: PageProps<'/crm/contatos/[
               </CardContent>
             </Card>
           )}
+
+          <ActivityPanel
+            tenantId={tenantId}
+            tipo="contato"
+            id={String(pessoa.id)}
+            nome={String(pessoa.name)}
+          />
 
           <Card>
             <CardHeader>

@@ -19,7 +19,8 @@
 | `crm_activities`      | A atividade em si                                     |
 
 Telas prontas: **`/crm/leads`**, **`/crm/oportunidades`** — o quadro, a página
-de cada oportunidade e o editor de funis — **`/crm/contatos`** e **`/crm/empresas`**. As outras rotas existem em
+de cada oportunidade e o editor de funis — **`/crm/contatos`**, **`/crm/empresas`** e **`/crm/atividades`**. O CRM
+inteiro tem tela. As outras rotas existem em
 `routes.ts` e ainda não têm página — a navegação as mostra desabilitadas, de
 propósito.
 
@@ -345,9 +346,36 @@ clicável é a porta clássica, e `normalizeWebsite()` tem teste para ela.
 O colaborador lê conta e não escreve — o catálogo sempre disse isso. A página
 dele mostra o cadastro sem o formulário.
 
+## A agenda — `/crm/atividades`
+
+Desde 25/09/2026 🟡 _testado, não verificado contra o banco real._
+
+Faixas: com atraso, hoje, amanhã, próximos 7 dias, mais adiante, sem data — e
+o histórico dos últimos 7 dias. Concluir é um clique, que risca na hora e volta
+se o servidor recusar. A mesma agenda aparece, filtrada, nas páginas de pessoa,
+conta e oportunidade, com o formulário já apontando para o registro.
+
+**"Com atraso" é por instante; o resto é por dia do tenant.** A consulta das 9h
+que não foi feita está atrasada às 10h do mesmo dia — dizer "hoje" esconderia
+o atraso até a meia-noite. E "amanhã" é o amanhã de São Paulo, não o de UTC:
+`agendaBucket()` tem teste para as 23h30.
+
+**A hora digitada é a da parede de quem usa.** `instantFromLocal()` converte
+`14:30` pelo fuso do tenant **naquele dia**; gravada como UTC, a consulta das
+14h30 viraria 11h30. O teste inclui um fuso com horário de verão, porque o
+Brasil não tem hoje e pode voltar a ter.
+
+**Dia sem hora vence às 23h59.** `due_at` é um instante; uma tarefa "para
+sexta" gravada às 9h apareceria atrasada desde as 9h de sexta. A tela
+reconhece 23h59 e mostra "o dia todo".
+
+**O alvo chega como `tipo:id` num campo só**, e vira a coluna certa por
+`parseTarget()`. Ela usa `Object.hasOwn`, não `in`: o teste manda
+`__proto__:…`, e `'__proto__' in ALVOS` é verdadeiro — o nome da coluna sai
+dali direto para o `insert`.
+
 ## O que falta
 
-- Tela de atividades
 - Busca e filtro (hoje a listagem traz as 200 mais recentes)
 - Importação
 - Atendimento e conversas — dependem das credenciais Meta/WhatsApp 🔒

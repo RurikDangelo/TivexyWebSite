@@ -315,6 +315,10 @@ por SQL — sem erro, só relatório errado.
 **Tela pronta: `/crm/leads`.** Cadastro, transições de estado, validação por
 campo, estado vazio e 375px conferidos no navegador, contra o banco real.
 
+**`/crm/atividades`** desde 25/09/2026 — 🟡 testado, não verificado contra o
+banco real. A agenda em faixas no fuso do tenant, concluir com um clique, e a
+mesma agenda dentro das páginas de pessoa, conta e oportunidade.
+
 **`/crm/empresas`** desde 25/09/2026 — 🟡 testado, não verificado contra o banco
 real. As contas, com as pessoas de lá, as oportunidades e os totais.
 
@@ -559,6 +563,7 @@ O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 | `/crm/oportunidades` — quadro, página e funis     | 🟡     | Arrastar, recarregar e ver o cartão onde ficou; embutido `company:crm_companies(name)` pela chave composta   |
 | `/crm/contatos` — lista, busca, cadastro, página  | 🟡     | Buscar por CPF com e sem pontuação; CNPJ com letra entra em conta e pessoa; o `not valid` passa no `db:push` |
 | `/crm/empresas` — contas, pessoas e oportunidades | 🟡     | A página da conta com pessoas e oportunidades ligadas; site sem esquema vira link absoluto                   |
+| `/crm/atividades` — agenda e painel nas páginas   | 🟡     | Agendar 14:30 e ver 14:30 (não 11:30); concluir e recarregar; o embutido dos quatro alvos                    |
 
 ### O Trello continua desconectado
 

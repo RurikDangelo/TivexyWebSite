@@ -19,6 +19,7 @@ import { currentTerms } from '@/lib/terms/current';
 import { capitalizar, termOf } from '@/lib/terms/vocabulary';
 import { cn } from '@/lib/utils';
 
+import { ActivityPanel } from '../../atividades/panel';
 import { EditCompanyForm } from '../company-form';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -287,6 +288,13 @@ export default async function EmpresaPage({ params }: PageProps<'/crm/empresas/[
               </CardContent>
             </Card>
           )}
+
+          <ActivityPanel
+            tenantId={tenantId}
+            tipo="conta"
+            id={String(conta.id)}
+            nome={String(conta.name)}
+          />
 
           <Card>
             <CardHeader>

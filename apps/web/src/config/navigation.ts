@@ -96,7 +96,7 @@ export const navigation = [
         label: 'Atividades',
         href: '/crm/atividades',
         icon: ClipboardList,
-        status: 'pending',
+        status: 'ready',
         term: 'crm.activities',
       },
     ],

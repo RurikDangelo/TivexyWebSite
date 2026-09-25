@@ -18,6 +18,7 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { currentTerms } from '@/lib/terms/current';
 import { capitalizar, termOf } from '@/lib/terms/vocabulary';
 
+import { ActivityPanel } from '../../atividades/panel';
 import { EditDealForm } from '../deal-form';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -153,50 +154,58 @@ export default async function OportunidadePage({ params }: PageProps<'/crm/oport
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
-        <Card className="order-2 lg:order-1">
-          <CardHeader>
-            <CardTitle>{podeEditar ? 'Editar' : 'Notas'}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {podeEditar ? (
-              <EditDealForm
-                singular={termOf(terms, 'crm.deals').singular}
-                etapas={etapas.map((e) => ({ id: e.id, nome: e.name }))}
-                contas={(contasR.data ?? []).map((c) => ({
-                  id: String(c.id),
-                  nome: String(c.name),
-                }))}
-                pessoas={(pessoasR.data ?? []).map((p) => ({
-                  id: String(p.id),
-                  nome: String(p.name),
-                }))}
-                membros={membros.map((m) => ({ id: m.userId, nome: m.nome }))}
-                rotuloConta={capitalizar(termOf(terms, 'crm.companies').singular)}
-                rotuloPessoa={capitalizar(termOf(terms, 'crm.contacts').singular)}
-                inicial={{
-                  id: String(negocio.id),
-                  titulo: String(negocio.title),
-                  valor: formatCentsInput(Number(negocio.value_cents)),
-                  etapaId: String(negocio.stage_id),
-                  contaId: typeof negocio.company_id === 'string' ? negocio.company_id : null,
-                  pessoaId: typeof negocio.contact_id === 'string' ? negocio.contact_id : null,
-                  responsavelId: typeof negocio.owner_id === 'string' ? negocio.owner_id : null,
-                  previsao:
-                    typeof negocio.expected_close_date === 'string'
-                      ? negocio.expected_close_date
-                      : null,
-                  notas: typeof negocio.notes === 'string' ? negocio.notes : null,
-                }}
-              />
-            ) : (
-              <p className="whitespace-pre-wrap text-sm text-content-default">
-                {typeof negocio.notes === 'string' && negocio.notes !== ''
-                  ? negocio.notes
-                  : 'Sem notas.'}
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        <div className="order-2 flex flex-col gap-6 lg:order-1">
+          <ActivityPanel
+            tenantId={tenantId}
+            tipo="negocio"
+            id={String(negocio.id)}
+            nome={String(negocio.title)}
+          />
+          <Card>
+            <CardHeader>
+              <CardTitle>{podeEditar ? 'Editar' : 'Notas'}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {podeEditar ? (
+                <EditDealForm
+                  singular={termOf(terms, 'crm.deals').singular}
+                  etapas={etapas.map((e) => ({ id: e.id, nome: e.name }))}
+                  contas={(contasR.data ?? []).map((c) => ({
+                    id: String(c.id),
+                    nome: String(c.name),
+                  }))}
+                  pessoas={(pessoasR.data ?? []).map((p) => ({
+                    id: String(p.id),
+                    nome: String(p.name),
+                  }))}
+                  membros={membros.map((m) => ({ id: m.userId, nome: m.nome }))}
+                  rotuloConta={capitalizar(termOf(terms, 'crm.companies').singular)}
+                  rotuloPessoa={capitalizar(termOf(terms, 'crm.contacts').singular)}
+                  inicial={{
+                    id: String(negocio.id),
+                    titulo: String(negocio.title),
+                    valor: formatCentsInput(Number(negocio.value_cents)),
+                    etapaId: String(negocio.stage_id),
+                    contaId: typeof negocio.company_id === 'string' ? negocio.company_id : null,
+                    pessoaId: typeof negocio.contact_id === 'string' ? negocio.contact_id : null,
+                    responsavelId: typeof negocio.owner_id === 'string' ? negocio.owner_id : null,
+                    previsao:
+                      typeof negocio.expected_close_date === 'string'
+                        ? negocio.expected_close_date
+                        : null,
+                    notas: typeof negocio.notes === 'string' ? negocio.notes : null,
+                  }}
+                />
+              ) : (
+                <p className="whitespace-pre-wrap text-sm text-content-default">
+                  {typeof negocio.notes === 'string' && negocio.notes !== ''
+                    ? negocio.notes
+                    : 'Sem notas.'}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         <Card className="order-1 h-fit lg:order-2">
           <CardContent className="pt-5">
