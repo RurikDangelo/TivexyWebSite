@@ -14,8 +14,19 @@ export function CardHeader({ className, ...props }: ComponentProps<'div'>) {
   return <div className={cn('flex flex-col gap-1 p-5 pb-3', className)} {...props} />;
 }
 
+/*
+ * Título de card é título de interface, não de vitrine: Inter, sem o
+ * espaçamento negativo dos títulos grandes. Em 16 px, a Manrope com -0,02em
+ * encosta as palavras — "Plano e módulos" lia "Planoemódulos". A Manrope fica
+ * para o título da página, onde o tamanho a deixa respirar.
+ */
 export function CardTitle({ className, ...props }: ComponentProps<'h3'>) {
-  return <h3 className={cn('text-base font-semibold text-content', className)} {...props} />;
+  return (
+    <h3
+      className={cn('font-sans text-base font-semibold tracking-normal text-content', className)}
+      {...props}
+    />
+  );
 }
 
 export function CardDescription({ className, ...props }: ComponentProps<'p'>) {

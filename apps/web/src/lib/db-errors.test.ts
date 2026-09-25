@@ -36,6 +36,23 @@ describe('dbErrorMessage', () => {
     }
   });
 
+  it('as mensagens do Admin chegam como foram escritas — as de 20260925140000', () => {
+    for (const mensagem of [
+      'só o Super Admin muda a situação de uma empresa',
+      'empresa não encontrada',
+      'empresa em provisionamento: retome ou desfaça no Admin',
+      'empresa cancelada não volta por aqui',
+      'por aqui a empresa só é suspensa ou reativada',
+      'suspender pede o motivo — é o que a empresa vai ler',
+      'o motivo passa de 500 caracteres',
+      'plano desconhecido ou fora de venda',
+      'a empresa já está neste plano',
+    ]) {
+      const traduzida = dbErrorMessage({ code: '22023', message: mensagem });
+      assert.equal(traduzida.toLowerCase().replace(/\.$/, ''), mensagem.toLowerCase(), mensagem);
+    }
+  });
+
   it('infraestrutura não vaza: nome de constraint vira frase genérica', () => {
     const r = dbErrorMessage({
       code: '23514',

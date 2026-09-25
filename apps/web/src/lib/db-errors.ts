@@ -45,6 +45,13 @@ const ESCRITAS_PARA_GENTE = [
   /^(este )?lançamento /,
   /^a data do pagamento /,
   /^a contagem /,
+  // Admin — 20260925140000.
+  /^só o Super Admin /,
+  /^empresa (não encontrada|em provisionamento|cancelada)/,
+  /^por aqui /,
+  /^suspender pede /,
+  /^o motivo /,
+  /^plano desconhecido/,
 ];
 
 function frase(texto: string): string {

@@ -294,7 +294,13 @@ o identificador dela pode chamá-la sem nunca abrir a tela.
 `is_super_admin` só pode ser escrito por quem já é Super Admin, e a política não
 abre exceção para o primeiro — nem deve.
 
-**Não existe:** editar cliente, suspender, trocar plano, convidar usuário.
+**Desde 25/09/2026 (🟡):** a página de cada cliente — editar dados, suspender
+com motivo, reativar, trocar o plano vendo antes o que liga e desliga, e o
+histórico de provisionamentos e de decisões da plataforma. Ver
+[[06-ADMIN/CLIENTES|CLIENTES]].
+
+**Não existe:** cancelar a empresa, ligar módulo avulso, convidar usuário pelo
+Admin.
 
 ### CRM
 
@@ -475,6 +481,19 @@ real, não.
 
 ## 3. O que está quebrado
 
+### Corrigido em 25/09/2026 — a suspensão só valia na tela
+
+**Estado:** 🟡 testado, não verificado contra o banco real · **Gravidade:** 🔴
+Alta — acesso a dado · **Onde:** `has_permission()`, 20260925140000
+
+`has_permission()` conferia o vínculo e não a situação da empresa. Quem tinha
+sessão numa empresa suspensa (ou em provisionamento) era mandado para
+`/preparando` pela tela — e continuava lendo e escrevendo CRM, vendas e
+financeiro pela API REST, com o mesmo token. Agora a permissão exige empresa
+ativa; o teste lê e escreve pela sessão antes e depois de suspender, e a
+mutação que tira a linha nova é pega. Ver
+[[06-ADMIN/CLIENTES#Suspender corta a API, não só a tela]].
+
 ### Corrigido em 25/09/2026 — "5.50" num campo de valor virava R$ 550,00
 
 **Estado:** 🟡 testado, não verificado contra o banco real · **Gravidade:** 🟠
@@ -641,46 +660,48 @@ rodar o fluxo numa máquina com o `.env`.
 
 O banco do projeto está em `20260920040000`. Estas ficaram para trás:
 
-| Migration                               | O que traz                                          |
-| --------------------------------------- | --------------------------------------------------- |
-| `20260925010000_core_accept_invitation` | `accept_invitation()`                               |
-| `20260925020000_crm_delete_permission`  | excluir exige `.delete`                             |
-| `20260925030000_crm_pipeline_integrity` | editor de funil seguro                              |
-| `20260925040000_documents`              | documento da pessoa; CNPJ alfanumérico              |
-| `20260925050000_tenant_settings_write`  | configurações com a permissão certa                 |
-| `20260925060000_team_keeps_admin`       | último administrador; papel dentro do seu           |
-| `20260925065000_tenant_id_immutable`    | `tenant_id` travado de verdade em toda tabela       |
-| `20260925070000_erp_catalog`            | produtos, categorias, clientes, formas de pagamento |
-| `20260925080000_erp_sales`              | venda; `erp.sales.cancel`                           |
-| `20260925090000_erp_inventory`          | razão e saldo de estoque                            |
-| `20260925100000_erp_finance`            | contas a receber e a pagar                          |
-| `20260925110000_erp_sales_summary`      | resumo de vendas do período                         |
-| `20260925120000_finance_reports`        | resumo e fluxo de caixa do financeiro               |
-| `20260925130000_automation_engine`      | automações, execuções e avisos                      |
+| Migration                                | O que traz                                             |
+| ---------------------------------------- | ------------------------------------------------------ |
+| `20260925010000_core_accept_invitation`  | `accept_invitation()`                                  |
+| `20260925020000_crm_delete_permission`   | excluir exige `.delete`                                |
+| `20260925030000_crm_pipeline_integrity`  | editor de funil seguro                                 |
+| `20260925040000_documents`               | documento da pessoa; CNPJ alfanumérico                 |
+| `20260925050000_tenant_settings_write`   | configurações com a permissão certa                    |
+| `20260925060000_team_keeps_admin`        | último administrador; papel dentro do seu              |
+| `20260925065000_tenant_id_immutable`     | `tenant_id` travado de verdade em toda tabela          |
+| `20260925070000_erp_catalog`             | produtos, categorias, clientes, formas de pagamento    |
+| `20260925080000_erp_sales`               | venda; `erp.sales.cancel`                              |
+| `20260925090000_erp_inventory`           | razão e saldo de estoque                               |
+| `20260925100000_erp_finance`             | contas a receber e a pagar                             |
+| `20260925110000_erp_sales_summary`       | resumo de vendas do período                            |
+| `20260925120000_finance_reports`         | resumo e fluxo de caixa do financeiro                  |
+| `20260925130000_automation_engine`       | automações, execuções e avisos                         |
+| `20260925140000_admin_tenant_management` | suspensão corta a API; editar, suspender, trocar plano |
 
 ### Entregas
 
-| Entrega                                                    | Estado | Onde conferir primeiro contra o banco real                                                                                                                                                         |
-| ---------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Menu no vocabulário do nicho                               | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba                                                                                                                                        |
-| `/convite` — aceitar convite                               | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel                                                                                                                               |
-| Excluir no CRM exige `.delete`                             | 🟡     | Colaborador tenta `DELETE` pela API REST e recebe zero linhas                                                                                                                                      |
-| `/crm/oportunidades` — quadro, página e funis              | 🟡     | Arrastar, recarregar e ver o cartão onde ficou; embutido `company:crm_companies(name)` pela chave composta                                                                                         |
-| `/crm/contatos` — lista, busca, cadastro, página           | 🟡     | Buscar por CPF com e sem pontuação; CNPJ com letra entra em conta e pessoa; o `not valid` passa no `db:push`                                                                                       |
-| `/crm/empresas` — contas, pessoas e oportunidades          | 🟡     | A página da conta com pessoas e oportunidades ligadas; site sem esquema vira link absoluto                                                                                                         |
-| `/crm/atividades` — agenda e painel nas páginas            | 🟡     | Agendar 14:30 e ver 14:30 (não 11:30); concluir e recarregar; o embutido dos quatro alvos                                                                                                          |
-| `/configuracoes` — empresa, preferências, tipos            | 🟡     | Mudar o fuso e ver a agenda mudar de hora; gestor recebe recusa; a auditoria guarda antes e depois                                                                                                 |
-| `/equipe` — membros, papéis, convite                       | 🟡     | Gestor tenta se promover e recebe a recusa; convidar conta nova e abrir o link; convidar conta existente e ela ver em `/convite`                                                                   |
-| `/conta` — nome, senha, empresas, sair                     | 🟡     | Trocar a senha com a atual errada e certa; "sair de todos" derrubar a sessão de outro navegador                                                                                                    |
-| `tenant_id` travado pelo privilégio                        | 🟡     | Rodar `has_column_privilege` como no teste de integridade; editar uma oportunidade pela tela depois do `db:push`                                                                                   |
-| Esquema do ERP — cadastro, venda, estoque, financeiro      | 🟡     | Provisionar o mercado e ver categorias e formas; `erp_register_sale` pela API como operador de caixa; `set constraints` dentro da função no PostgREST                                              |
-| `/erp/produtos` — lista, cadastro, categorias              | 🟡     | O embutido `category:erp_product_categories(name)` e a contagem `erp_products(count)` pela chave composta; apagar produto vendido e ler a recusa                                                   |
-| `/erp/estoque` — saldo, resumo, movimentar, razão          | 🟡     | Contar um produto com uma venda chegando ao mesmo tempo; o embutido `product:erp_products(...)` no razão; o saldo novo na mensagem para quem só escreve                                            |
-| `/erp/vendas` — balcão, comprovante, cancelar, formas      | 🟡     | `rpc(erp_register_sale)` com jsonb pelo PostgREST; `set constraints` dentro da função; o embutido `payments:erp_sale_payments(method_name)`; cancelar e ver o estoque voltar                       |
-| `/erp/financeiro` — resumo, fluxo, a receber, a pagar      | 🟡     | Datas `date` pelo `rpc` do PostgREST; `.not(paid_on, is, null)`; a baixa com o dia do tenant perto da meia-noite                                                                                   |
-| `/automacoes` — regras, modelos, execuções; avisos e sino  | 🟡     | Registrar venda acima do valor e ver o aviso no sino de quem tem a permissão; `set_config('tivexy.automation_running')` dentro do gatilho pelo PostgREST; `auth.uid()` no `before insert` da regra |
-| `/integracoes` — lista honesta, nada conectado             | 🟡     | O CNPJ lido de `tenants` como membro comum (política de leitura do tenant); `modules` legível por qualquer sessão                                                                                  |
-| `/tutorial` — do Admin à primeira venda, progresso contado | 🟡     | Contagens com `head: true` pelo PostgREST em cada tabela; o `payload` de `provisioning_runs` legível pelo membro (política `provisioning_runs_read`)                                               |
+| Entrega                                                        | Estado | Onde conferir primeiro contra o banco real                                                                                                                                                         |
+| -------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Menu no vocabulário do nicho                                   | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba                                                                                                                                        |
+| `/convite` — aceitar convite                                   | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel                                                                                                                               |
+| Excluir no CRM exige `.delete`                                 | 🟡     | Colaborador tenta `DELETE` pela API REST e recebe zero linhas                                                                                                                                      |
+| `/crm/oportunidades` — quadro, página e funis                  | 🟡     | Arrastar, recarregar e ver o cartão onde ficou; embutido `company:crm_companies(name)` pela chave composta                                                                                         |
+| `/crm/contatos` — lista, busca, cadastro, página               | 🟡     | Buscar por CPF com e sem pontuação; CNPJ com letra entra em conta e pessoa; o `not valid` passa no `db:push`                                                                                       |
+| `/crm/empresas` — contas, pessoas e oportunidades              | 🟡     | A página da conta com pessoas e oportunidades ligadas; site sem esquema vira link absoluto                                                                                                         |
+| `/crm/atividades` — agenda e painel nas páginas                | 🟡     | Agendar 14:30 e ver 14:30 (não 11:30); concluir e recarregar; o embutido dos quatro alvos                                                                                                          |
+| `/configuracoes` — empresa, preferências, tipos                | 🟡     | Mudar o fuso e ver a agenda mudar de hora; gestor recebe recusa; a auditoria guarda antes e depois                                                                                                 |
+| `/equipe` — membros, papéis, convite                           | 🟡     | Gestor tenta se promover e recebe a recusa; convidar conta nova e abrir o link; convidar conta existente e ela ver em `/convite`                                                                   |
+| `/conta` — nome, senha, empresas, sair                         | 🟡     | Trocar a senha com a atual errada e certa; "sair de todos" derrubar a sessão de outro navegador                                                                                                    |
+| `tenant_id` travado pelo privilégio                            | 🟡     | Rodar `has_column_privilege` como no teste de integridade; editar uma oportunidade pela tela depois do `db:push`                                                                                   |
+| Esquema do ERP — cadastro, venda, estoque, financeiro          | 🟡     | Provisionar o mercado e ver categorias e formas; `erp_register_sale` pela API como operador de caixa; `set constraints` dentro da função no PostgREST                                              |
+| `/erp/produtos` — lista, cadastro, categorias                  | 🟡     | O embutido `category:erp_product_categories(name)` e a contagem `erp_products(count)` pela chave composta; apagar produto vendido e ler a recusa                                                   |
+| `/erp/estoque` — saldo, resumo, movimentar, razão              | 🟡     | Contar um produto com uma venda chegando ao mesmo tempo; o embutido `product:erp_products(...)` no razão; o saldo novo na mensagem para quem só escreve                                            |
+| `/erp/vendas` — balcão, comprovante, cancelar, formas          | 🟡     | `rpc(erp_register_sale)` com jsonb pelo PostgREST; `set constraints` dentro da função; o embutido `payments:erp_sale_payments(method_name)`; cancelar e ver o estoque voltar                       |
+| `/erp/financeiro` — resumo, fluxo, a receber, a pagar          | 🟡     | Datas `date` pelo `rpc` do PostgREST; `.not(paid_on, is, null)`; a baixa com o dia do tenant perto da meia-noite                                                                                   |
+| `/automacoes` — regras, modelos, execuções; avisos e sino      | 🟡     | Registrar venda acima do valor e ver o aviso no sino de quem tem a permissão; `set_config('tivexy.automation_running')` dentro do gatilho pelo PostgREST; `auth.uid()` no `before insert` da regra |
+| `/integracoes` — lista honesta, nada conectado                 | 🟡     | O CNPJ lido de `tenants` como membro comum (política de leitura do tenant); `modules` legível por qualquer sessão                                                                                  |
+| `/tutorial` — do Admin à primeira venda, progresso contado     | 🟡     | Contagens com `head: true` pelo PostgREST em cada tabela; o `payload` de `provisioning_runs` legível pelo membro (política `provisioning_runs_read`)                                               |
+| Admin — cliente: editar, suspender, reativar, plano, histórico | 🟡     | `rpc(admin_set_tenant_status)` com o enum `tenant_status` pelo PostgREST; suspender e tentar ler o CRM pela API com o token de alguém da empresa; o embutido `provisioning_steps(...)`             |
 
 ### O Trello continua desconectado
 

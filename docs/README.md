@@ -77,6 +77,7 @@ sem implementação atrás vira ficção.
 | `RODAR-LOCAL.md`                       | `15-OPERATIONS/`   | ✅ escrito                       |
 | `TUTORIAL.md`                          | `15-OPERATIONS/`   | ✅ escrito                       |
 | `PROVISIONING.md`                      | `06-ADMIN/`        | ✅ especificado                  |
+| `CLIENTES.md`                          | `06-ADMIN/`        | ✅ escrito                       |
 | `ERP.md`, `INVENTORY.md`, `FINANCE.md` | `05-ERP/`          | ✅ escrito                       |
 | `INTEGRATIONS.md`                      | `10-INTEGRATIONS/` | ✅ escrito                       |
 | `BANKING.md`                           | `10-INTEGRATIONS/` | ⬜ quando houver provedor        |

@@ -43,6 +43,11 @@ Todas `SECURITY DEFINER`, `STABLE`, com `search_path` fixo:
 | `is_tenant_member(tenant_id)`     | É membro deste tenant?           |
 | `has_permission(tenant_id, code)` | Tem esta permissão neste tenant? |
 
+**`has_permission()` exige empresa ativa** desde 20260925140000. Antes ela
+conferia só o vínculo, e a suspensão valia só na tela: pela API REST, quem
+estava numa empresa suspensa continuava lendo e escrevendo. Ver
+[[06-ADMIN/CLIENTES#Suspender corta a API, não só a tela]].
+
 ### Por que `SECURITY DEFINER`
 
 Uma política em `tenant_users` que consultasse `tenant_users` sob RLS entraria

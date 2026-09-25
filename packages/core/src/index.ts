@@ -192,3 +192,5 @@ export {
   type DefinicaoDeGatilho,
   type TipoDeCampo,
 } from './automation.ts';
+
+export { previewPlanChange, type PlanChangePreview } from './plans.ts';

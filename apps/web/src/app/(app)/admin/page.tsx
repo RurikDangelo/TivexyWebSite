@@ -6,6 +6,7 @@ import { type TenantStatus, isOperational } from '@tivexy/core';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SITUACAO } from '@/lib/admin/labels';
 import { embeddedCode } from '@/lib/supabase/embedded';
 import { supabaseServer } from '@/lib/supabase/server';
 import { sqlClient } from '@/server/db';
@@ -25,18 +26,12 @@ export const metadata: Metadata = { title: 'Clientes' };
  * ficar vazia é o sintoma que se quer.
  */
 
-const TOM: Record<TenantStatus, 'success' | 'warning' | 'danger' | 'neutral'> = {
-  active: 'success',
-  provisioning: 'warning',
-  suspended: 'danger',
-  cancelled: 'neutral',
-};
-
 interface Linha {
   id: string;
   slug: string;
   name: string;
   status: TenantStatus;
+  status_reason: string | null;
   created_at: string;
   plans: unknown;
 }
@@ -77,7 +72,7 @@ export default async function AdminPage() {
   const supabase = await supabaseServer();
   const { data, error } = await supabase
     .from('tenants')
-    .select('id, slug, name, status, created_at, plans(code)')
+    .select('id, slug, name, status, status_reason, created_at, plans(code)')
     .order('created_at', { ascending: false })
     .limit(100);
 
@@ -150,18 +145,27 @@ export default async function AdminPage() {
               className="flex flex-wrap items-center gap-3 rounded-lg border border-line-subtle bg-surface-raised p-4"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium text-content">{cliente.name}</span>
+                <Link
+                  href={`/admin/clientes/${cliente.id}`}
+                  className="block truncate font-medium text-content underline-offset-2 hover:underline"
+                >
+                  {cliente.name}
+                </Link>
                 <span className="block truncate font-mono text-xs text-content-subtle">
                   {cliente.slug}.tivexy.com.br
                 </span>
               </span>
 
               {embeddedCode(cliente.plans) !== null && <Badge>{embeddedCode(cliente.plans)}</Badge>}
-              <Badge tone={TOM[cliente.status] ?? 'neutral'}>{cliente.status}</Badge>
+              <Badge tone={SITUACAO[cliente.status]?.tom ?? 'neutral'}>
+                {SITUACAO[cliente.status]?.rotulo ?? cliente.status}
+              </Badge>
 
               {!isOperational(cliente.status) && (
-                <span className="w-full text-xs text-content-subtle sm:w-auto">
-                  não opera — quem entrar cai em /preparando
+                <span className="w-full text-xs break-words text-content-subtle sm:w-auto">
+                  {cliente.status === 'suspended' && cliente.status_reason !== null
+                    ? `não opera — ${cliente.status_reason}`
+                    : 'não opera — quem entrar cai em /preparando'}
                 </span>
               )}
             </li>
