@@ -12,6 +12,8 @@ pasta (`docs/`). É versionada em git: documentação e código andam no mesmo c
 | [[ARCHITECTURE]]                           | Como as peças se encaixam e o que não pode depender de quê |
 | [[REPOSITORY_STRUCTURE]]                   | O que cada diretório é, e o que não é                      |
 | [[03-CORE/AUTHENTICATION\|AUTHENTICATION]] | Como uma requisição vira um `Viewer`                       |
+| [[04-CRM/CRM\|CRM]]                        | O primeiro módulo de negócio                               |
+| [[15-OPERATIONS/RODAR-LOCAL\|RODAR-LOCAL]] | Como subir o sistema aqui e ter o que olhar                |
 
 ## As quatro fontes de verdade
 
@@ -65,6 +67,7 @@ sem implementação atrás vira ficção.
 | `AUTHORIZATION.md`                     | `12-SECURITY/`     | ✅ escrito                       |
 | `AUTHENTICATION.md`                    | `03-CORE/`         | ✅ escrito                       |
 | `CRM.md`                               | `04-CRM/`          | ✅ escrito                       |
+| `RODAR-LOCAL.md`                       | `15-OPERATIONS/`   | ✅ escrito                       |
 | `PROVISIONING.md`                      | `06-ADMIN/`        | ✅ especificado                  |
 | `ERP.md`, `INVENTORY.md`, `FINANCE.md` | `05-ERP/`          | ⬜ com o ERP                     |
 | `BANKING.md`                           | `10-INTEGRATIONS/` | ⬜ quando houver provedor        |

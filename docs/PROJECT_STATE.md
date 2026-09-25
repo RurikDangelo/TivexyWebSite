@@ -407,7 +407,23 @@ real, não.
 
 ## 3. O que está quebrado
 
-Nada, no momento.
+### O menu não fala o vocabulário do nicho — visto em 24/09/2026
+
+**Estado:** 🟡 · **Onde:** `apps/web/src/config/navigation.ts`
+
+A página de leads diz "Interessados" para a clínica, e o **menu lateral**
+continua dizendo "Leads". O vocabulário do Blueprint chega na tela e não
+chega na navegação, que é a superfície mais visível do sistema.
+
+Para quem usa, lê como inconsistência. Para o produto, é a promessa central
+vazando pelo menu — o mesmo defeito que `tenants.terms` foi criado para
+fechar, uma camada acima.
+
+`navigation.ts` é configuração estática e precisa passar a ser resolvida com
+os termos do tenant, como a página já faz em `lib/crm/terms.ts`.
+
+Apareceu ao abrir o sistema para olhar, não em teste. Nenhum teste compara o
+rótulo do menu com o da página.
 
 Corrigido em 18–19/09/2026:
 
@@ -448,6 +464,27 @@ tela (`/crm/leads`) estão de pé e verificados contra o banco real.
 A conversão de lead entrou. O próximo passo dentro do CRM são as **telas de
 funil, contatos e contas** — hoje a conversão cria as três coisas e só a de
 leads tem onde ser vista.
+
+## 4.1 Como olhar o sistema hoje
+
+Ele roda nesta máquina, em `http://localhost:4390`. O passo a passo está em
+[[15-OPERATIONS/RODAR-LOCAL]] — inclui o `.env`, o primeiro Super Admin (que
+nasce de fora, porque ninguém pode se promover sozinho) e o
+`scripts/demo.mjs`, que monta um cliente provisionado pelo Blueprint da
+clínica para haver o que olhar.
+
+O demo não inventa faturamento nem preenche gráfico. Nomes carregam "Demo" e
+e-mails usam `.invalid`, que nunca resolve.
+
+### A conta desta máquina é a pessoal
+
+Aconteceu em 24/09/2026: o Super Admin foi criado com o e-mail **corporativo**
+e teve de ser removido do projeto. A regra já existia e não foi aplicada.
+
+Esta máquina trabalha os projetos **não corporativos**; o notebook é o da NIT.
+Quais endereços atendem quais serviços fica **fora deste repositório**, de
+propósito — ele é público, e mapear serviço → e-mail de login entrega metade
+do trabalho a quem estiver tentando entrar.
 
 ## 5. Decisões tomadas
 
