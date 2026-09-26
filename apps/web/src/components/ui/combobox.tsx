@@ -280,7 +280,12 @@ export function Combobox<O extends OpcaoDoCombobox = OpcaoDoCombobox>({
   }, [aberto, texto, atrasoMs, tentativa]);
 
   const abrir = (imediata: boolean) => {
-    if (desabilitado) return;
+    /*
+     * Já aberto, não faz nada — nem marca busca imediata. Clicar de novo no
+     * campo só reposiciona o cursor, e deixar a marca ligada faria a próxima
+     * tecla furar o debounce.
+     */
+    if (desabilitado || aberto) return;
     buscaImediata.current = imediata;
     setAberto(true);
   };
@@ -320,6 +325,7 @@ export function Combobox<O extends OpcaoDoCombobox = OpcaoDoCombobox>({
    * lista não deixe o painel aberto para sempre. */
   useEffect(() => {
     if (!aberto) return;
+
     const aoApontarFora = (evento: PointerEvent) => {
       const alvo = evento.target;
       if (!(alvo instanceof Node)) return;
@@ -327,8 +333,24 @@ export function Combobox<O extends OpcaoDoCombobox = OpcaoDoCombobox>({
       if (refPainel.current?.contains(alvo) === true) return;
       fechar(true);
     };
+
+    /*
+     * A marca de "ponteiro no painel" só precisa sobreviver ao blur que vem
+     * logo depois do pointerdown. Apagá-la no pointerup é o que impede que
+     * um clique numa opção — cujo mousedown foi cancelado, e por isso não
+     * gerou blur — deixe a marca ligada e faça o campo roubar o foco de volta
+     * no próximo clique em qualquer lugar da tela.
+     */
+    const aoSoltarPonteiro = () => {
+      apontandoNoPainel.current = false;
+    };
+
     document.addEventListener('pointerdown', aoApontarFora, true);
-    return () => document.removeEventListener('pointerdown', aoApontarFora, true);
+    document.addEventListener('pointerup', aoSoltarPonteiro, true);
+    return () => {
+      document.removeEventListener('pointerdown', aoApontarFora, true);
+      document.removeEventListener('pointerup', aoSoltarPonteiro, true);
+    };
   }, [aberto, fechar, refGatilho, refPainel]);
 
   /* A opção ativa tem de estar visível: quem anda é o `aria-activedescendant`,
@@ -339,7 +361,10 @@ export function Combobox<O extends OpcaoDoCombobox = OpcaoDoCombobox>({
     opcoes?.item(indiceAtivo)?.scrollIntoView({ block: 'nearest' });
   }, [aberto, indiceAtivo, refPainel]);
 
-  const total = resultado.opcoes.length;
+  const falhou = resultado.situacao === 'falhou';
+  const termoBuscado = resultado.termo;
+  /* Falha esconde as opções velhas, então elas também não contam para o teclado. */
+  const total = falhou ? 0 : resultado.opcoes.length;
 
   const mover = (passo: number) => {
     if (total === 0) return;
@@ -424,9 +449,17 @@ export function Combobox<O extends OpcaoDoCombobox = OpcaoDoCombobox>({
     fechar(true);
   };
 
-  const buscando = resultado.situacao === 'buscando';
-  const falhou = resultado.situacao === 'falhou';
-  const termoBuscado = resultado.termo;
+  /*
+   * "Buscando" cobre também o intervalo entre a tecla e o disparo da busca: o
+   * efeito só roda depois do quadro pintado, e sem isto o painel mostraria
+   * "Digite para buscar" por um instante ao abrir, e o resultado velho como se
+   * fosse o do que acabou de ser digitado durante o debounce.
+   *
+   * Fechado nunca busca: sem o `aberto`, um campo já preenchido ficaria com o
+   * giro eterno, porque o texto escolhido não é o termo da última busca.
+   */
+  const buscando =
+    aberto && (resultado.situacao === 'buscando' || (!falhou && termoBuscado !== texto));
 
   /*
    * Anúncio para leitor de tela. A lista é uma região que muda sozinha depois
@@ -541,6 +574,11 @@ export function Combobox<O extends OpcaoDoCombobox = OpcaoDoCombobox>({
               classNamePainel,
             )}
           >
+            {/*
+             * O aviso é IRMÃO da lista, não filho: um `listbox` só aceita
+             * `option` e `group` dentro, e o botão de tentar de novo não é
+             * nenhum dos dois.
+             */}
             {falhou ? (
               <div className={CLASSES_DO_AVISO}>
                 <TriangleAlert aria-hidden className="size-4 shrink-0 text-danger" />
@@ -573,43 +611,52 @@ export function Combobox<O extends OpcaoDoCombobox = OpcaoDoCombobox>({
                   ? inicialRotulo
                   : (vazioRotulo ?? `Nada encontrado para “${termoBuscado}”.`)}
               </p>
-            ) : (
-              <ul id={idLista} role="listbox" aria-label={rotulo} className="flex flex-col">
-                {resultado.opcoes.map((opcao, indice) => {
-                  const ativa = indice === indiceAtivo;
-                  const selecionada = opcao.valor === chaveSelecionada;
-                  const bloqueada = opcao.desabilitado === true;
-                  return (
-                    <li
-                      key={opcao.valor}
-                      id={`${idLista}-opcao-${indice}`}
-                      role="option"
-                      aria-selected={selecionada}
-                      aria-disabled={bloqueada ? true : undefined}
-                      /* Sem isto o campo perde o foco no mousedown e a lista
-                       * fecha antes de o clique chegar. */
-                      onMouseDown={(evento) => evento.preventDefault()}
-                      onClick={() => escolher(opcao)}
-                      className={cn(
-                        'flex min-h-9 cursor-pointer items-center gap-3 rounded-control px-2.5 py-1.5 text-body',
-                        'text-content-default transition-base',
-                        ativa && !bloqueada && 'bg-surface-muted text-content',
-                        bloqueada && 'cursor-not-allowed text-content-subtle',
-                      )}
-                    >
-                      {renderOpcao === undefined ? (
-                        <OpcaoPadrao opcao={opcao} />
-                      ) : (
-                        renderOpcao(opcao, { ativa, selecionada, termo: termoBuscado ?? '' })
-                      )}
-                      {selecionada && (
-                        <Check aria-hidden className="size-4 shrink-0 text-content-accent" />
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+            ) : null}
+
+            {/*
+             * A lista existe sempre que o painel existe, ainda que vazia: é ela
+             * que o `aria-controls` do campo aponta, e um `aria-controls` que
+             * não resolve é o mesmo que nenhum.
+             */}
+            <ul id={idLista} role="listbox" aria-label={rotulo} className="flex flex-col">
+              {falhou
+                ? /* Resultado velho embaixo de "não foi possível buscar" é
+                   * resposta de outra pergunta. Some até a busca voltar. */
+                  null
+                : resultado.opcoes.map((opcao, indice) => {
+                    const ativa = indice === indiceAtivo;
+                    const selecionada = opcao.valor === chaveSelecionada;
+                    const bloqueada = opcao.desabilitado === true;
+                    return (
+                      <li
+                        key={opcao.valor}
+                        id={`${idLista}-opcao-${indice}`}
+                        role="option"
+                        aria-selected={selecionada}
+                        aria-disabled={bloqueada ? true : undefined}
+                        /* Sem isto o campo perde o foco no mousedown e a lista
+                         * fecha antes de o clique chegar. */
+                        onMouseDown={(evento) => evento.preventDefault()}
+                        onClick={() => escolher(opcao)}
+                        className={cn(
+                          'flex min-h-9 cursor-pointer items-center gap-3 rounded-control px-2.5 py-1.5 text-body',
+                          'text-content-default transition-base',
+                          ativa && !bloqueada && 'bg-surface-muted text-content',
+                          bloqueada && 'cursor-not-allowed text-content-subtle',
+                        )}
+                      >
+                        {renderOpcao === undefined ? (
+                          <OpcaoPadrao opcao={opcao} />
+                        ) : (
+                          renderOpcao(opcao, { ativa, selecionada, termo: termoBuscado ?? '' })
+                        )}
+                        {selecionada && (
+                          <Check aria-hidden className="size-4 shrink-0 text-content-accent" />
+                        )}
+                      </li>
+                    );
+                  })}
+            </ul>
           </div>,
           document.body,
         )}
