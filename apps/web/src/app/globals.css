@@ -1,0 +1,288 @@
+@import 'tailwindcss';
+
+/*
+ * Tivexy — design tokens do SaaS
+ *
+ * A paleta espelha `apps/site/src/styles/tokens.css`. Os valores estão
+ * duplicados de propósito: enquanto houver um único consumidor React, copiar
+ * o valor custa menos que a abstração errada. Quando `packages/config` nascer
+ * (ver docs/REPOSITORY_STRUCTURE.md), os dois passam a ler da mesma fonte.
+ *
+ * Azul da marca: #1648a6, extraído da logo. Toda a escala azul usa a matiz 219°.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* ── Paleta base ──────────────────────────────────────────────────── */
+  --tvx-white: #ffffff;
+  --tvx-ice-50: #f6f9fc;
+  --tvx-ice-100: #edf2f8;
+  --tvx-ice-200: #dfe7f1;
+  --tvx-mist-300: #c5d1df;
+  --tvx-gray-400: #8e9bb0;
+  --tvx-gray-450: #76849a;
+  --tvx-gray-500: #5d6b81;
+  --tvx-gray-600: #475569;
+  --tvx-ink-700: #2a3446;
+  --tvx-ink-900: #0b1424;
+
+  --tvx-blue-50: #eff4fc;
+  --tvx-blue-100: #dde7f9;
+  --tvx-blue-200: #bdd0f2;
+  --tvx-blue-300: #8eb0ec;
+  --tvx-blue-500: #2360d4;
+  --tvx-blue-600: #1648a6; /* azul da logo */
+  --tvx-blue-700: #103b8a;
+  --tvx-blue-800: #0c2e6e;
+
+  --tvx-navy-800: #12224a;
+  --tvx-navy-900: #0a1633;
+  --tvx-navy-950: #060e24;
+  --tvx-on-dark-muted: #a7b6d2;
+
+  /* Funcionais: fora da paleta da marca, só para estado. */
+  --tvx-danger-50: #fdf2f1;
+  --tvx-danger-500: #d9463a;
+  --tvx-danger-600: #c2352b;
+  --tvx-success-50: #eefaf3;
+  --tvx-success-600: #10794c;
+  --tvx-warning-50: #fdf6e9;
+  --tvx-warning-600: #9a6508;
+
+  /* ── Camada semântica — tema claro ────────────────────────────────── */
+  --surface: var(--tvx-white);
+  --surface-subtle: var(--tvx-ice-50);
+  --surface-muted: var(--tvx-ice-100);
+  --surface-raised: var(--tvx-white);
+  --surface-inset: var(--tvx-ice-50);
+  --surface-accent-soft: var(--tvx-blue-50);
+  --surface-brand: var(--tvx-blue-600);
+  --surface-inverse: var(--tvx-navy-900);
+
+  --content: var(--tvx-ink-900);
+  --content-default: var(--tvx-ink-700);
+  --content-muted: var(--tvx-gray-500);
+  --content-subtle: var(--tvx-gray-400);
+  --content-accent: var(--tvx-blue-600);
+  --content-on-brand: var(--tvx-white);
+  --content-on-inverse: var(--tvx-white);
+
+  --border-subtle: rgb(11 20 36 / 0.07);
+  --border-default: rgb(11 20 36 / 0.12);
+  --border-strong: var(--tvx-mist-300);
+  --border-field: var(--tvx-gray-450);
+  --border-accent: rgb(22 72 166 / 0.35);
+
+  --state-danger: var(--tvx-danger-600);
+  --state-danger-soft: var(--tvx-danger-50);
+  --state-success: var(--tvx-success-600);
+  --state-success-soft: var(--tvx-success-50);
+  --state-warning: var(--tvx-warning-600);
+  --state-warning-soft: var(--tvx-warning-50);
+
+  --focus-ring: var(--tvx-blue-500);
+
+  /* Controles nativos — seletor de data, lista do select, barra de rolagem — seguem o tema. */
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --surface: var(--tvx-navy-900);
+  --surface-subtle: var(--tvx-navy-950);
+  --surface-muted: var(--tvx-navy-800);
+  --surface-raised: var(--tvx-navy-800);
+  --surface-inset: var(--tvx-navy-950);
+  --surface-accent-soft: rgb(35 96 212 / 0.16);
+  --surface-brand: var(--tvx-blue-500);
+  --surface-inverse: var(--tvx-white);
+
+  --content: var(--tvx-white);
+  --content-default: #e4eaf6;
+  --content-muted: var(--tvx-on-dark-muted);
+  --content-subtle: #7c8cad;
+  --content-accent: var(--tvx-blue-300);
+  --content-on-brand: var(--tvx-white);
+  --content-on-inverse: var(--tvx-ink-900);
+
+  --border-subtle: rgb(255 255 255 / 0.08);
+  --border-default: rgb(255 255 255 / 0.14);
+  --border-strong: rgb(255 255 255 / 0.24);
+  --border-field: rgb(255 255 255 / 0.28);
+  --border-accent: rgb(142 176 236 / 0.45);
+
+  --state-danger: #ff8378;
+  --state-danger-soft: rgb(217 70 58 / 0.16);
+  --state-success: #52c48d;
+  --state-success-soft: rgb(16 121 76 / 0.2);
+  --state-warning: #e3ae4d;
+  --state-warning-soft: rgb(154 101 8 / 0.2);
+
+  --focus-ring: var(--tvx-blue-300);
+}
+
+/*
+ * `inline` faz as utilidades referenciarem a variável em vez do valor,
+ * então `.dark` troca o tema sem gerar um segundo conjunto de classes.
+ */
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-inset: var(--surface-inset);
+  --color-surface-accent-soft: var(--surface-accent-soft);
+  --color-surface-brand: var(--surface-brand);
+  --color-surface-inverse: var(--surface-inverse);
+
+  --color-content: var(--content);
+  --color-content-default: var(--content-default);
+  --color-content-muted: var(--content-muted);
+  --color-content-subtle: var(--content-subtle);
+  --color-content-accent: var(--content-accent);
+  --color-content-on-brand: var(--content-on-brand);
+  --color-content-on-inverse: var(--content-on-inverse);
+
+  --color-line-subtle: var(--border-subtle);
+  --color-line: var(--border-default);
+  --color-line-strong: var(--border-strong);
+  --color-line-field: var(--border-field);
+  --color-line-accent: var(--border-accent);
+
+  --color-danger: var(--state-danger);
+  --color-danger-soft: var(--state-danger-soft);
+  --color-success: var(--state-success);
+  --color-success-soft: var(--state-success-soft);
+  --color-warning: var(--state-warning);
+  --color-warning-soft: var(--state-warning-soft);
+
+  --color-ring: var(--focus-ring);
+
+  /* Paleta crua, quando a semântica não couber */
+  --color-brand: var(--tvx-blue-600);
+  --color-brand-signal: var(--tvx-blue-500);
+  --color-brand-soft: var(--tvx-blue-300);
+
+  --font-display: var(--font-manrope), sans-serif;
+  --font-sans: var(--font-inter), sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Raios e sombras espelham a landing: tinta azulada, nunca preto puro */
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+
+  --shadow-xs: 0 1px 2px rgb(11 20 36 / 0.06);
+  --shadow-sm: 0 1px 2px rgb(11 20 36 / 0.05), 0 2px 8px rgb(11 20 36 / 0.05);
+  --shadow-md: 0 2px 4px rgb(11 20 36 / 0.04), 0 10px 24px -4px rgb(11 20 36 / 0.08);
+  --shadow-lg: 0 4px 8px rgb(11 20 36 / 0.04), 0 24px 48px -12px rgb(19 38 88 / 0.16);
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  * {
+    border-color: var(--border-default);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--surface);
+    color: var(--content-default);
+    font-family: var(--font-inter), sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-manrope), sans-serif;
+    color: var(--content);
+    letter-spacing: -0.02em;
+  }
+
+  /* Foco visível e consistente: acessibilidade não é opcional. */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+
+  ::selection {
+    background-color: var(--tvx-blue-200);
+    color: var(--tvx-ink-900);
+  }
+}
+
+/*
+ * Movimento com propósito: o que entra na lista chega, não aparece.
+ *
+ * Curto e sem quique — 280 ms é o bastante para o olho seguir o cartão novo
+ * e pouco para atrasar quem já sabe o que quer. `both` segura o estado
+ * inicial durante o atraso de quem entra em sequência.
+ */
+@keyframes tvx-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-enter {
+  animation: tvx-enter 280ms var(--ease-out) both;
+}
+
+/*
+ * Barra de gráfico que cresce a partir do eixo. Com `transform-box: fill-box`
+ * a origem é a da própria barra no SVG — `origin-bottom` para quem sobe,
+ * `origin-top` para quem desce. Movimento reduzido zera a duração, e a barra
+ * aparece pronta.
+ */
+@keyframes tvx-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@utility animate-grow {
+  animation: tvx-grow 520ms var(--ease-out) both;
+  transform-box: fill-box;
+}
+
+/* Barra de progresso que enche da esquerda. `origin-left` na barra. */
+@keyframes tvx-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@utility animate-fill {
+  animation: tvx-fill 700ms var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    /* Sem isto, o item em sequência ficaria invisível durante o atraso. */
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

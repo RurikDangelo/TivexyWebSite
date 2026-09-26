@@ -1,0 +1,117 @@
+---
+import Eyebrow from './Eyebrow.astro';
+
+interface Props {
+  /** id do título, usado pelo aria-labelledby da seção */
+  titleId: string;
+  eyebrow?: string;
+  eyebrowTone?: 'idle' | 'connected';
+  align?: 'start' | 'center';
+  /** split: no desktop, título à esquerda e texto de apoio à direita. */
+  layout?: 'stack' | 'split';
+  inverse?: boolean;
+  /** Nível do título. A página já tem um h1; seções usam h2. */
+  level?: 'h1' | 'h2';
+  class?: string;
+}
+
+const {
+  titleId,
+  eyebrow,
+  eyebrowTone = 'connected',
+  align = 'start',
+  layout = 'stack',
+  inverse = false,
+  level = 'h2',
+  class: className,
+}: Props = Astro.props;
+
+const Heading = level;
+
+const hasLead = Astro.slots.has('lead');
+---
+
+<header
+  class:list={[
+    'section-header',
+    `section-header--${align}`,
+    `section-header--${layout}`,
+    { 'section-header--inverse': inverse },
+    className,
+  ]}
+>
+  {eyebrow && (
+    <Eyebrow tone={eyebrowTone} inverse={inverse}>
+      {eyebrow}
+    </Eyebrow>
+  )}
+  <Heading id={titleId} class="section-header__title">
+    <slot />
+  </Heading>
+  {hasLead && (
+    <p class="section-header__lead">
+      <slot name="lead" />
+    </p>
+  )}
+</header>
+
+<style>
+  .section-header {
+    display: grid;
+    gap: var(--space-2-5);
+    max-width: 48rem;
+  }
+
+  .section-header--center {
+    justify-items: center;
+    margin-inline: auto;
+    text-align: center;
+  }
+
+  .section-header__title {
+    font-size: var(--text-h2);
+    letter-spacing: var(--tracking-heading);
+    line-height: var(--leading-heading);
+  }
+
+  .section-header__lead {
+    max-width: var(--measure);
+    color: var(--text-muted);
+    font-size: var(--text-lead);
+    line-height: var(--leading-normal);
+  }
+
+  .section-header--inverse .section-header__title {
+    color: var(--text-on-inverse);
+  }
+
+  .section-header--inverse .section-header__lead {
+    color: var(--text-on-inverse-muted);
+  }
+
+  .section-header :global(.accent) {
+    color: var(--text-accent);
+  }
+
+  @media (--lg) {
+    .section-header--split {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: end;
+      column-gap: var(--space-8);
+      max-width: none;
+    }
+
+    .section-header--split > :global(.eyebrow) {
+      grid-column: 1 / -1;
+    }
+
+    .section-header--split .section-header__lead {
+      justify-self: end;
+      padding-bottom: 0.35em;
+    }
+  }
+
+  .section-header--inverse :global(.accent) {
+    color: var(--text-accent-on-inverse);
+  }
+</style>

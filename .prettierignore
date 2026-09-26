@@ -1,0 +1,15 @@
+# build output
+dist/
+.astro/
+.next/
+
+# dependências e lockfile
+node_modules/
+package-lock.json
+
+# configuração gerenciada pelo próprio Obsidian
+docs/.obsidian/
+
+# gerado por `npm run icons:site`. Formatá-lo aqui só cria um vaivém: o próximo
+# `npm run icons` reescreve do jeito dele e o CI volta a reclamar.
+apps/site/public/site.webmanifest

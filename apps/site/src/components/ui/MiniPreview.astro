@@ -1,0 +1,337 @@
+---
+/**
+ * Miniaturas de interface usadas nos produtos e nas páginas de solução.
+ * São ilustrativas e decorativas (aria-hidden no contêiner que as usa).
+ */
+import Icon from './Icon.astro';
+import LogoMark from './LogoMark.astro';
+import type { MiniPreviewKind } from './mini-preview';
+
+interface Props {
+  kind: MiniPreviewKind;
+}
+
+const { kind } = Astro.props;
+
+const chartLine = 'M0 70 C30 66 45 52 75 56 S120 40 150 44 S200 22 225 28 S270 12 300 8';
+const crmColumns = [
+  { title: 'Contato', cards: 2, active: false },
+  { title: 'Proposta', cards: 2, active: true },
+  { title: 'Fechado', cards: 1, active: false },
+];
+---
+
+{kind === 'os' && (
+  <div class="mini-os">
+    <div class="mini-os__side">
+      <LogoMark size="1.25rem" />
+      <i class="is-active" />
+      <i />
+      <i />
+      <i />
+      <i />
+    </div>
+    <div class="mini-os__main">
+      <div class="mini-os__kpis">
+        <span>
+          <b>128</b>Pedidos
+        </span>
+        <span>
+          <b>6</b>Aprovações
+        </span>
+        <span>
+          <b>24</b>Automações
+        </span>
+      </div>
+      <svg class="mini-os__chart" viewBox="0 0 300 80" preserveAspectRatio="none">
+        <path class="mini-os__area" d={`${chartLine} L300 80 L0 80 Z`} />
+        <path class="mini-os__line" d={chartLine} />
+      </svg>
+      <div class="mini-os__rows">
+        <i />
+        <i />
+        <i />
+      </div>
+    </div>
+  </div>
+)}
+{kind === 'crm' && (
+  <div class="mini-crm">
+    {crmColumns.map((column) => (
+      <div class="mini-crm__col">
+        <p>{column.title}</p>
+        {Array.from({ length: column.cards }).map((_, index) => (
+          <span class:list={['mini-crm__card', { 'is-active': column.active && index === 0 }]}>
+            <i />
+            <i />
+          </span>
+        ))}
+      </div>
+    ))}
+  </div>
+)}
+{kind === 'flow' && (
+  <div class="mini-flow">
+    <span class="mini-flow__node">
+      <Icon name="cart" size="0.875rem" />
+      Novo pedido
+    </span>
+    <span class="mini-flow__edge" />
+    <span class="mini-flow__node">
+      <Icon name="box" size="0.875rem" />
+      Reservar estoque
+    </span>
+    <span class="mini-flow__edge" />
+    <span class="mini-flow__node is-active">
+      <Icon name="file" size="0.875rem" />
+      Emitir nota
+    </span>
+  </div>
+)}
+{kind === 'ai' && (
+  <div class="mini-ai">
+    <p class="mini-ai__bubble mini-ai__bubble--user">Quais pedidos precisam de atenção hoje?</p>
+    <p class="mini-ai__bubble mini-ai__bubble--ai">
+      <Icon name="spark" size="1rem" />
+      Três pedidos estão com a entrega em risco. Quer que eu avise os clientes?
+    </p>
+  </div>
+)}
+
+<style>
+  .mini-os {
+    display: grid;
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+    width: min(100%, 34rem);
+    overflow: hidden;
+    border: var(--border-width) solid var(--border-default);
+    border-radius: var(--radius-lg);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .mini-os__side {
+    display: grid;
+    align-content: start;
+    justify-items: center;
+    gap: 0.625rem;
+    padding: 0.75rem 0;
+    border-right: var(--border-width) solid var(--border-subtle);
+  }
+
+  .mini-os__side i {
+    width: 1.125rem;
+    height: 0.375rem;
+    border-radius: var(--radius-full);
+    background: var(--color-ice-200);
+  }
+
+  .mini-os__side i.is-active {
+    margin-top: 0.375rem;
+    background: var(--color-blue-200);
+  }
+
+  .mini-os__main {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.875rem;
+  }
+
+  .mini-os__kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .mini-os__kpis span {
+    display: grid;
+    gap: 0.125rem;
+    min-width: 0;
+    padding: 0.5rem;
+    overflow: hidden;
+    border: var(--border-width) solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 0.625rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mini-os__kpis b {
+    color: var(--text-strong);
+    font-family: var(--font-display);
+    font-size: 1.125rem;
+    line-height: 1.1;
+  }
+
+  .mini-os__chart {
+    width: 100%;
+    height: 4.5rem;
+  }
+
+  .mini-os__area {
+    fill: var(--color-blue-50);
+  }
+
+  .mini-os__line {
+    fill: none;
+    stroke: var(--color-blue-500);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .mini-os__rows {
+    display: grid;
+    gap: 0.375rem;
+  }
+
+  .mini-os__rows i {
+    height: 0.5rem;
+    border-radius: var(--radius-full);
+    background: var(--color-ice-100);
+  }
+
+  .mini-os__rows i:nth-child(2) {
+    width: 82%;
+  }
+
+  .mini-os__rows i:nth-child(3) {
+    width: 64%;
+  }
+
+  .mini-crm {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+    width: min(100%, 20rem);
+  }
+
+  .mini-crm__col {
+    display: grid;
+    align-content: start;
+    gap: 0.375rem;
+    padding: 0.5rem;
+    border-radius: var(--radius-md);
+    background: var(--surface-muted);
+  }
+
+  .mini-crm__col p {
+    color: var(--text-muted);
+    font-size: 0.6875rem;
+    font-weight: var(--weight-semibold);
+  }
+
+  .mini-crm__card {
+    display: grid;
+    gap: 0.3125rem;
+    padding: 0.5rem;
+    border: var(--border-width) solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .mini-crm__card i {
+    height: 0.3125rem;
+    border-radius: var(--radius-full);
+    background: var(--color-ice-200);
+  }
+
+  .mini-crm__card i:last-child {
+    width: 60%;
+  }
+
+  .mini-crm__card.is-active {
+    border-color: var(--border-accent);
+    box-shadow: 0 0 0 3px var(--color-blue-50);
+    rotate: -3deg;
+  }
+
+  .mini-crm__card.is-active i:first-child {
+    background: var(--color-blue-200);
+  }
+
+  .mini-flow {
+    display: grid;
+    justify-items: center;
+  }
+
+  .mini-flow__node {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem;
+    border: var(--border-width) solid var(--border-default);
+    border-radius: var(--radius-full);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-xs);
+    color: var(--text-default);
+    font-size: 0.8125rem;
+    font-weight: var(--weight-medium);
+  }
+
+  .mini-flow__node :global(.icon) {
+    color: var(--text-muted);
+  }
+
+  .mini-flow__node.is-active {
+    border-color: var(--brand-blue);
+    background: var(--brand-blue);
+    box-shadow: var(--shadow-accent);
+    color: var(--color-white);
+  }
+
+  .mini-flow__node.is-active :global(.icon) {
+    color: var(--color-white);
+  }
+
+  .mini-flow__edge {
+    width: 2px;
+    height: 1rem;
+    background: linear-gradient(var(--color-mist-300), var(--color-blue-300));
+  }
+
+  .mini-ai {
+    display: grid;
+    gap: 0.625rem;
+    width: min(100%, 26rem);
+  }
+
+  .mini-ai__bubble {
+    max-width: 85%;
+    padding: 0.625rem 0.875rem;
+    border-radius: var(--radius-lg);
+    font-size: 0.875rem;
+    line-height: var(--leading-snug);
+  }
+
+  .mini-ai__bubble--user {
+    justify-self: end;
+    border-bottom-right-radius: var(--radius-xs);
+    background: var(--color-ink-900);
+    color: var(--color-white);
+  }
+
+  .mini-ai__bubble--ai {
+    display: flex;
+    gap: 0.5rem;
+    border: var(--border-width) solid var(--border-subtle);
+    border-bottom-left-radius: var(--radius-xs);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-sm);
+    color: var(--text-default);
+  }
+
+  .mini-ai__bubble--ai :global(.icon) {
+    flex-shrink: 0;
+    margin-top: 0.0625rem;
+    color: var(--color-blue-500);
+  }
+
+  @media (--sm) {
+    .mini-os__kpis span {
+      padding: 0.5rem 0.625rem;
+      font-size: 0.6875rem;
+    }
+  }
+</style>

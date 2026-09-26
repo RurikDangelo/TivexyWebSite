@@ -1,0 +1,212 @@
+---
+import Eyebrow from '@/components/ui/Eyebrow.astro';
+import Icon from '@/components/ui/Icon.astro';
+import Section from '@/components/ui/Section.astro';
+import { problems } from '@/data/problems';
+---
+
+<Section id="problemas" labelledby="problemas-title">
+  <div class="container problem">
+    <div class="problem__body">
+      <header class="problem__header">
+        <Eyebrow tone="idle">Hoje, em muitas empresas</Eyebrow>
+        <h2 id="problemas-title" class="problem__title">
+          Processos que deveriam ser simples não precisam continuar sendo complicados.
+        </h2>
+      </header>
+
+      <ul class="problem__list" role="list">
+        {problems.map((problem, index) => (
+          <li class="problem__item" data-reveal style={`--reveal-order:${index % 2}`}>
+            <span class="problem__icon">
+              <Icon name={problem.icon} size="1.375rem" />
+            </span>
+            <div class="problem__copy">
+              <h3 class="problem__name">{problem.title}</h3>
+              <p class="problem__detail">{problem.detail}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <div class="problem__closing" data-reveal>
+      <p class="problem__statement">
+        A Tivexy transforma esses gargalos em{' '}
+        <span class="problem__accent">soluções digitais.</span>
+      </p>
+      <a class="problem__link" href="#solucoes">
+        Ver as soluções
+        <Icon name="arrow-right" size="1.125rem" />
+      </a>
+    </div>
+  </div>
+</Section>
+
+<style>
+  .problem,
+  .problem__body {
+    display: grid;
+    gap: var(--space-6) var(--space-8);
+  }
+
+  .problem__header {
+    display: grid;
+    align-content: start;
+    gap: var(--space-2-5);
+  }
+
+  .problem__title {
+    max-width: 18ch;
+    font-size: clamp(2rem, 1.4rem + 2.2vw, 3.125rem);
+  }
+
+  .problem__list {
+    border-top: var(--border-width) solid var(--border-subtle);
+  }
+
+  .problem__item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-2);
+    padding-block: var(--space-3);
+    border-bottom: var(--border-width) solid var(--border-subtle);
+  }
+
+  .problem__icon {
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border: var(--border-width) solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--surface-subtle);
+    color: var(--color-gray-500);
+  }
+
+  .problem__copy {
+    display: grid;
+    gap: var(--space-0-5);
+    padding-top: 0.125rem;
+  }
+
+  .problem__name {
+    font-size: var(--text-h4);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tight);
+    line-height: var(--leading-snug);
+  }
+
+  .problem__detail {
+    color: var(--text-muted);
+    line-height: var(--leading-normal);
+  }
+
+  .problem__closing {
+    display: grid;
+    justify-items: start;
+    gap: var(--space-3);
+    padding-top: var(--space-2);
+  }
+
+  .problem__statement {
+    max-width: 24ch;
+    color: var(--text-strong);
+    font-family: var(--font-display);
+    font-size: clamp(1.625rem, 1.2rem + 1.7vw, 2.625rem);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-heading);
+    line-height: var(--leading-heading);
+    text-wrap-style: balance;
+  }
+
+  .problem__accent {
+    color: var(--text-accent);
+  }
+
+  .problem__link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: 2.75rem;
+    color: var(--text-accent);
+    font-weight: var(--weight-semibold);
+    text-decoration: none;
+  }
+
+  .problem__link :global(.icon) {
+    transition: translate var(--duration-base) var(--ease-out);
+  }
+
+  .problem__link:hover {
+    text-decoration: underline;
+  }
+
+  .problem__link:hover :global(.icon) {
+    translate: 0.1875rem 0;
+  }
+
+  @media (--md) {
+    .problem__list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: var(--space-5);
+      border-top: 0;
+    }
+
+    .problem__item {
+      border-top: var(--border-width) solid var(--border-subtle);
+      border-bottom: 0;
+    }
+  }
+
+  @media (--lg) {
+    .problem__body {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .problem__list {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .problem__item {
+      grid-template-columns: auto minmax(0, 12rem) minmax(0, 1fr);
+      gap: var(--space-2-5);
+      padding-block: var(--space-2-5);
+    }
+
+    .problem__copy {
+      display: contents;
+    }
+
+    .problem__name {
+      padding-top: 0.625rem;
+    }
+
+    .problem__detail {
+      padding-top: 0.625rem;
+    }
+
+    /* O sticky fica preso ao bloco pai. Em .problem__body, que termina junto com a lista,
+       o título nunca desliza por cima da frase de fechamento. */
+    .problem__header {
+      position: sticky;
+      top: calc(var(--header-h-compact) + var(--space-6));
+      align-self: start;
+    }
+
+    .problem__closing {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      padding-top: var(--space-6);
+      border-top: var(--border-width) solid var(--border-default);
+    }
+  }
+
+  @media (--reduced-motion) {
+    .problem__link:hover :global(.icon) {
+      translate: none;
+    }
+  }
+</style>

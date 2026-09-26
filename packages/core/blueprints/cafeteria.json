@@ -1,0 +1,131 @@
+{
+  "code": "cafeteria",
+  "name": "Cafeteria",
+  "description": "Cafeterias e casas de café com venda no balcão e controle de insumos.",
+  "version": 1,
+  "plan": "profissional",
+  "modules": ["core", "erp", "inventory", "finance"],
+  "terms": {
+    "erp.products": {
+      "singular": "item do cardápio",
+      "plural": "itens do cardápio"
+    },
+    "erp.customers": {
+      "singular": "cliente",
+      "plural": "clientes"
+    },
+    "erp.sales": {
+      "singular": "venda",
+      "plural": "vendas"
+    },
+    "erp.suppliers": {
+      "singular": "fornecedor",
+      "plural": "fornecedores"
+    },
+    "inventory.stock": {
+      "singular": "insumo",
+      "plural": "insumos"
+    }
+  },
+  "roles": [
+    {
+      "code": "barista",
+      "name": "Barista",
+      "permissions": [
+        "erp.products.read",
+        "erp.sales.read",
+        "erp.sales.write",
+        "erp.customers.read",
+        "inventory.stock.read"
+      ]
+    },
+    {
+      "code": "gerente_de_loja",
+      "name": "Gerente de loja",
+      "permissions": [
+        "core.users.read",
+        "core.teams.read",
+        "erp.products.read",
+        "erp.products.write",
+        "erp.customers.read",
+        "erp.customers.write",
+        "erp.suppliers.read",
+        "erp.suppliers.write",
+        "erp.sales.read",
+        "erp.sales.write",
+        "erp.purchases.read",
+        "erp.purchases.write",
+        "inventory.stock.read",
+        "inventory.movements.read",
+        "inventory.movements.write",
+        "finance.cashflow.read",
+        "finance.payables.read",
+        "finance.receivables.read"
+      ]
+    }
+  ],
+  "seeds": [
+    {
+      "entity": "erp.product_categories",
+      "values": {
+        "name": "Cafés",
+        "position": 1
+      }
+    },
+    {
+      "entity": "erp.product_categories",
+      "values": {
+        "name": "Bebidas geladas",
+        "position": 2
+      }
+    },
+    {
+      "entity": "erp.product_categories",
+      "values": {
+        "name": "Doces",
+        "position": 3
+      }
+    },
+    {
+      "entity": "erp.product_categories",
+      "values": {
+        "name": "Salgados",
+        "position": 4
+      }
+    },
+    {
+      "entity": "erp.payment_methods",
+      "values": {
+        "name": "Dinheiro",
+        "code": "cash"
+      }
+    },
+    {
+      "entity": "erp.payment_methods",
+      "values": {
+        "name": "Pix",
+        "code": "pix"
+      }
+    },
+    {
+      "entity": "erp.payment_methods",
+      "values": {
+        "name": "Cartão de débito",
+        "code": "debit"
+      }
+    },
+    {
+      "entity": "erp.payment_methods",
+      "values": {
+        "name": "Cartão de crédito",
+        "code": "credit"
+      }
+    }
+  ],
+  "settings": {
+    "core.currency": "BRL",
+    "core.timezone": "America/Sao_Paulo",
+    "erp.sales_requires_customer": false,
+    "inventory.deduct_on_sale": true
+  }
+}

@@ -23,3 +23,22 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# estado local do Obsidian (o cofre é docs/, mas o layout de janelas é por máquina)
+docs/.obsidian/workspace.json
+docs/.obsidian/workspace-mobile.json
+docs/.obsidian/cache
+
+# Next.js (apps/web)
+.next/
+next-env.d.ts
+/apps/*/out/
+.vercel
+*.tsbuildinfo
+
+# Estado de janela do Obsidian. `app.json`, `appearance.json` e
+# `core-plugins.json` ficam versionados de propósito — são a configuração do
+# cofre, igual para todo mundo. Estes dois são de quem abriu: layout dos
+# painéis e posição do grafo, que mudam a cada sessão e sujam o diff.
+docs/.obsidian/graph.json
+docs/.obsidian/workspace.json

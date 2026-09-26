@@ -1,0 +1,182 @@
+---
+import Icon from '@/components/ui/Icon.astro';
+import LogoMark from '@/components/ui/LogoMark.astro';
+import Wordmark from '@/components/ui/Wordmark.astro';
+import HeroChaosSkin from './HeroChaosSkin.astro';
+import HeroModuleSkin from './HeroModuleSkin.astro';
+import { actors, roundedPath, sceneLayouts, type ActorDef, type LayoutName } from './timeline';
+import './hero-scene.css';
+
+const layoutNames: LayoutName[] = ['wide', 'compact'];
+
+/** Estado inicial (p = 0) de cada layout, para a cena já nascer montada no HTML. */
+function actorStyle(actor: ActorDef): string {
+  const vars = [`--z:${actor.chaos.z}`, `--order:${actor.order}`];
+  for (const name of layoutNames) {
+    const layout = actor.layouts[name];
+    if (!layout) continue;
+    vars.push(
+      `--x-${name}:${layout.chaos.x}`,
+      `--y-${name}:${layout.chaos.y}`,
+      `--r-${name}:${layout.chaos.r}`,
+      `--s-${name}:${layout.chaos.s}`,
+      `--mw-${name}:${layout.module.w}`,
+      `--mh-${name}:${layout.module.h}`,
+    );
+  }
+  return vars.join(';');
+}
+
+function hubStyle(): string {
+  return layoutNames
+    .flatMap((name) => {
+      const hub = sceneLayouts[name].hub;
+      return [
+        `--x-${name}:${hub.island.x}`,
+        `--y-${name}:${hub.island.y}`,
+        `--s-${name}:${hub.islandScale * 0.6}`,
+      ];
+    })
+    .join(';');
+}
+
+const menu = [
+  { icon: 'grid', label: 'Visão geral', active: true },
+  { icon: 'cart', label: 'Pedidos' },
+  { icon: 'users', label: 'Clientes' },
+  { icon: 'box', label: 'Estoque' },
+  { icon: 'wallet', label: 'Financeiro' },
+  { icon: 'flow', label: 'Automações' },
+  { icon: 'chart', label: 'Relatórios' },
+] as const;
+---
+
+<div class="hs-scene" data-scene data-phase="chaos">
+  <div class="hs-grid"></div>
+  <div class="hs-glow"></div>
+
+  <div class="hs-frame" data-frame>
+    <div class="hs-frame__top">
+      <span class="hs-frame__logo-slot"></span>
+      <span class="hs-frame__product">Tivexy OS</span>
+      <span class="hs-frame__crumb">
+        Operação <i>/</i> Visão geral
+      </span>
+      <span class="hs-frame__search">
+        <Icon name="search" />
+        Buscar pedidos, clientes…
+      </span>
+      <span class="hs-frame__bell">
+        <Icon name="bell" />
+      </span>
+      <span class="hs-frame__avatar">MA</span>
+    </div>
+    <div class="hs-frame__side">
+      <ul class="hs-frame__menu">
+        {menu.map((item) => (
+          <li class:list={['hs-frame__menu-item', { 'is-active': 'active' in item }]}>
+            <Icon name={item.icon} />
+            {item.label}
+          </li>
+        ))}
+      </ul>
+      <div class="hs-frame__integrations">
+        <p class="hs-frame__integrations-title">Integrações</p>
+        <p class="hs-frame__integrations-count">
+          <b>6</b> conectadas
+        </p>
+        <span class="hs-frame__integrations-dots">
+          <i></i>
+          <i></i>
+          <i></i>
+          <i></i>
+          <i></i>
+          <i></i>
+        </span>
+      </div>
+    </div>
+    <div class="hs-frame__heading">
+      <p class="hs-frame__title">Visão geral da operação</p>
+      <span class="hs-frame__segmented">
+        <span class="is-active">Hoje</span>
+        <span>Semana</span>
+        <span>Mês</span>
+      </span>
+    </div>
+  </div>
+
+  {layoutNames.map((name) => {
+    const { width, height } = sceneLayouts[name];
+    return (
+      <svg
+        class:list={['hs-links', `hs-links--${name}`]}
+        viewBox={`0 0 ${width} ${height}`}
+        data-links={name}
+      >
+        {actors
+          .filter((actor) => actor.layouts[name])
+          .map((actor) => {
+            const link = actor.layouts[name]!.link;
+            const d = roundedPath(link);
+            return (
+              <g class="hs-link" data-link={actor.id}>
+                <path class="hs-link__route" d={d} />
+                <path class="hs-link__line" d={d} pathLength="1" />
+                <circle class="hs-link__pulse" r="4.5" cx={link[0].x} cy={link[0].y} />
+              </g>
+            );
+          })}
+      </svg>
+    );
+  })}
+
+  <div class="hs-hub" data-hub style={hubStyle()}>
+    <div class="hs-hub__tile">
+      <LogoMark size="100%" />
+    </div>
+    <span class="hs-hub__label">
+      <Wordmark height="calc(9 * var(--u))" />
+    </span>
+  </div>
+
+  {actors.map((actor) => (
+    <div
+      class="hs-actor"
+      data-actor={actor.id}
+      data-layouts={layoutNames.filter((name) => actor.layouts[name]).join(' ')}
+      style={actorStyle(actor)}
+    >
+      <div class="hs-actor__float">
+        <HeroChaosSkin kind={actor.chaos.kind} w={actor.chaos.w} h={actor.chaos.h} />
+        <div
+          class="hs-skin hs-skin--island hs-chip"
+          data-port-wide={actor.layouts.wide?.port}
+          data-port-compact={actor.layouts.compact?.port}
+        >
+          <span class="hs-chip__icon">
+            <Icon name={actor.icon} />
+          </span>
+          <span class="hs-chip__text">
+            <span class="hs-chip__name">{actor.department}</span>
+            <span class="hs-chip__status">
+              <span class="hs-chip__off">desconectado</span>
+              <span class="hs-chip__on">conectado</span>
+            </span>
+          </span>
+          <span class="hs-chip__port"></span>
+        </div>
+        <HeroModuleSkin actor={actor} />
+      </div>
+    </div>
+  ))}
+
+  <div class="hs-toast" data-toast>
+    <span class="hs-toast__icon">
+      <Icon name="check" strokeWidth={2.5} />
+    </span>
+    <span class="hs-toast__text">
+      <b>Automação concluída</b>
+      <span>Nota fiscal #4821 enviada ao cliente.</span>
+    </span>
+  </div>
+</div>

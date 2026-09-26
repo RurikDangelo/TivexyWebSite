@@ -1,0 +1,173 @@
+---
+import Button from '@/components/ui/Button.astro';
+import LogoSymbol from '@/components/ui/LogoSymbol.astro';
+import { hasWhatsapp, sectionHref, whatsappUrl } from '@/config/site';
+
+interface Props {
+  /** Na página inicial o formulário está na mesma página (sem recarregar). */
+  onHome?: boolean;
+}
+
+const { onHome = false } = Astro.props;
+
+const contactHref = onHome ? '#contato' : sectionHref('contato');
+const proposalHref = onHome ? '#contato' : sectionHref('contato', { interesse: 'proposta' });
+---
+
+<section class="final-cta" aria-labelledby="final-cta-title">
+  <div class="container">
+    <div class="final-cta__panel" data-reveal>
+      <LogoSymbol height="var(--cta-symbol-h)" class="final-cta__symbol" />
+
+      <div class="final-cta__content">
+        <h2 id="final-cta-title" class="final-cta__title">
+          Vamos transformar sua próxima ideia em tecnologia.
+        </h2>
+        <p class="final-cta__text">
+          Conte para a Tivexy o que sua empresa precisa. Nós ajudamos a transformar problemas,
+          processos e ideias em soluções digitais.
+        </p>
+        <div class="final-cta__actions">
+          {hasWhatsapp ? (
+            <Button
+              href={whatsappUrl()}
+              variant="inverse"
+              size="lg"
+              icon="whatsapp"
+              iconPosition="start"
+              target="_blank"
+              rel="noopener"
+            >
+              Falar com a Tivexy
+            </Button>
+          ) : (
+            <Button href={contactHref} variant="inverse" size="lg" icon="arrow-right">
+              Falar com a Tivexy
+            </Button>
+          )}
+          <Button href={proposalHref} variant="inverse-ghost" size="lg" data-interest="proposta">
+            Solicitar uma proposta
+          </Button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .final-cta {
+    padding-block: var(--space-section-tight);
+    background: var(--surface-page);
+  }
+
+  /* Painel no azul da marca, como a versão negativa da logo. */
+  .final-cta__panel {
+    --cta-symbol-h: clamp(18rem, 4rem + 22vw, 27rem);
+
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    padding: clamp(2.5rem, 1.5rem + 5vw, 6rem) clamp(1.5rem, 0.5rem + 5vw, 5.5rem);
+    border-radius: var(--radius-2xl);
+    background: var(--surface-brand);
+    color: var(--text-on-brand-muted);
+  }
+
+  .final-cta__panel :global(:focus-visible) {
+    outline-color: var(--brand-on-blue);
+  }
+
+  /* Brilho que se desloca devagar: o único gradiente animado do site. */
+  .final-cta__panel::before {
+    content: '';
+    position: absolute;
+    inset: -40%;
+    z-index: -2;
+    background:
+      radial-gradient(38% 48% at 28% 36%, var(--brand-panel-glow-light), transparent 70%),
+      radial-gradient(40% 50% at 78% 78%, var(--brand-panel-glow-deep), transparent 72%);
+    opacity: 0.7;
+    animation: final-cta-drift var(--duration-ambient) var(--ease-in-out) infinite alternate;
+  }
+
+  /*
+   * Símbolo oficial como marca d'água, cortado pela borda do painel.
+   * Só aparece quando sobra espaço ao lado do texto (no celular ficaria atrás dos botões).
+   */
+  .final-cta__panel :global(.final-cta__symbol) {
+    display: none;
+  }
+
+  @media (--lg) {
+    .final-cta__panel :global(.final-cta__symbol) {
+      position: absolute;
+      top: 50%;
+      right: calc(var(--cta-symbol-h) * -0.2);
+      z-index: -1;
+      display: block;
+      color: var(--brand-on-blue);
+      opacity: 0.09;
+      translate: 0 -50%;
+    }
+  }
+
+  @media (--xl) {
+    .final-cta__panel :global(.final-cta__symbol) {
+      right: calc(var(--cta-symbol-h) * -0.12);
+    }
+  }
+
+  @keyframes final-cta-drift {
+    from {
+      translate: -6% -4%;
+    }
+
+    to {
+      translate: 6% 5%;
+    }
+  }
+
+  .final-cta__content {
+    display: grid;
+    justify-items: start;
+    gap: var(--space-3);
+    max-width: 46rem;
+  }
+
+  .final-cta__title {
+    color: var(--text-on-inverse);
+    font-size: var(--text-display);
+    letter-spacing: var(--tracking-display);
+    line-height: var(--leading-tight);
+  }
+
+  .final-cta__text {
+    max-width: 36rem;
+    font-size: var(--text-lead);
+    line-height: var(--leading-normal);
+  }
+
+  .final-cta__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1-5);
+    width: 100%;
+    margin-top: var(--space-2);
+  }
+
+  .final-cta__actions :global(.btn) {
+    flex: 1 1 100%;
+  }
+
+  @media (--sm) {
+    .final-cta__actions :global(.btn) {
+      flex: 0 1 auto;
+    }
+  }
+
+  @media (--reduced-motion) {
+    .final-cta__panel::before {
+      animation: none;
+    }
+  }
+</style>

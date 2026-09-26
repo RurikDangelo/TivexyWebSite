@@ -1,0 +1,706 @@
+---
+import Button from '@/components/ui/Button.astro';
+import Eyebrow from '@/components/ui/Eyebrow.astro';
+import Icon from '@/components/ui/Icon.astro';
+import Section from '@/components/ui/Section.astro';
+import { contact, hasEmail, hasWhatsapp, whatsappUrl } from '@/config/site';
+import { segments, solutionTypes } from './options';
+
+const nextSteps = [
+  'A Tivexy analisa o que você enviou.',
+  'Entramos em contato para entender melhor o cenário.',
+  'Você recebe o caminho recomendado e uma proposta.',
+];
+---
+
+<Section id="contato" tone="subtle" labelledby="contato-title">
+  <div class="container contact">
+    <div class="contact__intro">
+      <Eyebrow>Contato</Eyebrow>
+      <h2 id="contato-title" class="contact__title">
+        Conte o que sua empresa precisa.
+      </h2>
+      <p class="contact__lead">
+        Quanto mais contexto, melhor a primeira conversa. Preencher leva poucos minutos.
+      </p>
+
+      <div class="contact__next">
+        <h3 class="contact__next-title">O que acontece depois</h3>
+        <ol class="contact__steps" role="list">
+          {nextSteps.map((step, index) => (
+            <li>
+              <span class="contact__step-number" aria-hidden="true">
+                {index + 1}
+              </span>
+              <span>{step}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      {(hasWhatsapp || hasEmail) && (
+        <div class="contact__channels">
+          <p class="contact__channels-title">Prefere falar direto?</p>
+          {hasWhatsapp && (
+            <Button
+              href={whatsappUrl()}
+              variant="secondary"
+              icon="whatsapp"
+              iconPosition="start"
+              target="_blank"
+              rel="noopener"
+            >
+              Conversar no WhatsApp
+            </Button>
+          )}
+          {hasEmail && (
+            <a class="contact__email" href={`mailto:${contact.email}`}>
+              <Icon name="mail" size="1.125rem" />
+              {contact.email}
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+
+    <div class="contact__card">
+      <form class="form" novalidate data-contact-form>
+        <div class="form__grid">
+          <div class="field">
+            <label class="field__label" for="contato-nome">
+              Nome
+            </label>
+            <input
+              class="field__control"
+              id="contato-nome"
+              name="nome"
+              type="text"
+              autocomplete="name"
+              required
+              minlength="2"
+              aria-describedby="contato-nome-erro"
+            />
+            <p class="field__error" id="contato-nome-erro" data-error-for="nome" hidden></p>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="contato-empresa">
+              Empresa
+            </label>
+            <input
+              class="field__control"
+              id="contato-empresa"
+              name="empresa"
+              type="text"
+              autocomplete="organization"
+              required
+              minlength="2"
+              aria-describedby="contato-empresa-erro"
+            />
+            <p class="field__error" id="contato-empresa-erro" data-error-for="empresa" hidden></p>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="contato-email">
+              E-mail
+            </label>
+            <input
+              class="field__control"
+              id="contato-email"
+              name="email"
+              type="email"
+              inputmode="email"
+              autocomplete="email"
+              autocapitalize="off"
+              spellcheck="false"
+              required
+              aria-describedby="contato-email-erro"
+            />
+            <p class="field__error" id="contato-email-erro" data-error-for="email" hidden></p>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="contato-whatsapp">
+              WhatsApp
+            </label>
+            <input
+              class="field__control"
+              id="contato-whatsapp"
+              name="whatsapp"
+              type="tel"
+              inputmode="tel"
+              autocomplete="tel-national"
+              placeholder="(11) 91234-5678"
+              required
+              maxlength="16"
+              aria-describedby="contato-whatsapp-erro"
+              data-phone
+            />
+            <p class="field__error" id="contato-whatsapp-erro" data-error-for="whatsapp" hidden></p>
+          </div>
+
+          <div class="field field--full">
+            <label class="field__label" for="contato-segmento">
+              Segmento <span class="field__optional">(opcional)</span>
+            </label>
+            <div class="field__select">
+              <select class="field__control" id="contato-segmento" name="segmento">
+                <option value="">Selecione o segmento da empresa</option>
+                {segments.map((segment) => (
+                  <option value={segment}>{segment}</option>
+                ))}
+              </select>
+              <Icon name="chevron-down" size="1.125rem" class="field__select-icon" />
+            </div>
+          </div>
+
+          <fieldset class="field field--full choices">
+            <legend class="field__label">
+              Tipo de solução <span class="field__optional">(opcional)</span>
+            </legend>
+            <div class="choices__list">
+              {solutionTypes.map((option) => (
+                <label class="choice">
+                  <input
+                    class="choice__input"
+                    type="radio"
+                    name="tipoSolucao"
+                    value={option.label}
+                    data-interest-value={option.value}
+                  />
+                  <span class="choice__label">
+                    <Icon name="check" size="0.875rem" strokeWidth={2.25} class="choice__check" />
+                    {option.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <div class="field field--full">
+            <label class="field__label" for="contato-necessidade">
+              O que sua empresa precisa?
+            </label>
+            <textarea
+              class="field__control field__control--textarea"
+              id="contato-necessidade"
+              name="necessidade"
+              rows="5"
+              required
+              minlength="10"
+              aria-describedby="contato-necessidade-dica contato-necessidade-erro"
+            ></textarea>
+            <p class="field__hint" id="contato-necessidade-dica">
+              Ex.: controlamos os pedidos em planilhas e queremos um sistema com aprovação e emissão
+              de nota.
+            </p>
+            <p
+              class="field__error"
+              id="contato-necessidade-erro"
+              data-error-for="necessidade"
+              hidden
+            ></p>
+          </div>
+        </div>
+
+        <div class="form__trap" aria-hidden="true">
+          <label for="contato-site">Não preencha este campo</label>
+          <input id="contato-site" name="site" type="text" tabindex="-1" autocomplete="off" />
+        </div>
+
+        <div class="form__footer">
+          <p class="form__privacy">
+            <Icon name="shield" size="1.125rem" />
+            <span>
+              Usamos seus dados só para responder ao seu contato.{' '}
+              <a href="/privacidade">Política de privacidade</a>
+            </span>
+          </p>
+          <Button type="submit" size="lg" icon="arrow-right" class="form__submit" data-submit>
+            Enviar projeto
+          </Button>
+        </div>
+
+        <div class="form__alert" role="alert" data-form-alert hidden></div>
+      </form>
+
+      <div class="form-result" data-form-result hidden tabindex="-1">
+        <span class="form-result__icon">
+          <Icon name="check" size="1.75rem" strokeWidth={2.25} />
+        </span>
+        <h3 class="form-result__title" data-result-title>
+          Projeto enviado.
+        </h3>
+        <p class="form-result__text" data-result-text>
+          Recebemos suas informações. A Tivexy vai responder pelo e-mail ou WhatsApp que você
+          informou.
+        </p>
+        <button class="form-result__reset" type="button" data-form-reset>
+          Enviar outro projeto
+        </button>
+      </div>
+    </div>
+  </div>
+</Section>
+
+<script>
+  import './contact-form';
+</script>
+
+<style>
+  .contact {
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  .contact__intro {
+    display: grid;
+    align-content: start;
+    justify-items: start;
+    gap: var(--space-2-5);
+  }
+
+  .contact__title {
+    max-width: 14ch;
+    font-size: var(--text-h2);
+  }
+
+  .contact__lead {
+    max-width: 30rem;
+    color: var(--text-muted);
+    font-size: var(--text-lead);
+    line-height: var(--leading-normal);
+  }
+
+  .contact__next {
+    display: grid;
+    gap: var(--space-1-5);
+    width: 100%;
+    margin-top: var(--space-2);
+    padding-top: var(--space-3);
+    border-top: var(--border-width) solid var(--border-default);
+  }
+
+  .contact__next-title,
+  .contact__channels-title {
+    color: var(--text-strong);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-tight);
+  }
+
+  .contact__steps {
+    display: grid;
+    gap: var(--space-1-5);
+  }
+
+  .contact__steps li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-1-5);
+    color: var(--text-default);
+    line-height: var(--leading-normal);
+  }
+
+  .contact__step-number {
+    display: grid;
+    place-items: center;
+    width: 1.625rem;
+    height: 1.625rem;
+    border: var(--border-width) solid var(--border-accent);
+    border-radius: var(--radius-full);
+    background: var(--surface-card);
+    color: var(--text-accent);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    font-weight: var(--weight-semibold);
+  }
+
+  .contact__channels {
+    display: grid;
+    justify-items: start;
+    gap: var(--space-1-5);
+    width: 100%;
+    margin-top: var(--space-1);
+    padding-top: var(--space-3);
+    border-top: var(--border-width) solid var(--border-default);
+  }
+
+  .contact__email {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: 2.75rem;
+    color: var(--text-accent);
+    font-weight: var(--weight-medium);
+    overflow-wrap: anywhere;
+  }
+
+  /* ── Cartão do formulário ────────────────────────────────────────── */
+  .contact__card {
+    padding: var(--space-3);
+    border: var(--border-width) solid var(--border-subtle);
+    border-radius: var(--radius-xl);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .form__grid {
+    display: grid;
+    gap: var(--space-2-5);
+  }
+
+  .field {
+    display: grid;
+    align-content: start;
+    gap: var(--space-1);
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .field__label {
+    padding: 0;
+    color: var(--text-strong);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+
+  .field__optional {
+    color: var(--text-muted);
+    font-weight: var(--weight-regular);
+  }
+
+  .field__control {
+    width: 100%;
+    min-height: 3rem;
+    padding: 0 var(--space-2);
+    border: var(--border-width) solid var(--border-field);
+    border-radius: var(--radius-md);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-inset-field);
+    color: var(--text-strong);
+    font-size: 1rem;
+    transition:
+      border-color var(--duration-fast) var(--ease-standard),
+      box-shadow var(--duration-fast) var(--ease-standard);
+  }
+
+  .field__control::placeholder {
+    color: var(--color-gray-500);
+  }
+
+  .field__control:hover {
+    border-color: var(--color-gray-500);
+  }
+
+  .field__control:focus-visible {
+    border-color: var(--color-blue-500);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--color-blue-100);
+  }
+
+  .field__control[aria-invalid='true'] {
+    border-color: var(--color-danger-600);
+    background: var(--color-danger-50);
+  }
+
+  .field__control[aria-invalid='true']:focus-visible {
+    box-shadow: 0 0 0 3px var(--color-danger-50);
+  }
+
+  .field__control--textarea {
+    min-height: 8.5rem;
+    padding-block: var(--space-1-5);
+    line-height: var(--leading-normal);
+    resize: vertical;
+  }
+
+  .field__select {
+    position: relative;
+  }
+
+  .field__select select {
+    padding-right: var(--space-5);
+    appearance: none;
+    cursor: pointer;
+  }
+
+  .field__select :global(.field__select-icon) {
+    position: absolute;
+    top: 50%;
+    right: var(--space-1-5);
+    color: var(--text-muted);
+    translate: 0 -50%;
+    pointer-events: none;
+  }
+
+  .field__hint {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    line-height: var(--leading-normal);
+  }
+
+  .field__error {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-0-5);
+    color: var(--color-danger-600);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
+    line-height: var(--leading-normal);
+  }
+
+  .field__error::before {
+    content: '!';
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 1rem;
+    height: 1rem;
+    margin-top: 0.125rem;
+    border-radius: var(--radius-full);
+    background: var(--color-danger-600);
+    color: var(--color-white);
+    font-size: 0.6875rem;
+    font-weight: var(--weight-bold);
+    line-height: 1;
+  }
+
+  .field__error[hidden] {
+    display: none;
+  }
+
+  /* Tipo de solução */
+  .choices__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+
+  .choice {
+    position: relative;
+  }
+
+  .choice__input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .choice__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-height: 2.75rem;
+    padding: 0 var(--space-2);
+    border: var(--border-width) solid var(--border-default);
+    border-radius: var(--radius-full);
+    background: var(--surface-card);
+    color: var(--text-default);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    transition:
+      border-color var(--duration-fast) var(--ease-standard),
+      background-color var(--duration-fast) var(--ease-standard),
+      color var(--duration-fast) var(--ease-standard);
+    pointer-events: none;
+  }
+
+  .choice__label :global(.choice__check) {
+    display: none;
+  }
+
+  .choice:hover .choice__label {
+    border-color: var(--border-strong);
+    background: var(--surface-subtle);
+  }
+
+  .choice__input:checked + .choice__label {
+    border-color: var(--color-blue-500);
+    background: var(--color-blue-50);
+    color: var(--color-blue-700);
+  }
+
+  .choice__input:checked + .choice__label :global(.choice__check) {
+    display: block;
+  }
+
+  .choice__input:focus-visible + .choice__label {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: 2px;
+  }
+
+  .form__trap {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .form__footer {
+    display: grid;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: var(--border-width) solid var(--border-subtle);
+  }
+
+  .form__privacy {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    line-height: var(--leading-normal);
+  }
+
+  .form__privacy :global(.icon) {
+    flex-shrink: 0;
+    color: var(--state-connected);
+  }
+
+  .form__privacy a {
+    color: var(--text-accent);
+    font-weight: var(--weight-medium);
+  }
+
+  .form :global(.form__submit) {
+    width: 100%;
+  }
+
+  .form :global(.form__submit[aria-busy='true'] .icon) {
+    animation: form-spin 0.9s linear infinite;
+  }
+
+  @keyframes form-spin {
+    to {
+      rotate: 1turn;
+    }
+  }
+
+  .form__alert {
+    display: flex;
+    gap: var(--space-1-5);
+    margin-top: var(--space-2);
+    padding: var(--space-2);
+    border: var(--border-width) solid var(--color-danger-600);
+    border-radius: var(--radius-md);
+    background: var(--color-danger-50);
+    color: var(--text-strong);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+  }
+
+  .form__alert[hidden] {
+    display: none;
+  }
+
+  .form__alert :global(a) {
+    color: var(--text-accent);
+    font-weight: var(--weight-semibold);
+  }
+
+  /* Resultado */
+  .form-result {
+    display: grid;
+    justify-items: start;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-1);
+  }
+
+  .form-result[hidden] {
+    display: none;
+  }
+
+  .form-result:focus {
+    outline: none;
+  }
+
+  .form-result__icon {
+    display: grid;
+    place-items: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: var(--radius-full);
+    background: var(--brand-blue);
+    box-shadow: 0 0 0 0.5rem var(--color-blue-50);
+    color: var(--color-white);
+  }
+
+  .form-result__title {
+    margin-top: var(--space-1);
+    font-size: var(--text-h3);
+  }
+
+  .form-result__text {
+    max-width: 32rem;
+    color: var(--text-muted);
+    line-height: var(--leading-normal);
+  }
+
+  .form-result__text :global(a) {
+    color: var(--text-accent);
+    font-weight: var(--weight-semibold);
+  }
+
+  .form-result__reset {
+    min-height: 2.75rem;
+    color: var(--text-accent);
+    font-weight: var(--weight-semibold);
+    text-decoration: underline;
+    text-underline-offset: 0.22em;
+  }
+
+  @media (--sm) {
+    .contact__card {
+      padding: var(--space-5);
+    }
+
+    .form__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: var(--space-2);
+    }
+
+    .field--full {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (--md) {
+    .form__footer {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .form :global(.form__submit) {
+      width: auto;
+    }
+  }
+
+  @media (--lg) {
+    .contact {
+      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+      gap: var(--space-8);
+    }
+
+    .contact__intro {
+      position: sticky;
+      top: calc(var(--header-h-compact) + var(--space-6));
+      align-self: start;
+    }
+  }
+
+  @media (--reduced-motion) {
+    .form :global(.form__submit[aria-busy='true'] .icon) {
+      animation: none;
+    }
+  }
+</style>

@@ -1,0 +1,19 @@
+# Finais de linha normalizados.
+#
+# O repositório guarda LF e entrega LF em qualquer sistema. Sem isto, o Windows
+# (core.autocrlf=true por padrão) faz checkout com CRLF, o Prettier — que espera
+# LF — reprova os arquivos, e o CI em Linux discorda da máquina de quem escreveu.
+#
+# Foi exatamente o que aconteceu: a auditoria registrou "90 arquivos fora do
+# padrão de formatação" quando a maior parte era só final de linha.
+* text=auto eol=lf
+
+# Binários: nunca converter.
+*.png  binary
+*.ico  binary
+*.jpg  binary
+*.jpeg binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.pdf  binary

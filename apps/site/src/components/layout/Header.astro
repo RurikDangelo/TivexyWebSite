@@ -1,0 +1,369 @@
+---
+import Button from '@/components/ui/Button.astro';
+import Icon from '@/components/ui/Icon.astro';
+import Logo from '@/components/ui/Logo.astro';
+import { hasWhatsapp, primaryNav, sectionHref, site, whatsappUrl } from '@/config/site';
+---
+
+<header class="site-header" data-header>
+  <div class="site-header__inner container-wide">
+    <a href="/" class="site-header__brand" aria-label="Tivexy, página inicial">
+      <Logo />
+    </a>
+
+    <nav class="site-header__nav" aria-label="Principal">
+      <ul role="list" class="site-header__links">
+        {primaryNav.map((item) => (
+          <li>
+            <a
+              class="site-header__link"
+              href={sectionHref(item.section)}
+              data-nav-link={item.section}
+            >
+              {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+
+    <div class="site-header__actions">
+      <Button href={sectionHref('contato')} size="sm" class="site-header__cta">
+        Falar com especialista
+      </Button>
+      <button
+        class="site-header__menu-button"
+        type="button"
+        aria-controls="menu-mobile"
+        aria-expanded="false"
+        data-menu-open
+      >
+        <Icon name="menu" size="1.5rem" />
+        <span class="visually-hidden">Abrir menu</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<dialog id="menu-mobile" class="mobile-menu" aria-label="Menu" data-menu>
+  <div class="mobile-menu__bar container-wide">
+    <a href="/" class="site-header__brand" aria-label="Tivexy, página inicial" data-menu-link>
+      <Logo />
+    </a>
+    <button class="site-header__menu-button" type="button" data-menu-close>
+      <Icon name="close" size="1.5rem" />
+      <span class="visually-hidden">Fechar menu</span>
+    </button>
+  </div>
+
+  <div class="mobile-menu__body container-wide">
+    <nav aria-label="Principal no celular">
+      <ul role="list" class="mobile-menu__links">
+        {primaryNav.map((item) => (
+          <li>
+            <a
+              class="mobile-menu__link"
+              href={sectionHref(item.section)}
+              data-nav-link={item.section}
+              data-menu-link
+            >
+              <span>{item.label}</span>
+              <Icon name="arrow-right" size="1.25rem" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+
+    <div class="mobile-menu__actions">
+      <Button href={sectionHref('contato')} size="lg" block data-menu-link>
+        Falar com especialista
+      </Button>
+      {hasWhatsapp && (
+        <Button
+          href={whatsappUrl()}
+          variant="secondary"
+          size="lg"
+          icon="whatsapp"
+          iconPosition="start"
+          block
+          target="_blank"
+          rel="noopener"
+        >
+          Conversar no WhatsApp
+        </Button>
+      )}
+      <p class="mobile-menu__note">{site.positioning}</p>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  import '@/scripts/header';
+</script>
+
+<style>
+  .site-header {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: var(--z-header);
+    transition:
+      background-color var(--duration-base) var(--ease-standard),
+      backdrop-filter var(--duration-base) var(--ease-standard);
+  }
+
+  .site-header::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0;
+    height: var(--border-width);
+    background: var(--border-default);
+    opacity: 0;
+    transition: opacity var(--duration-base) var(--ease-standard);
+  }
+
+  .site-header[data-scrolled] {
+    background-color: var(--overlay-header);
+    -webkit-backdrop-filter: saturate(1.8) blur(16px);
+    backdrop-filter: saturate(1.8) blur(16px);
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .site-header[data-scrolled] {
+      background-color: var(--overlay-header-solid);
+    }
+  }
+
+  .site-header[data-scrolled]::after {
+    opacity: 1;
+  }
+
+  .site-header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    height: var(--header-h);
+    transition: height var(--duration-base) var(--ease-standard);
+  }
+
+  .site-header[data-scrolled] .site-header__inner {
+    height: var(--header-h-compact);
+  }
+
+  .site-header__brand {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+  }
+
+  /* Navegação desktop */
+  .site-header__nav {
+    display: none;
+  }
+
+  .site-header__links {
+    display: flex;
+    align-items: center;
+    gap: var(--space-0-5);
+  }
+
+  .site-header__link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.5rem;
+    padding-inline: var(--space-1-5);
+    border-radius: var(--radius-sm);
+    color: var(--text-default);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    letter-spacing: var(--tracking-tight);
+    text-decoration: none;
+    transition:
+      color var(--duration-fast) var(--ease-standard),
+      background-color var(--duration-fast) var(--ease-standard);
+  }
+
+  .site-header__link:hover {
+    color: var(--text-strong);
+    background-color: var(--surface-muted);
+  }
+
+  .site-header__link::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 0.25rem;
+    width: 0.25rem;
+    height: 0.25rem;
+    border-radius: var(--radius-full);
+    background: var(--state-connected);
+    opacity: 0;
+    translate: -50% 0.25rem;
+    transition:
+      opacity var(--duration-base) var(--ease-out),
+      translate var(--duration-base) var(--ease-out);
+  }
+
+  .site-header__link[aria-current='true'] {
+    color: var(--text-strong);
+  }
+
+  .site-header__link[aria-current='true']::after {
+    opacity: 1;
+    translate: -50% 0;
+  }
+
+  .site-header__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .site-header__actions :global(.site-header__cta) {
+    display: none;
+  }
+
+  .site-header__menu-button {
+    display: inline-grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-right: calc(var(--space-1) * -1);
+    border-radius: var(--radius-md);
+    color: var(--text-strong);
+    transition: background-color var(--duration-fast) var(--ease-standard);
+  }
+
+  .site-header__menu-button:hover {
+    background-color: var(--surface-muted);
+  }
+
+  @media (--sm) {
+    .site-header__actions :global(.site-header__cta) {
+      display: inline-flex;
+    }
+  }
+
+  @media (--lg) {
+    .site-header__nav {
+      display: block;
+    }
+
+    .site-header__menu-button {
+      display: none;
+    }
+  }
+
+  /* Menu mobile */
+  .mobile-menu {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: var(--surface-page);
+    color: var(--text-default);
+    opacity: 0;
+    translate: 0 -0.5rem;
+    transition:
+      opacity var(--duration-base) var(--ease-out),
+      translate var(--duration-base) var(--ease-out),
+      overlay var(--duration-base) allow-discrete,
+      display var(--duration-base) allow-discrete;
+  }
+
+  .mobile-menu[open] {
+    display: flex;
+    flex-direction: column;
+    opacity: 1;
+    translate: 0 0;
+  }
+
+  @starting-style {
+    .mobile-menu[open] {
+      opacity: 0;
+      translate: 0 -0.5rem;
+    }
+  }
+
+  .mobile-menu::backdrop {
+    background: transparent;
+  }
+
+  :global(html:has(.mobile-menu[open])) {
+    overflow: hidden;
+  }
+
+  .mobile-menu__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    height: var(--header-h);
+    border-bottom: var(--border-width) solid var(--border-subtle);
+  }
+
+  .mobile-menu__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--space-5);
+    padding-block: var(--space-2) max(var(--space-4), env(safe-area-inset-bottom));
+    overflow-y: auto;
+  }
+
+  .mobile-menu__link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 4rem;
+    border-bottom: var(--border-width) solid var(--border-subtle);
+    color: var(--text-strong);
+    font-family: var(--font-display);
+    font-size: 1.625rem;
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-heading);
+    text-decoration: none;
+  }
+
+  .mobile-menu__link :global(.icon) {
+    color: var(--text-muted);
+    transition:
+      translate var(--duration-base) var(--ease-out),
+      color var(--duration-fast) var(--ease-standard);
+  }
+
+  .mobile-menu__link:hover :global(.icon),
+  .mobile-menu__link[aria-current='true'] :global(.icon) {
+    color: var(--text-accent);
+    translate: 0.25rem 0;
+  }
+
+  .mobile-menu__actions {
+    display: grid;
+    gap: var(--space-1-5);
+  }
+
+  .mobile-menu__note {
+    margin-top: var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+  }
+
+  @media (--reduced-motion) {
+    .mobile-menu,
+    .site-header__link::after {
+      translate: none;
+    }
+  }
+</style>

@@ -1,0 +1,127 @@
+---
+import Eyebrow from '@/components/ui/Eyebrow.astro';
+import Section from '@/components/ui/Section.astro';
+
+const turn = 'O software precisa se adaptar ao seu negócio.';
+const words = turn.split(' ');
+---
+
+<Section id="sobre" tone="inverse" labelledby="sobre-title" class="manifesto">
+  <div class="manifesto__glow" aria-hidden="true"></div>
+  <div class="container manifesto__inner" data-manifesto style={`--n:${words.length}`}>
+    <Eyebrow inverse>Sobre a Tivexy</Eyebrow>
+
+    <h2 id="sobre-title" class="manifesto__title">
+      <span class="manifesto__premise">Seu negócio não precisa se adaptar ao software.</span>
+      <span class="manifesto__turn">
+        {words.map((word, index) => (
+          <>
+            <span class="manifesto__word" style={`--i:${index}`}>
+              {word}
+            </span>{' '}
+          </>
+        ))}
+      </span>
+    </h2>
+
+    <p class="manifesto__text">
+      Na Tivexy, entendemos primeiro como sua empresa funciona. Depois transformamos processos,
+      informações e necessidades em uma solução tecnológica criada para a realidade do seu negócio.
+    </p>
+  </div>
+</Section>
+
+<script>
+  import { media } from '@/config/breakpoints';
+  import { bindScrollProgress } from '@/scripts/scroll-progress';
+
+  // As palavras da virada acendem conforme a seção atravessa a tela.
+  const manifesto = document.querySelector<HTMLElement>('[data-manifesto]');
+  const reduced = window.matchMedia(media.reducedMotion).matches;
+
+  if (manifesto && !reduced) {
+    bindScrollProgress(
+      manifesto,
+      (progress) => manifesto.style.setProperty('--p', progress.toFixed(3)),
+      { mode: 'passage', start: 0.92, end: 0.52 },
+    );
+  }
+</script>
+
+<style>
+  /* O <section> é renderizado pelo Section.astro: precisa de :global para ser alcançado. */
+  :global(.section.manifesto) {
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .manifesto__glow {
+    position: absolute;
+    right: -20%;
+    bottom: -40%;
+    left: -20%;
+    z-index: -1;
+    height: 80%;
+    background: radial-gradient(closest-side, var(--color-navy-800), transparent);
+  }
+
+  .manifesto__inner {
+    --p: 1;
+
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .manifesto__title {
+    display: grid;
+    gap: 0.28em;
+    max-width: 19ch;
+    color: var(--text-on-inverse);
+    font-size: var(--text-display);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-display);
+    line-height: var(--leading-tight);
+  }
+
+  .manifesto__premise {
+    color: var(--text-on-inverse-muted);
+    font-weight: var(--weight-semibold);
+  }
+
+  .manifesto__turn {
+    color: var(--text-on-inverse);
+  }
+
+  /* Cada palavra acende do tom apagado (ainda legível, 3,5:1) até o branco. */
+  .manifesto__word {
+    --lit: clamp(0, calc(var(--p) * (var(--n) + 2) - var(--i)), 1);
+    color: color-mix(
+      in srgb,
+      var(--text-on-inverse) calc(var(--lit) * 100%),
+      var(--color-on-dark-dim)
+    );
+  }
+
+  .manifesto__text {
+    max-width: 40rem;
+    color: var(--text-on-inverse-muted);
+    font-size: var(--text-lead);
+    line-height: var(--leading-normal);
+  }
+
+  @media (--lg) {
+    .manifesto__inner {
+      grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+      column-gap: var(--space-8);
+    }
+
+    .manifesto__inner > :global(.eyebrow) {
+      grid-column: 1 / -1;
+    }
+
+    .manifesto__text {
+      align-self: end;
+      padding-bottom: 0.4em;
+    }
+  }
+</style>
