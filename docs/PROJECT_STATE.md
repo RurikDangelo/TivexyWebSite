@@ -480,6 +480,38 @@ real, não.
 - Tela `/erp/financeiro`: 🟡 — resumo, fluxo de caixa em SVG próprio, a receber e a
   pagar com baixa, desfazer e cancelar. Ver [[05-ERP/FINANCE#Tela: `/erp/financeiro`]].
 
+## 2.1 O SaaS está no ar — 26/09/2026
+
+**https://tivexy-web.vercel.app**
+
+Projeto `tivexy-web` no escopo `tivexy` da Vercel, Root Directory `apps/web`,
+produção saindo da `main`. A landing continua em projeto separado, e o
+preview do PR provou que ela constrói a partir da estrutura nova antes de o
+merge acontecer.
+
+### O que foi verificado em produção
+
+Entrar com senha, `/painel` com números lidos do banco, `/admin` listando o
+cliente, `/crm/oportunidades` desenhando o funil do nicho — o título lê
+"Tratamentos" — e `/erp/produtos`. Leitura e sessão funcionam contra o banco
+real, pela internet.
+
+**O que não foi exercitado em produção:** as escritas das telas novas —
+cadastrar produto, registrar venda, lançar no financeiro. Elas passam nos
+testes e foram abertas, não usadas ponta a ponta. Continuam 🟡 até alguém
+gravar por elas.
+
+### Duas armadilhas encontradas ao publicar
+
+**O importador da Vercel serve uma árvore em cache.** Minutos depois do
+merge, o seletor de Root Directory ainda oferecia `public`, `scripts` e
+`src` — a estrutura antiga — e o campo ficava desabilitado. Recarregar não
+resolve. O projeto foi criado pela API, com `rootDirectory` explícito.
+
+**O Supabase não tinha Redirect URL nenhuma.** Localhost funcionava porque o
+Supabase o libera por padrão; produção não funcionaria. Agora Site URL é o
+endereço da Vercel, e a lista tem ele e `localhost:4390`.
+
 ## 3. O que está quebrado
 
 ### Corrigido em 25/09/2026 — a suspensão só valia na tela
@@ -774,19 +806,23 @@ movido nesta sessão.
 
 Ordenadas por urgência:
 
-| #   | Tarefa                                          | Bloqueia                              | Urgência    |
-| --- | ----------------------------------------------- | ------------------------------------- | ----------- |
-| 1   | **Abrir o PR** da branch `monorepo-tivexy-core` | Primeira execução do CI               | 🔴 Imediata |
-| 2   | **SMTP próprio no Supabase**                    | Convite, recuperação, troca de e-mail | 🔴 Imediata |
-| 3   | Conferir o destino do formulário de contato     | Leads da landing                      | 🟠 Alta     |
-| 4   | **Trocar a conta do conector Vercel**           | Qualquer coisa na Vercel              | 🟠 Alta     |
-| 5   | Projeto Vercel do `apps/web` + variáveis        | Deploy do SaaS                        | 🔴 Agora    |
-| 6   | Domínio `tivexy.com.br` + DNS                   | SEO, e-mail                           | 🟠 Média    |
-| 7   | E-mail corporativo + SPF/DKIM/DMARC             | Convites do SaaS                      | 🟠 Média    |
-| 8   | Credenciais OpenAI                              | AI Engine                             | 🟡 Depois   |
-| 9   | Meta Business + WhatsApp Business API           | Atendimento                           | 🟡 Depois   |
-| 10  | Provedor fiscal + certificado digital           | Fiscal                                | 🟡 Depois   |
-| 11  | CNPJ, contador, conta PJ, contratos             | Venda formal                          | 🟡 Paralelo |
+| #   | Tarefa                                            | Bloqueia                              | Urgência    |
+| --- | ------------------------------------------------- | ------------------------------------- | ----------- |
+| 1   | ~~Abrir o PR~~ — feito em 26/09, CI verde         | —                                     | ✅          |
+| 2   | **SMTP próprio no Supabase**                      | Convite, recuperação, troca de e-mail | 🔴 Imediata |
+| 3   | Conferir o destino do formulário de contato       | Leads da landing                      | 🟠 Alta     |
+| 4   | **Trocar a conta do conector Vercel**             | Qualquer coisa na Vercel              | 🟠 Alta     |
+| 5   | ~~Projeto Vercel do `apps/web`~~ — feito em 26/09 | —                                     | ✅          |
+| 6   | Domínio `tivexy.com.br` + DNS                     | SEO, e-mail                           | 🟠 Média    |
+| 7   | E-mail corporativo + SPF/DKIM/DMARC               | Convites do SaaS                      | 🟠 Média    |
+| 8   | Credenciais OpenAI                                | AI Engine                             | 🟡 Depois   |
+| 9   | Meta Business + WhatsApp Business API             | Atendimento                           | 🟡 Depois   |
+| 10  | Provedor fiscal + certificado digital             | Fiscal                                | 🟡 Depois   |
+| 11  | CNPJ, contador, conta PJ, contratos               | Venda formal                          | 🟡 Paralelo |
+
+> Com o SaaS no ar, o SMTP virou **o** bloqueio. Antes dele não havia onde
+> o convite chegar; agora há sistema em produção e o cliente não consegue
+> receber o acesso por e-mail. É o último passo entre demonstrar e vender.
 
 ### O SMTP é o que separa "conta criada" de "cliente atendido"
 
