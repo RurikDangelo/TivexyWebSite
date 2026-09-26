@@ -424,12 +424,16 @@ describe('o que não foi aplicado fica registrado, não escondido', () => {
     );
   });
 
-  it('as sementes de ERP continuam pendentes, com o motivo', async () => {
-    // O ERP ainda não tem tabela. Registrar como pendente continua sendo a
-    // única alternativa honesta a fingir que semeou — e a diferença entre
-    // este teste e o de cima é a prova de que "pendente" não é preguiça.
+  it('as sementes de ERP viram linha de verdade', async () => {
+    /*
+     * Até 25/09/2026 este teste afirmava o contrário — "as sementes de ERP
+     * continuam pendentes, com o motivo" —, porque o ERP não tinha tabela. As
+     * tabelas nasceram, as entidades entraram em `TABELA_DA_SEMENTE`, e o
+     * teste antigo falhou como devia: a resposta mudou, e o teste certo é
+     * este. O que ele protegia continua protegido no seguinte.
+     */
     const bp = nichos['mercado'];
-    const { runId } = await provisionarPorBlueprint(db, {
+    const { runId, tenantId, pendingSeeds } = await provisionarPorBlueprint(db, {
       blueprint: bp,
       slug: 'mercado-sementes',
       name: 'Mercado Sementes',
@@ -438,12 +442,74 @@ describe('o que não foi aplicado fica registrado, não escondido', () => {
     });
 
     const { rows } = await db.query(
+      `select status::text as status from public.provisioning_steps
+       where run_id = $1 and step = 'seed_defaults'`,
+      [runId],
+    );
+    assert.equal(rows[0].status, 'succeeded');
+    assert.deepEqual(pendingSeeds, []);
+
+    const categorias = await db.query(
+      'select name from public.erp_product_categories where tenant_id = $1 order by position',
+      [tenantId],
+    );
+    assert.deepEqual(
+      categorias.rows.map((r) => r.name),
+      ['Hortifruti', 'Mercearia', 'Frios e laticínios', 'Bebidas', 'Limpeza', 'Higiene'],
+    );
+
+    // O prazo sai do código da forma quando o nicho não declara: crédito cai
+    // em 30 dias, Pix na hora. É configuração, e a tela de vendas deixa mudar.
+    const formas = await db.query(
+      `select name, code, settlement_days from public.erp_payment_methods
+       where tenant_id = $1 order by name`,
+      [tenantId],
+    );
+    assert.deepEqual(
+      formas.rows.map((r) => [r.code, r.settlement_days]),
+      [
+        ['credit', 30],
+        ['debit', 1],
+        ['cash', 0],
+        ['pix', 0],
+        ['voucher', 30],
+      ],
+    );
+  });
+
+  it('entidade que ainda não tem tabela continua pendente, com o motivo', async () => {
+    // Um nicho que declare fornecedores — `erp.suppliers` é permissão, e ainda
+    // não é tabela. Registrar como pendente é a única alternativa honesta a
+    // fingir que semeou.
+    const bp = {
+      ...nichos['mercado'],
+      code: 'mercado-com-fornecedor',
+      seeds: [
+        ...nichos['mercado'].seeds,
+        { entity: 'erp.suppliers', values: { name: 'Distribuidora Central' } },
+      ],
+    };
+    const { runId, pendingSeeds } = await provisionarPorBlueprint(db, {
+      blueprint: bp,
+      slug: 'mercado-fornecedor',
+      name: 'Mercado Fornecedor',
+      admin: admin(5),
+      idempotencyKey: 'req-sementes-pendentes',
+    });
+
+    assert.deepEqual(
+      pendingSeeds.map((s) => s.entity),
+      ['erp.suppliers'],
+      'só a que não tem tabela fica pendente — e nenhuma se perde',
+    );
+
+    const { rows } = await db.query(
       `select status::text as status, result from public.provisioning_steps
        where run_id = $1 and step = 'seed_defaults'`,
       [runId],
     );
-    assert.equal(rows[0].status, 'skipped', 'não foi executada — e diz isso');
-    assert.equal(rows[0].result.pending.length, bp.seeds.length, 'nenhuma semente se perde');
+    assert.equal(rows[0].status, 'succeeded', 'o que tinha tabela foi aplicado');
+    assert.equal(rows[0].result.pending.length, 1);
     assert.match(rows[0].result.reason, /tabela/, 'o motivo precisa estar registrado');
   });
 
@@ -972,37 +1038,45 @@ describe('compensação', () => {
     });
 
     assert.equal(r.ok, true);
-    assert.deepEqual(r.undone, ['create_admin', 'create_roles', 'enable_modules', 'create_tenant']);
+    // `seed_defaults` entrou na lista em 25/09/2026: as sementes da cafeteria
+    // são de ERP, e até ali ficavam pendentes — sem efeito, nada a desfazer.
+    assert.deepEqual(r.undone, [
+      'seed_defaults',
+      'create_admin',
+      'create_roles',
+      'enable_modules',
+      'create_tenant',
+    ]);
     assert.equal(r.tenantId, tenantId);
   });
 
   it('desfaz o efeito de verdade, não só o registro', async () => {
     const { tenantId } = await falharNoConvite('req-comp-efeito');
 
-    const antes = await db.query(
-      `select
-         (select count(*)::int from public.tenant_modules where tenant_id = $1) as modulos,
-         (select count(*)::int from public.roles where tenant_id = $1) as papeis,
-         (select count(*)::int from public.tenant_users where tenant_id = $1) as membros`,
-      [tenantId],
-    );
+    const contar = () =>
+      db.query(
+        `select
+           (select count(*)::int from public.tenant_modules where tenant_id = $1) as modulos,
+           (select count(*)::int from public.roles where tenant_id = $1) as papeis,
+           (select count(*)::int from public.tenant_users where tenant_id = $1) as membros,
+           (select count(*)::int from public.erp_product_categories where tenant_id = $1) as categorias,
+           (select count(*)::int from public.erp_payment_methods where tenant_id = $1) as formas`,
+        [tenantId],
+      );
+    const antes = await contar();
     assert.ok(antes.rows[0].modulos > 0, 'o cenário depende de haver efeito a desfazer');
+    assert.ok(antes.rows[0].categorias > 0, 'e de haver semente de ERP aplicada');
 
     await compensateProvisioning(db, identidadeDoHarness(db), {
       idempotencyKey: 'req-comp-efeito',
     });
 
-    const depois = await db.query(
-      `select
-         (select count(*)::int from public.tenant_modules where tenant_id = $1) as modulos,
-         (select count(*)::int from public.roles where tenant_id = $1) as papeis,
-         (select count(*)::int from public.tenant_users where tenant_id = $1) as membros`,
-      [tenantId],
-    );
-    const [c] = depois.rows;
+    const [c] = (await contar()).rows;
     assert.equal(c.modulos, 0);
     assert.equal(c.papeis, 0);
     assert.equal(c.membros, 0);
+    assert.equal(c.categorias, 0);
+    assert.equal(c.formas, 0);
   });
 
   it('cancela o cliente em vez de apagá-lo, preservando a evidência', async () => {
@@ -1040,7 +1114,7 @@ describe('compensação', () => {
       [runId],
     );
     const porStatus = Object.fromEntries(rows.map((r) => [r.status, r.c]));
-    assert.equal(porStatus.compensated, 4, 'as quatro que tiveram efeito');
+    assert.equal(porStatus.compensated, 5, 'as cinco que tiveram efeito, sementes incluídas');
     assert.equal(porStatus.failed, 1, 'a que falhou continua registrada como falha');
   });
 
@@ -1060,7 +1134,7 @@ describe('compensação', () => {
       [tenantId],
     );
     assert.equal(rows.length, 1, 'desfazer é operação de plataforma e é auditável');
-    assert.equal(rows[0].metadata.undone.length, 4);
+    assert.equal(rows[0].metadata.undone.length, 5);
   });
 
   it('NÃO apaga a identidade de quem já administrava outro cliente', async () => {

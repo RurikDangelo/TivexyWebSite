@@ -13,6 +13,7 @@ import { MODULE_CODES, type ModuleCode } from './catalog.ts';
 import {
   TENANT_SETTINGS,
   checkSettingValue,
+  overridesFrom,
   resolveSettings,
   settingDefinition,
 } from './settings.ts';
@@ -144,5 +145,61 @@ describe('configurações efetivas de um tenant', () => {
     const uma = resolveSettings({ 'core.timezone': 'UTC' }, todos);
     const outra = resolveSettings({ 'core.timezone': 'UTC' }, todos);
     assert.deepEqual(uma, outra);
+  });
+});
+
+describe('overridesFrom', () => {
+  const todos = ['core', 'crm', 'erp', 'inventory'] as const;
+
+  it('guarda só o que difere do padrão', () => {
+    const r = overridesFrom(
+      {},
+      { 'core.timezone': 'America/Manaus', 'core.currency': 'BRL' },
+      todos,
+    );
+    assert.ok(r.ok);
+    assert.deepEqual(r.overrides, { 'core.timezone': 'America/Manaus' });
+  });
+
+  it('voltar ao padrão tira a chave — o padrão novo do Core volta a alcançar o tenant', () => {
+    const r = overridesFrom(
+      { 'core.timezone': 'America/Manaus' },
+      { 'core.timezone': 'America/Sao_Paulo' },
+      todos,
+    );
+    assert.ok(r.ok);
+    assert.deepEqual(r.overrides, {});
+  });
+
+  it('a escolha de um módulo desligado sobrevive — o módulo pode voltar', () => {
+    const r = overridesFrom(
+      { 'inventory.deduct_on_sale': false },
+      { 'core.timezone': 'America/Manaus' },
+      ['core'],
+    );
+    assert.ok(r.ok);
+    assert.deepEqual(r.overrides, {
+      'inventory.deduct_on_sale': false,
+      'core.timezone': 'America/Manaus',
+    });
+  });
+
+  it('valor inválido recusa a gravação inteira, com o motivo por chave', () => {
+    const r = overridesFrom(
+      {},
+      { 'core.timezone': 'Marte/Olympus', 'core.currency': 'USD' },
+      todos,
+    );
+    assert.ok(!r.ok);
+    assert.deepEqual(Object.keys(r.problems).sort(), ['core.currency', 'core.timezone']);
+  });
+});
+
+describe('toda configuração se explica na tela', () => {
+  it('tem rótulo e descrição, nenhum vazio', () => {
+    for (const def of TENANT_SETTINGS) {
+      assert.ok(def.label.trim().length > 0, `${def.key} sem rótulo`);
+      assert.ok(def.description.trim().length > 0, `${def.key} sem descrição`);
+    }
   });
 });

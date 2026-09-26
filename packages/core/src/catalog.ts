@@ -82,6 +82,9 @@ export const PERMISSION_CODES = [
   'erp.suppliers.write',
   'erp.sales.read',
   'erp.sales.write',
+  // Separada de `write` de propósito: registrar e cancelar são riscos
+  // diferentes — ver 20260925080000_erp_sales.sql.
+  'erp.sales.cancel',
   'erp.purchases.read',
   'erp.purchases.write',
   // Estoque

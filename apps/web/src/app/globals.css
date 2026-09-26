@@ -82,9 +82,14 @@
   --state-warning-soft: var(--tvx-warning-50);
 
   --focus-ring: var(--tvx-blue-500);
+
+  /* Controles nativos — seletor de data, lista do select, barra de rolagem — seguem o tema. */
+  color-scheme: light;
 }
 
 .dark {
+  color-scheme: dark;
+
   --surface: var(--tvx-navy-900);
   --surface-subtle: var(--tvx-navy-950);
   --surface-muted: var(--tvx-navy-800);
@@ -219,11 +224,63 @@
   }
 }
 
+/*
+ * Movimento com propósito: o que entra na lista chega, não aparece.
+ *
+ * Curto e sem quique — 280 ms é o bastante para o olho seguir o cartão novo
+ * e pouco para atrasar quem já sabe o que quer. `both` segura o estado
+ * inicial durante o atraso de quem entra em sequência.
+ */
+@keyframes tvx-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-enter {
+  animation: tvx-enter 280ms var(--ease-out) both;
+}
+
+/*
+ * Barra de gráfico que cresce a partir do eixo. Com `transform-box: fill-box`
+ * a origem é a da própria barra no SVG — `origin-bottom` para quem sobe,
+ * `origin-top` para quem desce. Movimento reduzido zera a duração, e a barra
+ * aparece pronta.
+ */
+@keyframes tvx-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@utility animate-grow {
+  animation: tvx-grow 520ms var(--ease-out) both;
+  transform-box: fill-box;
+}
+
+/* Barra de progresso que enche da esquerda. `origin-left` na barra. */
+@keyframes tvx-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@utility animate-fill {
+  animation: tvx-fill 700ms var(--ease-out) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    /* Sem isto, o item em sequência ficaria invisível durante o atraso. */
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;

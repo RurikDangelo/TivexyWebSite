@@ -12,10 +12,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { MODULE_CODES, matchRule } from '@tivexy/core';
-import { navigation } from './navigation.ts';
+import { navItems } from './navigation.ts';
 import { routeRules } from './routes.ts';
 
-const hrefs = navigation.flatMap((grupo) => grupo.items.map((item) => item.href));
+const hrefs: readonly string[] = navItems.map((item) => item.href);
 
 /** Casou por uma regra declarada, ou caiu no padrão? */
 function temRegraDeclarada(pathname: string): boolean {

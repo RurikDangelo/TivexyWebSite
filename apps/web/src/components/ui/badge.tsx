@@ -7,7 +7,8 @@ const badge = cva(
   {
     variants: {
       tone: {
-        neutral: 'bg-surface-muted text-content-muted',
+        /* No escuro, `muted` e `raised` são o mesmo azul: dentro de um card o selo sumia. */
+        neutral: 'bg-surface-muted text-content-muted dark:bg-surface-inset',
         brand: 'bg-surface-accent-soft text-content-accent',
         success: 'bg-success-soft text-success',
         warning: 'bg-warning-soft text-warning',

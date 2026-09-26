@@ -27,6 +27,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { parseReturnTo } from '@/lib/auth/guard';
+import { conferirSenhaNova } from '@/lib/auth/password';
 import { supabaseServer } from '@/lib/supabase/server';
 
 import type { FormState } from './form-state.ts';
@@ -139,8 +140,8 @@ export async function definirSenha(_anterior: FormState, form: FormData): Promis
   const senha = texto(form, 'senha');
   const confirmacao = texto(form, 'confirmacao');
 
-  if (senha.length < 8) return { erro: 'A senha precisa ter ao menos 8 caracteres.' };
-  if (senha !== confirmacao) return { erro: 'As duas senhas não são iguais.' };
+  const problema = conferirSenhaNova(senha, confirmacao);
+  if (problema !== null) return { erro: problema };
 
   const supabase = await supabaseServer();
 
@@ -166,5 +167,18 @@ export async function definirSenha(_anterior: FormState, form: FormData): Promis
 export async function sair(): Promise<never> {
   const supabase = await supabaseServer();
   await supabase.auth.signOut();
+  redirect('/entrar');
+}
+
+/**
+ * Encerra a sessão **em todos os aparelhos**.
+ *
+ * `scope: 'global'` revoga os tokens de renovação de toda sessão desta conta.
+ * É o que se faz depois de esquecer o login aberto num computador que não é
+ * seu — ou ao desconfiar de que alguém mais tem a senha.
+ */
+export async function sairDeTodos(): Promise<never> {
+  const supabase = await supabaseServer();
+  await supabase.auth.signOut({ scope: 'global' });
   redirect('/entrar');
 }

@@ -43,6 +43,11 @@ Todas `SECURITY DEFINER`, `STABLE`, com `search_path` fixo:
 | `is_tenant_member(tenant_id)`     | É membro deste tenant?           |
 | `has_permission(tenant_id, code)` | Tem esta permissão neste tenant? |
 
+**`has_permission()` exige empresa ativa** desde 20260925140000. Antes ela
+conferia só o vínculo, e a suspensão valia só na tela: pela API REST, quem
+estava numa empresa suspensa continuava lendo e escrevendo. Ver
+[[06-ADMIN/CLIENTES#Suspender corta a API, não só a tela]].
+
 ### Por que `SECURITY DEFINER`
 
 Uma política em `tenant_users` que consultasse `tenant_users` sob RLS entraria
@@ -120,6 +125,25 @@ quebra todos os links.
 Um teste consulta `has_column_privilege` e falha se essa tabela mudar — cobre a
 superfície, não só os casos que ocorreram a alguém.
 
+### `tenant_id` não se edita — e a primeira tentativa não funcionava
+
+O CRM nasceu com `revoke update (tenant_id) on ... from authenticated`, e isso
+**não revoga nada**: o `update` concedido na tabela cobre todas as colunas, e
+revogar uma coluna não subtrai dele. Até 25/09/2026, `tenant_id` era editável
+em todas as tabelas de tenant — o RLS recusava pelo `with check`, e o teste
+aceitava o erro do RLS como se fosse o do privilégio.
+
+O primitivo certo é o mesmo de `users` e `tenants`: revogar a tabela e conceder
+coluna por coluna. `public.lock_tenant_id(tabela)` faz isso lendo o catálogo —
+concede tudo menos `id` e `tenant_id` — e é idempotente.
+
+```sql
+select public.lock_tenant_id('public.crm_leads');
+```
+
+Coluna adicionada depois nasce **sem** `update` para `authenticated` (o lado
+seguro do erro): chame a função de novo depois do `add column`.
+
 ### Coerência entre colunas: constraint, não política
 
 A política olha o `tenant_id` da linha. Ela não sabe que o `role_id` ao lado
@@ -154,7 +178,9 @@ Toda tabela de negócio nasce com:
 3. `alter table ... enable row level security`
 4. Política de leitura por pertencimento
 5. Política de escrita por permissão
-6. **Teste de isolamento no mesmo commit**
+6. `select public.lock_tenant_id('public.tabela')` — ou privilégios mais
+   estreitos que ela, quando a tabela é imutável
+7. **Teste de isolamento no mesmo commit**
 
 Tabela sem RLS habilitado fica totalmente aberta. Um teste de esquema falha se
 alguma tabela em `public` aparecer sem RLS ou sem nenhuma política.

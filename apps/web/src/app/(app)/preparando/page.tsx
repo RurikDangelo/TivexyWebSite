@@ -4,6 +4,23 @@ import type { Metadata } from 'next';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireSession } from '@/lib/auth/require';
+import { supabaseServer } from '@/lib/supabase/server';
+
+/**
+ * O motivo que a plataforma gravou ao suspender — o texto que a empresa lê.
+ * A linha da própria empresa continua legível para quem é dela, suspensa ou
+ * não (`tenants_read`); o que a suspensão corta é o dado de negócio.
+ */
+async function motivoDaSuspensao(tenantId: string): Promise<string | null> {
+  const supabase = await supabaseServer();
+  const { data } = await supabase
+    .from('tenants')
+    .select('status_reason')
+    .eq('id', tenantId)
+    .maybeSingle();
+  const motivo = (data as { status_reason?: unknown } | null)?.status_reason;
+  return typeof motivo === 'string' && motivo.trim() !== '' ? motivo : null;
+}
 
 export const metadata: Metadata = { title: 'Preparando' };
 
@@ -27,8 +44,8 @@ const TEXTO = {
   },
   suspended: {
     titulo: 'Acesso suspenso',
-    descricao: 'O acesso desta empresa está suspenso no momento.',
-    passo: 'Quem administra a conta consegue ver o motivo e regularizar.',
+    descricao: 'O acesso desta empresa está suspenso no momento. Os dados continuam guardados.',
+    passo: 'Para regularizar, fale com quem contratou a Tivexy pela empresa.',
   },
   cancelled: {
     titulo: 'Conta encerrada',
@@ -42,6 +59,8 @@ export default async function PreparandoPage() {
   const empresa = choice.kind === 'resolved' ? choice.tenant : null;
   const estado = empresa?.status ?? 'provisioning';
   const texto = estado in TEXTO ? TEXTO[estado as keyof typeof TEXTO] : TEXTO.provisioning;
+  const motivo =
+    empresa !== null && estado === 'suspended' ? await motivoDaSuspensao(empresa.id) : null;
 
   return (
     <div className="mx-auto max-w-lg px-6 py-16">
@@ -59,6 +78,12 @@ export default async function PreparandoPage() {
               <span className="text-content-muted">{empresa.name}</span>
               <Badge tone={estado === 'provisioning' ? 'warning' : 'neutral'}>{estado}</Badge>
             </div>
+          )}
+          {motivo !== null && (
+            <p className="rounded-md border border-line-subtle px-3 py-2 text-sm text-content-default">
+              <span className="font-medium">Motivo informado pela Tivexy: </span>
+              {motivo}
+            </p>
           )}
           <p className="rounded-md bg-surface-subtle px-3 py-2 text-sm text-content-muted">
             {texto.passo}

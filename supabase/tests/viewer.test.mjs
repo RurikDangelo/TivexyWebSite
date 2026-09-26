@@ -82,9 +82,10 @@ describe('current_viewer — formato', () => {
     assert.equal(v.membershipStatus, 'active');
   });
 
-  it('o administrador recebe as 51 permissões e os 6 módulos do plano', async () => {
+  it('o administrador recebe as 52 permissões e os 6 módulos do plano', async () => {
     const v = await viewerDe(fx.adminAurora, fx.aurora);
-    assert.equal(v.permissions.length, 51);
+    // 52 desde 25/09/2026: `erp.sales.cancel`.
+    assert.equal(v.permissions.length, 52);
     assert.equal(v.enabledModules.length, 6);
   });
 

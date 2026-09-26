@@ -3,18 +3,20 @@ import type { Metadata } from 'next';
 
 import { type CrmLeadStatus, isLeadClosed } from '@tivexy/core';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { sectionTitle } from '@/config/navigation';
 import { requireAccess } from '@/lib/auth/require';
-import { capitalizar, currentTerms, term } from '@/lib/crm/terms';
+import { currentTerms } from '@/lib/terms/current';
+import { termOf } from '@/lib/terms/vocabulary';
 import { supabaseServer } from '@/lib/supabase/server';
 
 import { LeadForm } from './lead-form';
 import { LeadRow, type LeadListado } from './lead-row';
 import type { EtapaOferecida } from './state';
 
-export const metadata: Metadata = { title: 'Leads' };
-
-/** O rótulo genérico, quando o nicho não traduz. */
-const PADRAO = { singular: 'lead', plural: 'leads' };
+/** O título da aba também fala a língua do nicho — é a mesma função do menu. */
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: sectionTitle(await currentTerms(), '/crm/leads') };
+}
 
 /**
  * A fila de leads.
@@ -32,7 +34,9 @@ const PADRAO = { singular: 'lead', plural: 'leads' };
  */
 export default async function LeadsPage() {
   const { choice } = await requireAccess('/crm/leads');
-  const rotulo = term(await currentTerms(), 'crm.leads', PADRAO);
+  const terms = await currentTerms();
+  const titulo = sectionTitle(terms, '/crm/leads');
+  const rotulo = termOf(terms, 'crm.leads');
 
   if (choice.kind !== 'resolved') {
     /* `requireAccess` já mandaria para `/empresas`; isto é a rede embaixo. */
@@ -98,9 +102,7 @@ export default async function LeadsPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="mb-6">
-        <h1 className="font-display text-2xl font-bold text-content sm:text-3xl">
-          {capitalizar(rotulo.plural)}
-        </h1>
+        <h1 className="font-display text-2xl font-bold text-content sm:text-3xl">{titulo}</h1>
         <p className="mt-1 text-content-muted">
           Contatos que ainda não viraram cliente. {abertos.length} em aberto
           {fechados.length > 0 && `, ${fechados.length} com desfecho`}.
@@ -126,7 +128,7 @@ export default async function LeadsPage() {
             <div className="mb-1 flex size-10 items-center justify-center rounded-full bg-surface-muted">
               <Inbox className="size-5 text-content-subtle" aria-hidden />
             </div>
-            <CardTitle>Nenhum {rotulo.singular} ainda</CardTitle>
+            <CardTitle>Ainda não há {rotulo.plural}</CardTitle>
             <CardDescription>
               Cadastre o primeiro com o botão acima. Só o nome é obrigatório — o resto entra quando
               você souber.
@@ -135,12 +137,7 @@ export default async function LeadsPage() {
         </Card>
       ) : (
         <div className="flex flex-col gap-6">
-          <Secao
-            titulo="Em aberto"
-            leads={abertos}
-            etapas={etapas}
-            vazio={`Nenhum ${rotulo.singular} em aberto.`}
-          />
+          <Secao titulo="Em aberto" leads={abertos} etapas={etapas} vazio="Nada em aberto agora." />
           {fechados.length > 0 && (
             <Secao titulo="Com desfecho" leads={fechados} etapas={etapas} vazio="" />
           )}

@@ -2,7 +2,7 @@
 
 > Estado real do ecossistema Tivexy. **Atualize junto com a entrega, não depois.**
 >
-> Última atualização: **20/09/2026**
+> Última atualização: **25/09/2026**
 
 ## Legenda
 
@@ -210,8 +210,9 @@ build sem erro; conferido no navegador em claro, escuro e 375px):
   trava de scroll
 - Troca de tema em três estados, persistida, sem piscar na primeira pintura
 - Primitivos: botão, card, badge, campo
-- `/painel` com o estado real da plataforma — **não é dashboard de produto**,
-  não há dado de negócio
+- `/painel` é o painel do negócio desde 25/09/2026 (🟡): vendas, dinheiro, CRM e
+  estoque, cada número uma consulta ao banco da empresa — ver
+  [[03-CORE/PAINEL|PAINEL]]
 - Estados de 404, erro e carregamento (esqueleto, não spinner)
 - Mapa de regras por rota em `src/config/routes.ts`, **fechado por padrão**, com
   teste que cruza navegação e rotas
@@ -263,10 +264,14 @@ três delas: ligar a guarda antes teria trocado negação por 404.
 recuperação responde igual tenha o endereço conta ou não. Distinguir entregaria
 a lista de e-mails cadastrados a quem tentasse um por um.
 
-**Não existe ainda:** aceitar convite pela tela — exige uma função
-`SECURITY DEFINER`, porque o RLS nega essa escrita a quem ainda não é membro,
-que é exatamente quem está naquela página. Ela diz isso, em vez de mostrar um
-botão que falharia.
+**Tutorial de ponta a ponta** existe desde 25/09/2026 — 🟡. `/tutorial` guia do
+Admin à primeira venda, e cada passo está feito quando o que ele pede existe no
+banco: contado, não marcado. Ver [[15-OPERATIONS/TUTORIAL|TUTORIAL]].
+
+**Aceitar convite pela tela** existe desde 25/09/2026 — 🟡 testado, não
+verificado contra o banco real. `accept_invitation()` é `SECURITY DEFINER`
+porque o RLS nega a escrita a quem ainda não é membro, e ativa só o vínculo de
+`auth.uid()`. Ver [[03-CORE/AUTHENTICATION#Aceitar convite — `accept_invitation()`]].
 
 ### Admin / Super Admin
 
@@ -290,7 +295,13 @@ o identificador dela pode chamá-la sem nunca abrir a tela.
 `is_super_admin` só pode ser escrito por quem já é Super Admin, e a política não
 abre exceção para o primeiro — nem deve.
 
-**Não existe:** editar cliente, suspender, trocar plano, convidar usuário.
+**Desde 25/09/2026 (🟡):** a página de cada cliente — editar dados, suspender
+com motivo, reativar, trocar o plano vendo antes o que liga e desliga, e o
+histórico de provisionamentos e de decisões da plataforma. Ver
+[[06-ADMIN/CLIENTES|CLIENTES]].
+
+**Não existe:** cancelar a empresa, ligar módulo avulso, convidar usuário pelo
+Admin.
 
 ### CRM
 
@@ -315,6 +326,22 @@ por SQL — sem erro, só relatório errado.
 **Tela pronta: `/crm/leads`.** Cadastro, transições de estado, validação por
 campo, estado vazio e 375px conferidos no navegador, contra o banco real.
 
+**`/crm/atividades`** desde 25/09/2026 — 🟡 testado, não verificado contra o
+banco real. A agenda em faixas no fuso do tenant, concluir com um clique, e a
+mesma agenda dentro das páginas de pessoa, conta e oportunidade.
+
+**`/crm/empresas`** desde 25/09/2026 — 🟡 testado, não verificado contra o banco
+real. As contas, com as pessoas de lá, as oportunidades e os totais.
+
+**`/crm/contatos`** desde 25/09/2026 — 🟡 testado, não verificado contra o banco
+real. Lista paginada com busca no banco, cadastro, edição e a página da pessoa
+com as oportunidades dela e o lead de onde veio.
+
+**`/crm/oportunidades`** desde 25/09/2026 — 🟡 testado, não verificado contra o
+banco real. O funil em colunas, com arrastar e "Mover para" pela mesma função,
+a página de cada oportunidade e o editor de funis. Ver
+[[04-CRM/CRM#O quadro — `/crm/oportunidades`]].
+
 **O vocabulário do nicho chegou na tela.** Uma clínica lê "interessados" onde
 uma consultoria lê "leads" — verificado provisionando a clínica odontológica e
 abrindo a listagem. Ver abaixo.
@@ -333,7 +360,23 @@ carimbado apontando para os três.
 
 ### ERP
 
-**Estado:** ⬜ NÃO EXISTE · **Trello:** `ERP` · **Depende de:** Core, Auth, RBAC, provisionamento
+**Estado:** 🟡 PARCIAL — esquema testado, não verificado contra o banco real ·
+**Docs:** [[05-ERP/ERP|ERP]] · [[16-DECISIONS/ADR-004-cliente-do-erp-nao-e-pessoa-do-crm|ADR-004]] ·
+**Trello:** `ERP`
+
+| Parte                                               | Estado | Onde                                |
+| --------------------------------------------------- | ------ | ----------------------------------- |
+| Categorias, produtos, clientes, formas de pagamento | 🟡     | `20260925070000_erp_catalog`        |
+| Venda: número, itens, pagamentos, cancelamento      | 🟡     | `20260925080000_erp_sales`          |
+| Sementes do Blueprint (categorias e formas)         | 🟡     | `TABELA_DA_SEMENTE` em `execute.ts` |
+| `/erp/produtos` — lista, cadastro, categorias       | 🟡     | `erp/produtos/`                     |
+| `/erp/vendas` — balcão, comprovante, formas         | 🟡     | `erp/vendas/`                       |
+
+A venda é registrada por `erp_register_sale()` (INVOKER); a baixa de estoque e a
+conta a receber nascem por gatilho, no módulo de cada uma. Venda registrada não
+muda — nem pelo PostgREST direto: itens só na transação em que a venda nasce,
+totais conferidos no commit, preço sempre do cadastro. Cancelar é
+`erp.sales.cancel`, permissão nova, que o Colaborador não tem.
 
 ### Blueprint — configuração de nicho
 
@@ -386,11 +429,29 @@ dava erro: a interface só mostrava o nome genérico. Hoje vai para
 
 ### Automation Engine
 
-**Estado:** ⬜ NÃO EXISTE · **Trello:** `AUTOMATION`
+**Estado:** 🟡 PARCIAL — testado, não verificado contra o banco real ·
+**Docs:** [[09-AUTOMATIONS/AUTOMATIONS|AUTOMATIONS]] · **Trello:** `AUTOMATION`
+
+Motor **interno** (`20260925130000`): quatro gatilhos nascidos no banco (lead
+criado, mudança de etapa, venda registrada, saldo cruzando o mínimo), condições
+E sobre os campos do evento, duas ações internas — aviso no sistema e atividade
+no CRM. Cada regra falha sozinha, com o motivo em `automation_runs`; automação
+não dispara automação; quem escreve regra de atividade precisa poder criar
+atividade. **Nenhuma ação fala com serviço externo.**
+
+- Tela `/automacoes`: 🟡 — modelos, editor quando/se/então com prévia rotulada
+  como exemplo, lista em frase no vocabulário do nicho, registro de execuções.
+- Avisos: 🟡 — sino com não lidos no cabeçalho e `/avisos`. Sem tempo real.
+- Gatilho por tempo, e-mail/WhatsApp/webhook: não existem — ver Pendente no doc.
 
 ### Integrações — WhatsApp / Meta
 
 **Estado:** ⬜ NÃO EXISTE · 🔒 Meta Business + WhatsApp Business API · **Trello:** `META`
+
+A tela `/integracoes` existe desde 25/09/2026 (🟡) e diz isso, uma por uma: as
+sete integrações previstas, todas **não configuradas**, com o que falta da
+empresa (🔒 externo) e da Tivexy (interno), sem botão de conectar. Ver
+[[10-INTEGRATIONS/INTEGRATIONS|INTEGRATIONS]].
 
 Adapter pode ser construído com mock **rotulado** antes das credenciais. A conexão
 real, não.
@@ -403,27 +464,130 @@ real, não.
 
 ### Financeiro / Estoque
 
-**Estado:** ⬜ NÃO EXISTE · **Trello:** `FINANCE` · **Depende de:** ERP
+**Estado:** 🟡 PARCIAL — esquema testado, não verificado contra o banco real ·
+**Docs:** [[05-ERP/INVENTORY|INVENTORY]] · [[05-ERP/FINANCE|FINANCE]] · **Trello:** `FINANCE`
+
+- **Estoque** (`20260925090000`): razão imutável + saldo mantido por gatilho;
+  entrada, saída com motivo, contagem que calcula a diferença; a venda baixa e o
+  cancelamento devolve exatamente o que baixou. Saldo negativo é permitido e
+  aparece — decisão registrada em INVENTORY.
+- **Financeiro** (`20260925100000`): contas a receber e a pagar em regime de
+  caixa; cada pagamento de venda vira lançamento, já recebido se a forma é à
+  vista; venda cancelada cancela o aberto e gera devolução a pagar do que já
+  entrou. **Nada cobra, paga ou fala com banco.**
+- Tela `/erp/estoque`: 🟡 — saldo por urgência, resumo com valor a custo,
+  entrada/saída/contagem, razão. Ver [[05-ERP/INVENTORY#Tela: `/erp/estoque`]].
+- Tela `/erp/financeiro`: 🟡 — resumo, fluxo de caixa em SVG próprio, a receber e a
+  pagar com baixa, desfazer e cancelar. Ver [[05-ERP/FINANCE#Tela: `/erp/financeiro`]].
 
 ## 3. O que está quebrado
 
-### O menu não fala o vocabulário do nicho — visto em 24/09/2026
+### Corrigido em 25/09/2026 — a suspensão só valia na tela
 
-**Estado:** 🟡 · **Onde:** `apps/web/src/config/navigation.ts`
+**Estado:** 🟡 testado, não verificado contra o banco real · **Gravidade:** 🔴
+Alta — acesso a dado · **Onde:** `has_permission()`, 20260925140000
 
-A página de leads diz "Interessados" para a clínica, e o **menu lateral**
-continua dizendo "Leads". O vocabulário do Blueprint chega na tela e não
-chega na navegação, que é a superfície mais visível do sistema.
+`has_permission()` conferia o vínculo e não a situação da empresa. Quem tinha
+sessão numa empresa suspensa (ou em provisionamento) era mandado para
+`/preparando` pela tela — e continuava lendo e escrevendo CRM, vendas e
+financeiro pela API REST, com o mesmo token. Agora a permissão exige empresa
+ativa; o teste lê e escreve pela sessão antes e depois de suspender, e a
+mutação que tira a linha nova é pega. Ver
+[[06-ADMIN/CLIENTES#Suspender corta a API, não só a tela]].
 
-Para quem usa, lê como inconsistência. Para o produto, é a promessa central
-vazando pelo menu — o mesmo defeito que `tenants.terms` foi criado para
-fechar, uma camada acima.
+### Corrigido em 25/09/2026 — "5.50" num campo de valor virava R$ 550,00
 
-`navigation.ts` é configuração estática e precisa passar a ser resolvida com
-os termos do tenant, como a página já faz em `lib/crm/terms.ts`.
+**Estado:** 🟡 testado, não verificado contra o banco real · **Gravidade:** 🟠
+Alta — silencioso · **Onde:** `packages/core/src/decimal.ts`
 
-Apareceu ao abrir o sistema para olhar, não em teste. Nenhum teste compara o
-rótulo do menu com o da página.
+`parseCents` tratava todo ponto como milhar. O teclado numérico do celular
+manda ponto como decimal: quem digitava `5.50` no valor de uma oportunidade
+gravava R$ 550,00, sem erro nenhum. A regra nova, única para dinheiro e
+quantidade: o ponto só é milhar quando forma grupos de milhar (`1.000`,
+`12.345`); sozinho, sem formar grupo (`5.50`, `0.335`), é decimal. Os testes
+antigos — `1.234` são mil duzentos e trinta e quatro reais — continuam
+passando.
+
+### Corrigido em 25/09/2026 — `tenant_id` era editável em toda tabela de tenant
+
+**Estado:** 🟡 testado, não verificado contra o banco real · **Gravidade:** 🟡
+Média — o RLS recusava pelo `with check` · Ver
+[[12-SECURITY/AUTHORIZATION#`tenant_id` era editável — a revogação por coluna não fazia nada]]
+
+O CRM dizia revogar `update (tenant_id)` e não revogava: privilégio de tabela
+cobre todas as colunas. O teste aceitava o erro do RLS como se fosse o do
+privilégio, e passava com a porta aberta. `lock_tenant_id()` corrige as 13
+tabelas de tenant que existiam e as do ERP; um teste varre toda tabela com
+`tenant_id` e falha quando uma nova esquecer.
+
+### Corrigido em 25/09/2026 — o gestor se promovia a administrador
+
+**Estado:** 🟡 testado, não verificado contra o banco real · **Gravidade:** 🔴
+Crítica · Ver [[03-CORE/TEAM#Ninguém dá um papel com mais poder que o seu]]
+
+`core.users.write` bastava para escrever `role_id = tenant_admin` em qualquer
+vínculo — inclusive o próprio. A porta que o catálogo fechou em `roles`
+(o gestor não tem `core.roles.write`) estava aberta em `tenant_users`. Junto,
+a empresa passou a não poder ficar sem administrador.
+
+### Corrigido em 25/09/2026 — a permissão de configurações não era a que valia
+
+**Estado:** 🟡 testado, não verificado contra o banco real · Ver
+[[03-CORE/SETTINGS#Quem pode mudar — e o defeito que havia]]
+
+`tenants.settings` se escrevia com `core.tenant.write`, pela política da
+tabela. `core.settings.write` existia no catálogo e não valia nada.
+
+### Corrigido em 25/09/2026 — o banco recusava o CNPJ novo, com letra
+
+**Estado:** 🟡 testado, não verificado contra o banco real · **Gravidade:** 🟠
+Alta · Ver [[04-CRM/CRM#A pessoa ganhou documento, e o CNPJ ganhou letra]]
+
+O CNPJ é alfanumérico desde julho de 2026. `tenants.document` e
+`crm_companies.document` aceitavam só dígitos: toda empresa aberta de julho em
+diante era recusada — inclusive como cliente da própria Tivexy.
+
+### Corrigido em 25/09/2026 — colaborador apagava registros do CRM
+
+**Estado:** 🟡 testado, não verificado contra o banco real · **Gravidade:** 🟠
+Alta · Ver [[12-SECURITY/AUTHORIZATION#`for all` inclui `delete`]]
+
+As políticas de escrita de leads, pessoas, contas e oportunidades eram
+`for all` com `.write`, e `for all` inclui `delete`. O Colaborador — desenhado
+"sem exclusão" — apagava pela API. A interface não oferecia o botão; o banco
+não negava. Um teste afirmava a garantia no nome e não a testava no corpo.
+
+### Corrigido em 25/09/2026 — o menu não falava o vocabulário do nicho
+
+**Estado:** 🟡 testado, não verificado contra o banco real · **Onde:**
+`apps/web/src/config/navigation.ts`
+
+A página de leads dizia "Interessados" para a clínica, e o **menu lateral**
+continuava dizendo "Leads". Cada superfície resolvia o nome do seu jeito, e o
+menu não resolvia.
+
+**A correção não é o menu ler os termos; é haver uma função só.** O título da
+página vem de `sectionTitle()`, que é `labelOf()` — a mesma que desenha o
+item do menu. Os dois não têm mais como discordar, porque não são dois.
+
+- Cada item declara o recurso que lista (`term: 'crm.leads'`). Um item novo
+  precisa declarar o seu ou entrar numa lista de seções com o motivo: o teste
+  não deixa esquecer.
+- O título da **aba** também seguia fixo em "Leads". Passou a vir da mesma
+  função, por `generateMetadata`.
+- O vocabulário padrão cobre exatamente `TERM_KEYS`, com teste nos dois
+  sentidos — nenhuma tela precisa trazer o próprio padrão.
+- **Frase com rótulo não leva artigo.** "Nenhum {singular}" vira "Nenhum
+  consulta" quando o nicho troca o gênero do nome. As frases da tela de leads
+  foram reescritas, e a regra está em `lib/terms/vocabulary.ts`.
+
+**O menu passou a esconder o que a página negaria**, pela mesma
+`decideAccess()` contra `routeRules`: módulo não contratado some, item sem
+permissão some, grupo vazio some. O comentário antigo adiava isso "até haver
+módulo pronto para esconder" — agora há.
+
+**Verificado quebrando de propósito:** com `labelOf` devolvendo o rótulo fixo,
+quatro testes falham, entre eles "a clínica lê Interessados no menu".
 
 Corrigido em 18–19/09/2026:
 
@@ -486,12 +650,123 @@ Quais endereços atendem quais serviços fica **fora deste repositório**, de
 propósito — ele é público, e mapear serviço → e-mail de login entrega metade
 do trabalho a quem estiver tentando entrar.
 
+## 4.2 Sessão autônoma de 25/09/2026 — testado, não verificado contra o banco real
+
+Construído numa sessão de nuvem, **sem `.env`** (ver §6.2): tudo abaixo passou
+em `npm run validate` — tipos, lint, build dos dois apps e a suíte inteira —, e
+**nada** foi aberto contra o Postgres do projeto. Por isso é 🟡 até alguém
+rodar o fluxo numa máquina com o `.env`.
+
+### Migrations pendentes de `npm run db:push`
+
+O banco do projeto está em `20260920040000`. Estas ficaram para trás:
+
+| Migration                                | O que traz                                             |
+| ---------------------------------------- | ------------------------------------------------------ |
+| `20260925010000_core_accept_invitation`  | `accept_invitation()`                                  |
+| `20260925020000_crm_delete_permission`   | excluir exige `.delete`                                |
+| `20260925030000_crm_pipeline_integrity`  | editor de funil seguro                                 |
+| `20260925040000_documents`               | documento da pessoa; CNPJ alfanumérico                 |
+| `20260925050000_tenant_settings_write`   | configurações com a permissão certa                    |
+| `20260925060000_team_keeps_admin`        | último administrador; papel dentro do seu              |
+| `20260925065000_tenant_id_immutable`     | `tenant_id` travado de verdade em toda tabela          |
+| `20260925070000_erp_catalog`             | produtos, categorias, clientes, formas de pagamento    |
+| `20260925080000_erp_sales`               | venda; `erp.sales.cancel`                              |
+| `20260925090000_erp_inventory`           | razão e saldo de estoque                               |
+| `20260925100000_erp_finance`             | contas a receber e a pagar                             |
+| `20260925110000_erp_sales_summary`       | resumo de vendas do período                            |
+| `20260925120000_finance_reports`         | resumo e fluxo de caixa do financeiro                  |
+| `20260925130000_automation_engine`       | automações, execuções e avisos                         |
+| `20260925140000_admin_tenant_management` | suspensão corta a API; editar, suspender, trocar plano |
+| `20260925150000_erp_sales_daily`         | vendas por dia, no fuso da empresa                     |
+
+### Entregas
+
+| Entrega                                                        | Estado | Onde conferir primeiro contra o banco real                                                                                                                                                         |
+| -------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Menu no vocabulário do nicho                                   | 🟡     | Provisionar a clínica e ler "Interessados" no menu e na aba                                                                                                                                        |
+| `/convite` — aceitar convite                                   | 🟡     | Criar cliente pelo Admin, entrar com o link, aceitar, cair no painel                                                                                                                               |
+| Excluir no CRM exige `.delete`                                 | 🟡     | Colaborador tenta `DELETE` pela API REST e recebe zero linhas                                                                                                                                      |
+| `/crm/oportunidades` — quadro, página e funis                  | 🟡     | Arrastar, recarregar e ver o cartão onde ficou; embutido `company:crm_companies(name)` pela chave composta                                                                                         |
+| `/crm/contatos` — lista, busca, cadastro, página               | 🟡     | Buscar por CPF com e sem pontuação; CNPJ com letra entra em conta e pessoa; o `not valid` passa no `db:push`                                                                                       |
+| `/crm/empresas` — contas, pessoas e oportunidades              | 🟡     | A página da conta com pessoas e oportunidades ligadas; site sem esquema vira link absoluto                                                                                                         |
+| `/crm/atividades` — agenda e painel nas páginas                | 🟡     | Agendar 14:30 e ver 14:30 (não 11:30); concluir e recarregar; o embutido dos quatro alvos                                                                                                          |
+| `/configuracoes` — empresa, preferências, tipos                | 🟡     | Mudar o fuso e ver a agenda mudar de hora; gestor recebe recusa; a auditoria guarda antes e depois                                                                                                 |
+| `/equipe` — membros, papéis, convite                           | 🟡     | Gestor tenta se promover e recebe a recusa; convidar conta nova e abrir o link; convidar conta existente e ela ver em `/convite`                                                                   |
+| `/conta` — nome, senha, empresas, sair                         | 🟡     | Trocar a senha com a atual errada e certa; "sair de todos" derrubar a sessão de outro navegador                                                                                                    |
+| `tenant_id` travado pelo privilégio                            | 🟡     | Rodar `has_column_privilege` como no teste de integridade; editar uma oportunidade pela tela depois do `db:push`                                                                                   |
+| Esquema do ERP — cadastro, venda, estoque, financeiro          | 🟡     | Provisionar o mercado e ver categorias e formas; `erp_register_sale` pela API como operador de caixa; `set constraints` dentro da função no PostgREST                                              |
+| `/erp/produtos` — lista, cadastro, categorias                  | 🟡     | O embutido `category:erp_product_categories(name)` e a contagem `erp_products(count)` pela chave composta; apagar produto vendido e ler a recusa                                                   |
+| `/erp/estoque` — saldo, resumo, movimentar, razão              | 🟡     | Contar um produto com uma venda chegando ao mesmo tempo; o embutido `product:erp_products(...)` no razão; o saldo novo na mensagem para quem só escreve                                            |
+| `/erp/vendas` — balcão, comprovante, cancelar, formas          | 🟡     | `rpc(erp_register_sale)` com jsonb pelo PostgREST; `set constraints` dentro da função; o embutido `payments:erp_sale_payments(method_name)`; cancelar e ver o estoque voltar                       |
+| `/erp/financeiro` — resumo, fluxo, a receber, a pagar          | 🟡     | Datas `date` pelo `rpc` do PostgREST; `.not(paid_on, is, null)`; a baixa com o dia do tenant perto da meia-noite                                                                                   |
+| `/automacoes` — regras, modelos, execuções; avisos e sino      | 🟡     | Registrar venda acima do valor e ver o aviso no sino de quem tem a permissão; `set_config('tivexy.automation_running')` dentro do gatilho pelo PostgREST; `auth.uid()` no `before insert` da regra |
+| `/integracoes` — lista honesta, nada conectado                 | 🟡     | O CNPJ lido de `tenants` como membro comum (política de leitura do tenant); `modules` legível por qualquer sessão                                                                                  |
+| `/tutorial` — do Admin à primeira venda, progresso contado     | 🟡     | Contagens com `head: true` pelo PostgREST em cada tabela; o `payload` de `provisioning_runs` legível pelo membro (política `provisioning_runs_read`)                                               |
+| Admin — cliente: editar, suspender, reativar, plano, histórico | 🟡     | `rpc(admin_set_tenant_status)` com o enum `tenant_status` pelo PostgREST; suspender e tentar ler o CRM pela API com o token de alguém da empresa; o embutido `provisioning_steps(...)`             |
+| `/painel` — o painel do negócio, só com número do banco        | 🟡     | `rpc(erp_sales_daily)` com o fuso como texto; as contagens `head: true`; o dia de hoje perto da meia-noite no fuso da empresa                                                                      |
+
+### O que não coube, e por quê
+
+| Item                                              | Por quê                                                                              |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `/erp/clientes` (tela própria de clientes do ERP) | Fora das 16 telas; o cliente nasce e se escolhe no balcão (cadastro rápido)          |
+| Custo médio, ficha técnica, fornecedor e compra   | Cada um é módulo; sem eles o estoque usa o custo do cadastro e a contraparte é texto |
+| Plano de contas e parcelamento no financeiro      | Categoria é texto livre; crédito em N vezes vira N lançamentos quando houver pedido  |
+| Reordenar categorias de produto                   | Ordem alfabética atende; a coluna `position` existe para quando precisar             |
+| Gatilho por tempo nas automações ("vence amanhã") | Precisa de agendador (`pg_cron` ou função agendada) — o motor hoje só reage a evento |
+| Automação por e-mail, WhatsApp ou webhook         | 🔒 externo — SMTP, Meta, e um destino que receba; não existe nem simulado            |
+| Aviso em tempo real no sino                       | Realtime do Supabase não foi ligado; o número atualiza a cada página                 |
+| Cancelar empresa e ligar módulo avulso no Admin   | Decisões de outro tamanho — dados, prazos, cobrança; a troca de plano cobre o comum  |
+| Conexão de qualquer integração                    | 🔒 externo, uma por uma em `/integracoes`; nenhuma tem adaptador nem credencial      |
+
+### O que eu espero ver só contra o banco real
+
+Nada abaixo falhou nos testes (PGlite); é o que o PGlite não reproduz, ou
+reproduz diferente do Supabase:
+
+- **Embutidos pela chave composta** do PostgREST (`category:erp_product_categories(name)`,
+  `erp_products(count)`, `payments:erp_sale_payments(...)`, `provisioning_steps(...)`):
+  o PostgREST precisa inferir a relação por `(tenant_id, id)`, e pode pedir o nome
+  da constraint.
+- **`rpc` com `jsonb`, `date` e enum** pelo PostgREST: `erp_register_sale` (jsonb),
+  `finance_cashflow`/`erp_sales_daily` (date), `admin_set_tenant_status`
+  (`tenant_status`). Os testes passam texto com cast explícito; o PostgREST
+  converte do JSON.
+- **`set constraints ... immediate` dentro de função `INVOKER`** chamada pelo
+  PostgREST, e os gatilhos de constraint **adiados** conferindo no `commit` da
+  transação que o PostgREST abre por requisição.
+- **`created_at = now()`** como "filho só na mesma transação" (itens e
+  pagamentos da venda): depende de o PostgREST não reaproveitar transação.
+- **A variável `tivexy.automation_running`** (`set_config(..., true)`) dentro de
+  gatilho `SECURITY DEFINER`, no pooler do Supabase.
+- **`auth.uid()` dentro de gatilho `SECURITY DEFINER`** (quem criou a regra, quem
+  cancelou a venda) — deve ler o JWT da requisição.
+- **`lock_tenant_id()` no `db:push`**: os privilégios padrão do Supabase dão
+  `ALL` a `anon` e `authenticated` em tabela nova; a função revoga e concede por
+  coluna — conferir com `has_column_privilege` depois do push.
+- **Constraints `not valid` e índices únicos novos** sobre dado já existente.
+- **`bigint` como número no JSON**: somas grandes podem chegar como texto; a
+  tela converte, mas vale olhar.
+- **`.not('paid_on', 'is', null)`** e `.is('done_at', null)` no PostgREST.
+- **O dia da empresa perto da meia-noite** — venda às 23h30 de São Paulo no
+  painel, baixa no financeiro, agenda de hoje.
+- **`has_permission()` exigindo empresa ativa**: conferir que nada do
+  provisionamento pela tela dependa de permissão com a empresa ainda em
+  `provisioning` (nos testes, o provisionamento escreve como dono do banco).
+
+### O Trello continua desconectado
+
+O que iria para o quadro está na coluna "Entregas" acima. Nenhum card foi
+movido nesta sessão.
+
 ## 5. Decisões tomadas
 
 | #       | Decisão                                                                  | Data       |
 | ------- | ------------------------------------------------------------------------ | ---------- |
 | ADR-001 | Monorepo no repositório existente, não em `TivexyCortex/`                | 18/09/2026 |
 | ADR-002 | Ordem de construção: Core e provisionamento antes de módulos e Blueprint | 18/09/2026 |
+| ADR-004 | O cliente do ERP não é a pessoa do CRM                                   | 25/09/2026 |
 | —       | Cofre Obsidian versionado em `docs/`                                     | 18/09/2026 |
 | —       | SaaS em Next.js, conforme Master Plan §4 — não em Astro                  | 18/09/2026 |
 
@@ -499,19 +774,19 @@ do trabalho a quem estiver tentando entrar.
 
 Ordenadas por urgência:
 
-| #   | Tarefa                                          | Bloqueia                 | Urgência    |
-| --- | ----------------------------------------------- | ------------------------ | ----------- |
-| 1   | **Abrir o PR** da branch `monorepo-tivexy-core` | Primeira execução do CI  | 🔴 Imediata |
-| 2   | **SMTP próprio no Supabase**                    | Convite e recuperação    | 🔴 Imediata |
-| 3   | Conferir o destino do formulário de contato     | Leads da landing         | 🟠 Alta     |
-| 4   | **Trocar a conta do conector Vercel**           | Qualquer coisa na Vercel | 🟠 Alta     |
-| 5   | Projeto Vercel do `apps/web` + variáveis        | Deploy do SaaS           | 🔴 Agora    |
-| 6   | Domínio `tivexy.com.br` + DNS                   | SEO, e-mail              | 🟠 Média    |
-| 7   | E-mail corporativo + SPF/DKIM/DMARC             | Convites do SaaS         | 🟠 Média    |
-| 8   | Credenciais OpenAI                              | AI Engine                | 🟡 Depois   |
-| 9   | Meta Business + WhatsApp Business API           | Atendimento              | 🟡 Depois   |
-| 10  | Provedor fiscal + certificado digital           | Fiscal                   | 🟡 Depois   |
-| 11  | CNPJ, contador, conta PJ, contratos             | Venda formal             | 🟡 Paralelo |
+| #   | Tarefa                                          | Bloqueia                              | Urgência    |
+| --- | ----------------------------------------------- | ------------------------------------- | ----------- |
+| 1   | **Abrir o PR** da branch `monorepo-tivexy-core` | Primeira execução do CI               | 🔴 Imediata |
+| 2   | **SMTP próprio no Supabase**                    | Convite, recuperação, troca de e-mail | 🔴 Imediata |
+| 3   | Conferir o destino do formulário de contato     | Leads da landing                      | 🟠 Alta     |
+| 4   | **Trocar a conta do conector Vercel**           | Qualquer coisa na Vercel              | 🟠 Alta     |
+| 5   | Projeto Vercel do `apps/web` + variáveis        | Deploy do SaaS                        | 🔴 Agora    |
+| 6   | Domínio `tivexy.com.br` + DNS                   | SEO, e-mail                           | 🟠 Média    |
+| 7   | E-mail corporativo + SPF/DKIM/DMARC             | Convites do SaaS                      | 🟠 Média    |
+| 8   | Credenciais OpenAI                              | AI Engine                             | 🟡 Depois   |
+| 9   | Meta Business + WhatsApp Business API           | Atendimento                           | 🟡 Depois   |
+| 10  | Provedor fiscal + certificado digital           | Fiscal                                | 🟡 Depois   |
+| 11  | CNPJ, contador, conta PJ, contratos             | Venda formal                          | 🟡 Paralelo |
 
 ### O SMTP é o que separa "conta criada" de "cliente atendido"
 
@@ -528,7 +803,7 @@ Resolver é cadastrar um provedor em Project Settings → Authentication → SMT
 Depende do domínio `tivexy.com.br` e do e-mail corporativo, ambos nesta mesma
 tabela.
 
-O passo a passo do deploy está em [[15-OPERATIONS/DEPLOY]] — inclui as quatro
+O passo a passo do deploy está em [[15-OPERATIONS/DEPLOYMENT]] — inclui as quatro
 variáveis que o `apps/web` lê, a opção de monorepo que o build exige, e o
 passo que todo mundo esquece: ensinar o Supabase sobre o endereço novo, sem
 o que o login quebra em produção.
@@ -620,7 +895,7 @@ exatamente o risco nº 5 desta página acontecendo. O que precisa entrar:
 | Provisionamento no backend          | Concluído                                     |
 | Painel Super Admin                  | Concluído em parte — criar, retomar, desfazer |
 | **Novo:** SMTP próprio no Supabase  | Bloqueado — externo, 🔴                       |
-| **Novo:** aceitar convite pela tela | A fazer — precisa de função SECURITY DEFINER  |
+| **Novo:** aceitar convite pela tela | Feito em 25/09 — 🟡 falta passada no banco    |
 | **Novo:** escolher CRM ou ERP       | Precisa de decisão                            |
 
 ## 6.2 O que for construído em sessão de nuvem não é verificado contra o banco
@@ -738,8 +1013,6 @@ provisionamento e o Blueprint já sustentam os dois.
 ### O que dá para fazer sem esperar nada
 
 - Telas de funil, contatos e contas — a conversão já cria as três coisas
-- Aceitar convite pela tela (falta a função `SECURITY DEFINER` que confere o
-  convite — o RLS nega essa escrita a quem ainda não é membro)
 - Conferir se o destino do formulário de contato da landing ainda responde
 - Revisar as variáveis de outro projeto no ambiente Vercel (`DATABASE_URL`,
   `AUTH_SECRET`, `STORE_TIMEZONE` e outras) — a landing não usa nenhuma, mas

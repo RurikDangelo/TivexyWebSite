@@ -74,6 +74,17 @@ describe('esquema', () => {
     );
   });
 
+  /*
+   * Tabelas internas: RLS ligado e nenhuma política **de propósito** — só as
+   * funções do banco leem e escrevem. A exceção é declarada aqui, com o
+   * motivo, e cobrada no teste seguinte: interna é a tabela em que
+   * `authenticated` e `anon` não têm privilégio nenhum, não a que alguém
+   * esqueceu de proteger.
+   */
+  const INTERNAS = {
+    erp_counters: 'numeração de venda por tenant — só erp_next_number() lê e escreve',
+  };
+
   it('cria uma política para cada tabela', async () => {
     const { rows } = await db.query(`
       select c.relname
@@ -84,10 +95,23 @@ describe('esquema', () => {
       order by 1
     `);
     assert.deepEqual(
-      rows.map((r) => r.relname),
+      rows.map((r) => r.relname).filter((t) => !Object.hasOwn(INTERNAS, t)),
       [],
       'RLS sem política nenhuma nega tudo',
     );
+  });
+
+  it('tabela interna não tem privilégio nenhum para quem vem de fora', async () => {
+    for (const tabela of Object.keys(INTERNAS)) {
+      const { rows } = await db.query(
+        `select papel, privilegio
+         from (values ('authenticated'), ('anon')) as p(papel)
+         cross join (values ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE')) as v(privilegio)
+         where has_table_privilege(papel, 'public.' || $1, privilegio)`,
+        [tabela],
+      );
+      assert.deepEqual(rows, [], `${tabela}: ${INTERNAS[tabela]}`);
+    }
   });
 
   it('fixa o search_path nas funções SECURITY DEFINER', async () => {
@@ -118,7 +142,8 @@ describe('catálogo', () => {
     `);
     const [c] = rows;
     assert.equal(Number(c.modulos), 9);
-    assert.equal(Number(c.permissoes), 51);
+    // 52 desde 25/09/2026: `erp.sales.cancel` entrou com as tabelas de venda.
+    assert.equal(Number(c.permissoes), 52);
     assert.equal(Number(c.papeis), 3);
     assert.equal(Number(c.planos), 3);
   });
@@ -323,19 +348,36 @@ describe('auditoria', () => {
     });
   });
 
-  it('não deixa editar nem apagar registro — sem política, RLS nega', async () => {
+  it('não deixa editar nem apagar registro — nem pelo privilégio, nem pelo RLS', async () => {
+    /*
+     * Duas regras independentes para a mesma garantia. Até 25/09/2026 só
+     * havia a do RLS — sem política de `update` e `delete`, zero linhas —, e
+     * este teste esperava zero linhas. Desde `20260925065000` o privilégio
+     * também foi revogado, e a tentativa falha antes de chegar ao RLS.
+     */
     await db.query(
       `insert into public.audit_logs (tenant_id, actor_user_id, action, resource_type)
        values ($1, $2, 'tenant.create', 'tenant')`,
       [fx.tenantB, fx.superAdmin],
     );
 
-    const resultado = await asUser(db, fx.superAdmin, async () => {
-      const u = await db.query("update public.audit_logs set action = 'forjado'");
-      const d = await db.query('delete from public.audit_logs');
-      return { editadas: u.affectedRows ?? 0, apagadas: d.affectedRows ?? 0 };
-    });
-    assert.deepEqual(resultado, { editadas: 0, apagadas: 0 }, 'log editável não é auditoria');
+    for (const sql of [
+      "update public.audit_logs set action = 'forjado'",
+      'delete from public.audit_logs',
+    ]) {
+      await assert.rejects(
+        asUser(db, fx.superAdmin, () => db.query(sql)),
+        /permission denied/,
+        `${sql} — log editável não é auditoria`,
+      );
+    }
+
+    // E a outra camada continua lá: nenhuma política deixa editar ou apagar.
+    const { rows } = await db.query(
+      `select polcmd from pg_policy
+       where polrelid = 'public.audit_logs'::regclass and polcmd in ('w', 'd', '*')`,
+    );
+    assert.deepEqual(rows, []);
 
     await db.query('delete from public.audit_logs');
   });
@@ -445,7 +487,7 @@ describe('restrições de integridade', () => {
           `insert into public.tenants (slug, name, document) values ('teste-doc', 'X', $1)`,
           ['12.345.678/0001-90'],
         ),
-      /tenants_document_digits/,
+      /tenants_document_format/,
     );
   });
 
@@ -535,7 +577,7 @@ describe('o harness entrega bancos isolados', () => {
       `);
       const [c] = rows;
       assert.equal(c.modulos, 9);
-      assert.equal(c.permissoes, 51);
+      assert.equal(c.permissoes, 52);
       assert.equal(c.planos, 3);
       assert.equal(c.papeis, 3);
     } finally {

@@ -23,7 +23,7 @@
  */
 
 import { requireAccess } from '@/lib/auth/require';
-import { requireSecretKey, requireSupabaseConfig } from '@/lib/env';
+import { magicLinkFor } from '@/server/auth-links';
 
 import type { AccessLinkState } from './state.ts';
 
@@ -35,40 +35,6 @@ export async function gerarLinkDeAcesso(form: FormData): Promise<AccessLinkState
     .toLowerCase();
   if (email === '') return { erro: 'Sem e-mail para gerar o link.', link: null, email: null };
 
-  const { url } = requireSupabaseConfig();
-  const chave = requireSecretKey();
-
-  /*
-   * `fetch` direto em vez do SDK: `generateLink` não está exposto no cliente
-   * JavaScript do Supabase com este formato de retorno, e o endpoint é estável.
-   */
-  const resposta = await fetch(`${url}/auth/v1/admin/generate_link`, {
-    method: 'POST',
-    headers: {
-      apikey: chave,
-      Authorization: `Bearer ${chave}`,
-      'Content-Type': 'application/json',
-    },
-    /*
-     * `magiclink`, e não `invite`: o convite recusa quem já existe, e a conta
-     * foi criada na etapa `create_admin`. Os dois levam ao mesmo lugar — uma
-     * sessão para a pessoa escolher a senha.
-     */
-    body: JSON.stringify({ type: 'magiclink', email }),
-  });
-
-  if (!resposta.ok) {
-    return {
-      erro: `O Supabase recusou gerar o link (${resposta.status}). Confira se a conta existe.`,
-      link: null,
-      email: null,
-    };
-  }
-
-  const corpo = (await resposta.json()) as { action_link?: unknown };
-  const link = typeof corpo.action_link === 'string' ? corpo.action_link : null;
-
-  return link === null
-    ? { erro: 'O Supabase respondeu sem link.', link: null, email: null }
-    : { erro: null, link, email };
+  const r = await magicLinkFor(email);
+  return r.ok ? { erro: null, link: r.link, email } : { erro: r.erro, link: null, email: null };
 }

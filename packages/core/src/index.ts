@@ -51,18 +51,82 @@ export { RESERVED_SUBDOMAINS, isReservedSubdomain, tenantSlugFromHost } from './
 export {
   CRM_LEAD_STATUSES,
   CRM_STAGE_KINDS,
+  boardTotals,
   formatCents,
+  formatCentsInput,
   isClosedStage,
   isLeadClosed,
+  missingExits,
   nextLeadStatuses,
+  orderStages,
   parseCents,
+  stageTotals,
+  totalsByKind,
+  type BoardDeal,
+  type BoardStage,
   type CrmLeadStatus,
   type CrmStageKind,
+  type Totals,
 } from './crm.ts';
+
+export {
+  addDays,
+  dateIn,
+  daysBetween,
+  instantFromLocal,
+  isIsoDate,
+  isTime,
+  startOfMonth,
+  timeIn,
+  todayIn,
+} from './calendar.ts';
+
+export {
+  ERP_SALE_STATUSES,
+  FINANCE_DIRECTIONS,
+  INVENTORY_MOVEMENT_KINDS,
+  PRODUCT_UNITS,
+  QUANTITY_DECIMALS,
+  STOCK_STATUS_ORDER,
+  UNIT_INFO,
+  checkQuantity,
+  financeStatus,
+  formatQuantity,
+  formatQuantityInput,
+  grossMargin,
+  isProductUnit,
+  lineTotalCents,
+  movementSign,
+  parseQuantity,
+  saleTotals,
+  stockStatus,
+  stockSummary,
+  type ErpSaleStatus,
+  type FinanceDirection,
+  type FinanceStatus,
+  type InventoryMovementKind,
+  type ProductUnit,
+  type StockStatus,
+  type StockSummary,
+} from './erp.ts';
+
+export { AGENDA_BUCKETS, agendaBucket, groupByBucket, type AgendaBucket } from './agenda.ts';
+
+export {
+  DOCUMENT_PATTERN,
+  checkDocument,
+  formatDocument,
+  isValidCnpj,
+  isValidCpf,
+  normalizeDocument,
+  type DocumentCheck,
+  type DocumentKind,
+} from './documents.ts';
 
 export {
   TENANT_SETTINGS,
   checkSettingValue,
+  overridesFrom,
   resolveSettings,
   settingDefinition,
   type SettingDefinition,
@@ -103,3 +167,30 @@ export {
   type ProvisioningStepStatus,
   type ProvisioningStep,
 } from './provisioning.ts';
+
+export { normalizeDecimal } from './decimal.ts';
+
+export {
+  AUTOMATION_ACTIONS,
+  AUTOMATION_TRIGGERS,
+  AUTOMATION_TRIGGER_CODES,
+  CONDITION_OPERATORS,
+  OPERADORES_POR_TIPO,
+  ROTULO_DO_OPERADOR,
+  actionAllowedFor,
+  automationMatches,
+  checkAutomationRule,
+  isAutomationTrigger,
+  renderAutomationTemplate,
+  type AutomationAction,
+  type AutomationCondition,
+  type AutomationRuleCheck,
+  type AutomationRuleInput,
+  type AutomationTrigger,
+  type CampoDoGatilho,
+  type ConditionOperator,
+  type DefinicaoDeGatilho,
+  type TipoDeCampo,
+} from './automation.ts';
+
+export { previewPlanChange, type PlanChangePreview } from './plans.ts';

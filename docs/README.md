@@ -12,9 +12,14 @@ pasta (`docs/`). É versionada em git: documentação e código andam no mesmo c
 | [[ARCHITECTURE]]                           | Como as peças se encaixam e o que não pode depender de quê |
 | [[REPOSITORY_STRUCTURE]]                   | O que cada diretório é, e o que não é                      |
 | [[03-CORE/AUTHENTICATION\|AUTHENTICATION]] | Como uma requisição vira um `Viewer`                       |
+| [[03-CORE/SETTINGS\|SETTINGS]]             | O que a empresa ajusta, e quem pode mudar                  |
+| [[03-CORE/TEAM\|TEAM]]                     | Quem trabalha na empresa, e como entra                     |
 | [[04-CRM/CRM\|CRM]]                        | O primeiro módulo de negócio                               |
+| [[05-ERP/ERP\|ERP]]                        | Cadastro e venda — e o que a venda provoca                 |
+| [[05-ERP/INVENTORY\|INVENTORY]]            | Estoque: razão imutável e saldo                            |
+| [[05-ERP/FINANCE\|FINANCE]]                | Contas a receber e a pagar, regime de caixa                |
 | [[15-OPERATIONS/RODAR-LOCAL\|RODAR-LOCAL]] | Como subir o sistema aqui e ter o que olhar                |
-| [[15-OPERATIONS/DEPLOY\|DEPLOY]]           | Como publicar o SaaS na Vercel, passo a passo              |
+| [[15-OPERATIONS/DEPLOYMENT\|DEPLOYMENT]]   | Como publicar o SaaS na Vercel, passo a passo              |
 
 ## As quatro fontes de verdade
 
@@ -67,18 +72,24 @@ sem implementação atrás vira ficção.
 | `MULTI_TENANCY.md`                     | `12-SECURITY/`     | ✅ escrito                       |
 | `AUTHORIZATION.md`                     | `12-SECURITY/`     | ✅ escrito                       |
 | `AUTHENTICATION.md`                    | `03-CORE/`         | ✅ escrito                       |
+| `SETTINGS.md`                          | `03-CORE/`         | ✅ escrito                       |
+| `TEAM.md`                              | `03-CORE/`         | ✅ escrito                       |
+| `PAINEL.md`                            | `03-CORE/`         | ✅ escrito                       |
 | `CRM.md`                               | `04-CRM/`          | ✅ escrito                       |
 | `RODAR-LOCAL.md`                       | `15-OPERATIONS/`   | ✅ escrito                       |
+| `TUTORIAL.md`                          | `15-OPERATIONS/`   | ✅ escrito                       |
 | `PROVISIONING.md`                      | `06-ADMIN/`        | ✅ especificado                  |
-| `ERP.md`, `INVENTORY.md`, `FINANCE.md` | `05-ERP/`          | ⬜ com o ERP                     |
+| `CLIENTES.md`                          | `06-ADMIN/`        | ✅ escrito                       |
+| `ERP.md`, `INVENTORY.md`, `FINANCE.md` | `05-ERP/`          | ✅ escrito                       |
+| `INTEGRATIONS.md`                      | `10-INTEGRATIONS/` | ✅ escrito                       |
 | `BANKING.md`                           | `10-INTEGRATIONS/` | ⬜ quando houver provedor        |
 | `FISCAL.md`                            | `11-FISCAL/`       | ⬜ quando houver provedor        |
 | `WHATSAPP.md`                          | `10-INTEGRATIONS/` | ⬜ quando houver credencial Meta |
-| `AUTOMATIONS.md`                       | `09-AUTOMATIONS/`  | ⬜ com o motor                   |
+| `AUTOMATIONS.md`                       | `09-AUTOMATIONS/`  | ✅ escrito                       |
 | `API.md`                               | `02-ARCHITECTURE/` | ⬜ com as primeiras rotas        |
 | `SECURITY.md`                          | `12-SECURITY/`     | ⬜ com o Core                    |
 | `TESTING.md`                           | `00-SYSTEM/`       | ✅ escrito                       |
-| `DEPLOY.md`                            | `15-OPERATIONS/`   | ✅ escrito                       |
+| `DEPLOYMENT.md`                        | `15-OPERATIONS/`   | ✅ escrito                       |
 | `TROUBLESHOOTING.md`                   | `15-OPERATIONS/`   | ⬜ com a operação                |
 | `CHANGELOG.md`                         | `18-RELEASES/`     | ⬜ com a primeira release        |
 | `FINAL_AUDIT.md`                       | raiz de `docs/`    | ⬜ na auditoria final            |

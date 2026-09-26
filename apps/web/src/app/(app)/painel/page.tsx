@@ -1,172 +1,301 @@
-import { AlertTriangle, CheckCircle2, CircleDashed, Lock } from 'lucide-react';
+import {
+  type PermissionCode,
+  addDays,
+  can,
+  instantFromLocal,
+  startOfMonth,
+  stockSummary,
+  todayIn,
+} from '@tivexy/core';
 import type { Metadata } from 'next';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export const metadata: Metadata = { title: 'Visão geral' };
+import { NoTenant } from '@/components/page/no-tenant';
+import { sectionTitle } from '@/config/navigation';
+import { requireAccess } from '@/lib/auth/require';
+import { funilAberto, serieDeVendas } from '@/lib/painel/dashboard';
+import { tenantTimeZone } from '@/lib/settings/current';
+import { supabaseServer } from '@/lib/supabase/server';
+import { currentTerms } from '@/lib/terms/current';
+import { capitalizar } from '@/lib/terms/vocabulary';
 
-/*
- * Esta NÃO é a dashboard do produto. É o estado real da plataforma enquanto o
- * Core não tem módulo de negócio. Há banco, há sessão e há provisionamento —
- * o que não há é dado de negócio, porque CRM e ERP ainda não existem.
- * A fonte de verdade é docs/PROJECT_STATE.md; esta tela é um resumo dela.
+import {
+  type Agenda,
+  Dashboard,
+  type Dinheiro,
+  type Estoque,
+  type Funil,
+  type Vendas,
+} from './dashboard';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: sectionTitle(await currentTerms(), '/painel') };
+}
+
+type Supabase = Awaited<ReturnType<typeof supabaseServer>>;
+
+const DIA_POR_EXTENSO = (fuso: string) =>
+  new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: fuso,
+  });
+
+function numero(valor: unknown): number {
+  const n = Number(valor ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/* ── Leituras — cada uma só roda para quem pode ler, e falha sozinha ─── */
+
+async function lerVendas(
+  supabase: Supabase,
+  tenantId: string,
+  fuso: string,
+  hoje: string,
+): Promise<Vendas | null> {
+  const inicioDeHoje = instantFromLocal(hoje, '00:00', fuso);
+  const inicioDeAmanha = instantFromLocal(addDays(hoje, 1), '00:00', fuso);
+  const inicioDoMes = instantFromLocal(startOfMonth(hoje), '00:00', fuso);
+  const [hojeR, mesR, diasR] = await Promise.all([
+    supabase.rpc('erp_sales_summary', {
+      p_tenant_id: tenantId,
+      p_from: inicioDeHoje,
+      p_to: inicioDeAmanha,
+    }),
+    supabase.rpc('erp_sales_summary', {
+      p_tenant_id: tenantId,
+      p_from: inicioDoMes,
+      p_to: inicioDeAmanha,
+    }),
+    supabase.rpc('erp_sales_daily', {
+      p_tenant_id: tenantId,
+      p_from: addDays(hoje, -13),
+      p_to: hoje,
+      p_time_zone: fuso,
+    }),
+  ]);
+  if (hojeR.error !== null || mesR.error !== null || diasR.error !== null) return null;
+  const linha = (r: unknown) =>
+    (Array.isArray(r) ? r[0] : r) as Record<string, unknown> | undefined;
+  const h = linha(hojeR.data);
+  const m = linha(mesR.data);
+  return {
+    hoje: { vendas: numero(h?.sales_count), total: numero(h?.total_cents) },
+    mes: { vendas: numero(m?.sales_count), total: numero(m?.total_cents) },
+    dias: serieDeVendas(Array.isArray(diasR.data) ? diasR.data : []),
+  };
+}
+
+async function lerDinheiro(
+  supabase: Supabase,
+  tenantId: string,
+  hoje: string,
+): Promise<Dinheiro | null> {
+  const { data, error } = await supabase.rpc('finance_summary', {
+    p_tenant_id: tenantId,
+    p_today: hoje,
+    p_month_start: startOfMonth(hoje),
+  });
+  if (error !== null) return null;
+  const r = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | undefined;
+  return {
+    saldoDoMes: numero(r?.received_month_cents) - numero(r?.paid_month_cents),
+    entrouNoMes: numero(r?.received_month_cents),
+    aReceberVencido: numero(r?.receivable_overdue_cents),
+    aPagar30: numero(r?.payable_next30_cents),
+    aReceber30: numero(r?.receivable_next30_cents),
+  };
+}
+
+async function lerFunil(
+  supabase: Supabase,
+  tenantId: string,
+  fuso: string,
+  hoje: string,
+): Promise<Funil | 'sem-funil' | null> {
+  const { data: funis, error } = await supabase
+    .from('crm_pipelines')
+    .select('id, name, is_default')
+    .eq('tenant_id', tenantId)
+    .order('position');
+  if (error !== null) return null;
+  const funil = (funis ?? []).find((f) => f.is_default === true) ?? funis?.[0];
+  if (funil === undefined) return 'sem-funil';
+
+  const inicioDoMes = instantFromLocal(startOfMonth(hoje), '00:00', fuso);
+  const [etapasR, abertasR, fechadasR, todasEtapasR] = await Promise.all([
+    supabase
+      .from('crm_pipeline_stages')
+      .select('id, name, kind, position')
+      .eq('tenant_id', tenantId)
+      .eq('pipeline_id', funil.id),
+    supabase
+      .from('crm_deals')
+      .select('stage_id, value_cents')
+      .eq('tenant_id', tenantId)
+      .eq('pipeline_id', funil.id)
+      .is('closed_at', null)
+      .limit(5000),
+    supabase
+      .from('crm_deals')
+      .select('stage_id, value_cents')
+      .eq('tenant_id', tenantId)
+      .gte('closed_at', inicioDoMes)
+      .limit(5000),
+    supabase.from('crm_pipeline_stages').select('id, kind').eq('tenant_id', tenantId),
+  ]);
+  if ([etapasR, abertasR, fechadasR, todasEtapasR].some((r) => r.error !== null)) return null;
+
+  // Ganho é a etapa de ganho de qualquer funil da empresa — não só do padrão.
+  const ganho = new Set(
+    (todasEtapasR.data ?? []).filter((e) => e.kind === 'won').map((e) => String(e.id)),
+  );
+  const ganhos = (fechadasR.data ?? []).filter((d) => ganho.has(String(d.stage_id)));
+  return {
+    nome: String(funil.name),
+    etapas: funilAberto(
+      (etapasR.data ?? []).map((e) => ({
+        id: String(e.id),
+        nome: String(e.name),
+        tipo: String(e.kind),
+        posicao: numero(e.position),
+      })),
+      (abertasR.data ?? []).map((d) => ({
+        etapaId: String(d.stage_id),
+        valorCentavos: d.value_cents === null ? null : numero(d.value_cents),
+      })),
+    ),
+    ganhosNoMes: {
+      quantidade: ganhos.length,
+      valor: ganhos.reduce((t, d) => t + numero(d.value_cents), 0),
+    },
+  };
+}
+
+/** Uma contagem do banco; falha vira `null` — nunca zero, que seria "não há". */
+async function contar(consulta: PromiseLike<{ count: number | null; error: unknown }>) {
+  const { count, error } = await consulta;
+  return error === null ? (count ?? 0) : null;
+}
+
+async function lerAgenda(
+  supabase: Supabase,
+  tenantId: string,
+  eu: string,
+  fuso: string,
+  hoje: string,
+): Promise<Agenda> {
+  const inicioDeHoje = instantFromLocal(hoje, '00:00', fuso);
+  const inicioDeAmanha = instantFromLocal(addDays(hoje, 1), '00:00', fuso);
+  const minhas = () =>
+    supabase
+      .from('crm_activities')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .eq('owner_id', eu)
+      .is('done_at', null);
+  const [atrasadas, deHoje] = await Promise.all([
+    contar(minhas().lt('due_at', inicioDeHoje)),
+    contar(minhas().gte('due_at', inicioDeHoje).lt('due_at', inicioDeAmanha)),
+  ]);
+  return { atrasadas, hoje: deHoje };
+}
+
+async function lerEstoque(supabase: Supabase, tenantId: string): Promise<Estoque | null> {
+  const [produtosR, saldosR] = await Promise.all([
+    supabase
+      .from('erp_products')
+      .select('id, min_stock, cost_cents')
+      .eq('tenant_id', tenantId)
+      .eq('track_stock', true)
+      .eq('active', true)
+      .limit(5000),
+    supabase
+      .from('inventory_stock_levels')
+      .select('product_id, quantity')
+      .eq('tenant_id', tenantId)
+      .limit(10000),
+  ]);
+  if (produtosR.error !== null || saldosR.error !== null) return null;
+  const saldo = new Map(
+    (saldosR.data ?? []).map((s) => [String(s.product_id), numero(s.quantity)]),
+  );
+  const produtos = produtosR.data ?? [];
+  const resumo = stockSummary(
+    produtos.map((p) => ({
+      trackStock: true,
+      quantity: saldo.get(String(p.id)) ?? 0,
+      minStock: p.min_stock === null ? null : numero(p.min_stock),
+      costCents: p.cost_cents === null ? null : numero(p.cost_cents),
+    })),
+  );
+  return {
+    negativos: resumo.porSituacao.negative,
+    zerados: resumo.porSituacao.out,
+    noMinimo: resumo.porSituacao.low,
+    controlados: produtos.length,
+  };
+}
+
+/* ── A página ────────────────────────────────────────────────────────── */
+
+/**
+ * O painel do negócio: vendas, dinheiro, funil, agenda e estoque.
+ *
+ * **Todo número é consulta ao banco da empresa, agora.** Nada de série fixa,
+ * de estimativa ou de número de exemplo. Cada seção só aparece para quem tem
+ * o módulo e pode ler o que ela soma — e, sem dado, diz como passar a ter.
  */
+export default async function PainelPage() {
+  const { choice, viewer } = await requireAccess('/painel');
+  if (choice.kind !== 'resolved') return <NoTenant />;
 
-const pronto = [
-  'Monorepo com apps/site e apps/web independentes',
-  'Esquema do Core aplicado: 15 tabelas, RLS e isolamento entre tenants',
-  'Autenticação, sessão e guarda de rota ligadas à requisição',
-  'Provisionamento de cliente pela tela: criar, retomar e desfazer',
-  'Blueprint de nicho: contrato, validação e três nichos',
-  'CRM: esquema completo e a tela de leads, com o vocabulário do nicho',
-  'Design system, casca da aplicação e componentes base',
-];
+  const tenantId = choice.tenant.id;
+  const [terms, fuso, supabase] = await Promise.all([
+    currentTerms(),
+    tenantTimeZone(),
+    supabaseServer(),
+  ]);
+  const hoje = todayIn(fuso);
+  const pode = (p: PermissionCode) => can(viewer, p);
+  const eu = viewer.userId;
 
-const emConstrucao = [
-  'Aceitar convite pela própria tela',
-  'Editar cliente: suspender, trocar plano, convidar usuário',
-  'CRM: conversão de lead, contatos, contas e funil',
-  'ERP — não começou',
-];
+  const [vendas, dinheiro, funil, agenda, leadsNoMes, estoque] = await Promise.all([
+    pode('erp.sales.read') ? lerVendas(supabase, tenantId, fuso, hoje) : undefined,
+    pode('finance.cashflow.read') ? lerDinheiro(supabase, tenantId, hoje) : undefined,
+    pode('crm.deals.read') ? lerFunil(supabase, tenantId, fuso, hoje) : undefined,
+    pode('crm.activities.read') && eu !== null
+      ? lerAgenda(supabase, tenantId, eu, fuso, hoje)
+      : undefined,
+    pode('crm.leads.read')
+      ? contar(
+          supabase
+            .from('crm_leads')
+            .select('id', { count: 'exact', head: true })
+            .eq('tenant_id', tenantId)
+            .gte('created_at', instantFromLocal(startOfMonth(hoje), '00:00', fuso)),
+        )
+      : undefined,
+    pode('inventory.stock.read') ? lerEstoque(supabase, tenantId) : undefined,
+  ]);
 
-const bloqueado = [
-  {
-    item: 'Entrega de convite por e-mail',
-    porque: 'SMTP próprio no Supabase — a conta é criada, o e-mail não sai',
-  },
-  { item: 'WhatsApp e Instagram', porque: 'Meta Business + WhatsApp Business API' },
-  { item: 'Emissão fiscal', porque: 'Provedor fiscal + certificado digital' },
-  { item: 'Camada de IA', porque: 'Credenciais OpenAI' },
-];
-export default function PainelPage() {
+  const dataDeHoje = capitalizar(
+    DIA_POR_EXTENSO(fuso).format(new Date(instantFromLocal(hoje, '12:00', fuso))),
+  );
+
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-      <header className="mb-8">
-        <h1 className="font-display text-2xl font-bold text-content sm:text-3xl">Tivexy Core</h1>
-        <p className="mt-1.5 max-w-prose text-content-muted">
-          Plataforma SaaS multi-tenant. ERP, CRM e Admin sobre um núcleo único.
-        </p>
-      </header>
-
-      <div
-        role="note"
-        className="mb-8 flex gap-3 rounded-lg border border-line-accent bg-surface-accent-soft p-4"
-      >
-        <AlertTriangle className="mt-0.5 size-5 shrink-0 text-content-accent" aria-hidden />
-        <div className="text-sm">
-          <p className="font-medium text-content">
-            Esta tela mostra o estado da plataforma, não dados do seu negócio.
-          </p>
-          <p className="mt-1 text-content-muted">
-            O Core está de pé: banco aplicado, sessão, permissões e provisionamento de cliente. O
-            que ainda não existe são os módulos de negócio —{' '}
-            <strong className="font-medium">nenhum número aqui é métrica</strong>, porque não há CRM
-            nem ERP para medir. O estado completo de cada módulo está em{' '}
-            <code className="rounded bg-surface-muted px-1 py-0.5 font-mono text-xs">
-              docs/PROJECT_STATE.md
-            </code>
-            .
-          </p>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="size-4 text-success" aria-hidden />
-              <CardTitle>Pronto</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2.5 text-sm text-content-muted">
-              {pronto.map((item) => (
-                <li key={item} className="flex gap-2">
-                  <span className="mt-1.5 size-1 shrink-0 rounded-full bg-success" aria-hidden />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CircleDashed className="size-4 text-content-subtle" aria-hidden />
-              <CardTitle>A construir</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-2.5 text-sm text-content-muted">
-              {emConstrucao.map((item, index) => (
-                <li key={item} className="flex gap-2">
-                  <span className="mt-px shrink-0 font-mono text-xs text-content-subtle">
-                    {index + 1}.
-                  </span>
-                  {item}
-                </li>
-              ))}
-            </ol>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Lock className="size-4 text-warning" aria-hidden />
-              <CardTitle>Bloqueado</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-3 text-sm">
-              {bloqueado.map(({ item, porque }) => (
-                <li key={item}>
-                  <p className="text-content-default">{item}</p>
-                  <p className="mt-0.5 text-xs text-content-subtle">Depende de: {porque}</p>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
-
-      <section className="mt-8">
-        <h2 className="mb-3 font-mono text-xs font-medium uppercase tracking-wider text-content-subtle">
-          Ordem de construção
-        </h2>
-        <Card>
-          <CardContent className="pt-5">
-            <ol className="flex flex-wrap items-center gap-x-2 gap-y-2 text-sm">
-              {[
-                'Banco',
-                'Auth',
-                'Multi-tenancy',
-                'Provisionamento',
-                'RBAC',
-                'Admin',
-                'CRM',
-                'ERP',
-              ].map((etapa, index, all) => (
-                <li key={etapa} className="flex items-center gap-2">
-                  <Badge tone={etapa === 'Provisionamento' ? 'brand' : 'neutral'}>{etapa}</Badge>
-                  {index < all.length - 1 && (
-                    <span className="text-content-subtle" aria-hidden>
-                      →
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ol>
-            <p className="mt-4 text-sm text-content-muted">
-              Provisionamento é prioridade zero: é o que transforma a plataforma em operação SaaS.
-              Blueprint como <strong className="font-medium">configuração de nicho</strong> foi
-              construído junto com ele (ADR-003); o motor de esquema em tempo de execução continua
-              adiado até existir um módulo de negócio real, e a IA depois dele.
-            </p>
-          </CardContent>
-        </Card>
-      </section>
-    </div>
+    <Dashboard
+      terms={terms}
+      hoje={hoje}
+      dataDeHoje={dataDeHoje}
+      podeRegistrarVenda={pode('erp.sales.write')}
+      vendas={vendas}
+      dinheiro={dinheiro}
+      funil={funil}
+      agenda={agenda}
+      leadsNoMes={leadsNoMes}
+      estoque={estoque}
+    />
   );
 }

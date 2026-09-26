@@ -18,8 +18,11 @@
 | `crm_activity_types`  | Tipo de atividade — consulta, retorno, visita         |
 | `crm_activities`      | A atividade em si                                     |
 
-Tela pronta: **`/crm/leads`**. As outras rotas existem em `routes.ts` e ainda
-não têm página — a navegação as mostra desabilitadas, de propósito.
+Telas prontas: **`/crm/leads`**, **`/crm/oportunidades`** — o quadro, a página
+de cada oportunidade e o editor de funis — **`/crm/contatos`**, **`/crm/empresas`** e **`/crm/atividades`**. O CRM
+inteiro tem tela. As outras rotas existem em
+`routes.ts` e ainda não têm página — a navegação as mostra desabilitadas, de
+propósito.
 
 ## A decisão estrutural: chave estrangeira composta
 
@@ -219,9 +222,160 @@ Isso apareceu na verificação: a clínica odontológica tinha cinco etapas, tod
 `open`. O funil estava lá, bonito na tela, e nenhum tratamento teria como ser
 dado por concluído.
 
+## O quadro — `/crm/oportunidades`
+
+Desde 25/09/2026 🟡 _testado, não verificado contra o banco real._
+
+As colunas são as etapas do funil, na ordem de `orderStages()`: as em
+andamento pela posição, depois ganho, depois perda. **O tipo vence a
+posição** — um funil semeado com "Perdido" na posição 3 desenharia a perda no
+meio do caminho.
+
+**Duas formas de mover, pela mesma função.** Arrastar é o gesto com mouse, e o
+arrastar do HTML não existe em toque, teclado nem leitor de tela. "Mover
+para…", em cada cartão, é um `<details>` com um botão por etapa: alcançável por
+qualquer um, e anunciado numa região `aria-live`. O cartão muda de coluna na
+hora (`useOptimistic`) e volta sozinho se o servidor recusar.
+
+**A etapa de origem vai no `where`.** Dois cliques rápidos, ou duas pessoas
+arrastando o mesmo cartão, não aplicam o movimento duas vezes.
+
+**As colunas de ganho e perda mostram 30 dias.** Sem corte, a coluna de ganho
+cresceria para sempre e esconderia o funil que está andando. São dias de
+calendário do tenant (`core.timezone`), não 30 × 24 h.
+
+O cartão mostra só fato: previsão (vencida em vermelho, com texto — cor não é a
+única portadora), e **"sem mudança há N dias"** a partir de 7, contado de
+`updated_at` no calendário do tenant. Não é "esfriando" nem "em risco": é a
+medida, e quem lê tira a conclusão.
+
+Os totais — por coluna e no resumo — saem de `stageTotals()` e `boardTotals()`,
+em centavos inteiros, sobre o **mesmo** estado otimista dos cartões. A soma
+anda junto com o cartão arrastado, e o filtro "Sou responsável" filtra os dois.
+
+### O editor de funis — `/crm/oportunidades/funis`
+
+| O que se muda                         | O que protege                                            |
+| ------------------------------------- | -------------------------------------------------------- |
+| Criar funil                           | `crm_create_pipeline()` — nasce com Ganho e Perdido      |
+| Trocar o padrão                       | `crm_set_default_pipeline()` — uma transação, não duas   |
+| Tipo ou funil de etapa com negócio    | gatilho `crm_pipeline_stages_keeps_deals` recusa         |
+| Excluir etapa ou funil com negócio    | `on delete restrict` da chave composta                   |
+| Excluir a última etapa de ganho/perda | a action recusa, pela mesma `missingExits()` do quadro   |
+| Reordenar                             | só entre etapas em andamento; ganho e perda ficam no fim |
+
+**Por que o gatilho de tipo existe.** `closed_at` é carimbado quando a
+oportunidade **muda de etapa**. Se a etapa mudasse de `open` para `won`, as
+oportunidades dela passariam a ganhas sem data de fechamento — o relatório de
+ciclo de venda deixaria de fechar, sem erro. Propagar seria pior: carimbaria
+`now()` em negócios que fecharam em outro dia. Recusar é o certo, e a
+mensagem da recusa **fala o vocabulário do tenant**: o gatilho lê
+`tenants.terms` e diz "ainda tem tratamentos" para a clínica.
+
+Salvar o tipo de etapa é um clique à parte, não a troca do seletor: com
+teclado, cada seta muda o valor, e salvar na troca gravaria um tipo por tecla.
+
+### Conferido numa vitrine, não contra o banco
+
+Sem `.env` na sessão de nuvem, o quadro foi montado com dados de fixture num
+Chromium de verdade (Playwright), a 1440 e 375 px, nos dois temas: arrastar,
+mover pelo teclado, recusa do servidor voltando o cartão, e o filtro levando o
+resumo junto. **Foi a vitrine que achou o defeito mais sério da tela:** o texto
+`sr-only` é `position: absolute`, e escapava do contêiner que rola porque ele
+não era o bloco de contenção — a página inteira ganhava 500 px de rolagem
+horizontal no desktop. Nenhum teste de unidade veria isso.
+
+A vitrine não entrou no repositório: ela carrega número inventado em tela, e o
+`CLAUDE.md` não deixa isso existir nem rotulado.
+
+## Pessoas — `/crm/contatos`
+
+Desde 25/09/2026 🟡 _testado, não verificado contra o banco real._
+
+Lista paginada no banco (50 por página, com o total de verdade por
+`count: 'exact'`), busca, cadastro, página de cada pessoa e edição.
+
+**A busca vai ao banco, não filtra a página.** Com mil pessoas, filtrar as
+cinquenta da tela acharia a Maria só se ela estivesse entre as cinquenta.
+Procura em nome, e-mail, telefone, cargo e documento — este sem pontuação, então
+"529.982" e "529982" acham a mesma pessoa. O termo passa por `ilikeTerm()`, que
+tira a sintaxe do filtro do PostgREST: uma vírgula digitada viraria uma
+condição a mais que ninguém escreveu.
+
+**A página da pessoa diz de onde ela veio.** Quando ela nasceu de uma
+conversão, o lead carimbado aponta para ela, e a página mostra quando chegou e
+por qual origem. É a resposta a "de onde vêm os clientes que fecham" — e só
+existe porque o lead não é apagado ao converter.
+
+### A pessoa ganhou documento, e o CNPJ ganhou letra
+
+`crm.contact_requires_document` sempre esteve no catálogo, e a clínica liga —
+mas `crm_contacts` não tinha onde guardar documento. Era uma configuração sem
+coluna. A migration `20260925040000_documents` cria a coluna, com CPF ou CNPJ
+e unicidade por tenant (o mesmo CPF duas vezes na mesma empresa é a mesma
+pessoa cadastrada duas vezes).
+
+E corrige um defeito maior, que não era do CRM: **o CNPJ é alfanumérico desde
+julho de 2026** (IN RFB nº 2.229/2024), e `tenants.document` e
+`crm_companies.document` aceitavam só dígitos — recusavam toda empresa aberta
+de julho em diante. A regra nova mora em `DOCUMENT_PATTERN`, no Core, e o teste
+de contratos compara a expressão com as três constraints do banco. O cálculo
+do dígito é o da Receita — módulo 11 sobre o código ASCII menos 48 — e o teste
+usa o exemplo da própria RFB, `12.ABC.345/01DE-35`.
+
+As constraints antigas foram trocadas com `not valid`: valem para toda escrita
+nova e não reprovam linha antiga, que a regra anterior aceitava com qualquer
+quantidade de dígitos.
+
+## Contas — `/crm/empresas`
+
+Desde 25/09/2026 🟡 _testado, não verificado contra o banco real._
+
+O mesmo desenho das pessoas — lista paginada, busca no banco, cadastro e
+edição —, mais o que a conta junta: **as pessoas de lá e as oportunidades com
+ela**, com os totais em aberto, ganhos e perdas de todos os funis.
+`totalsByKind()` soma pela situação que vem embutida da etapa: fora do quadro,
+as oportunidades são de funis diferentes, e não há uma lista de etapas para
+`boardTotals()` percorrer.
+
+**O site é guardado com esquema.** `exemplo.com.br` vira
+`https://exemplo.com.br` — sem isso, o link da página da conta seria relativo
+ao próprio Tivexy. E só `http` e `https` entram: `javascript:` num link
+clicável é a porta clássica, e `normalizeWebsite()` tem teste para ela.
+
+O colaborador lê conta e não escreve — o catálogo sempre disse isso. A página
+dele mostra o cadastro sem o formulário.
+
+## A agenda — `/crm/atividades`
+
+Desde 25/09/2026 🟡 _testado, não verificado contra o banco real._
+
+Faixas: com atraso, hoje, amanhã, próximos 7 dias, mais adiante, sem data — e
+o histórico dos últimos 7 dias. Concluir é um clique, que risca na hora e volta
+se o servidor recusar. A mesma agenda aparece, filtrada, nas páginas de pessoa,
+conta e oportunidade, com o formulário já apontando para o registro.
+
+**"Com atraso" é por instante; o resto é por dia do tenant.** A consulta das 9h
+que não foi feita está atrasada às 10h do mesmo dia — dizer "hoje" esconderia
+o atraso até a meia-noite. E "amanhã" é o amanhã de São Paulo, não o de UTC:
+`agendaBucket()` tem teste para as 23h30.
+
+**A hora digitada é a da parede de quem usa.** `instantFromLocal()` converte
+`14:30` pelo fuso do tenant **naquele dia**; gravada como UTC, a consulta das
+14h30 viraria 11h30. O teste inclui um fuso com horário de verão, porque o
+Brasil não tem hoje e pode voltar a ter.
+
+**Dia sem hora vence às 23h59.** `due_at` é um instante; uma tarefa "para
+sexta" gravada às 9h apareceria atrasada desde as 9h de sexta. A tela
+reconhece 23h59 e mostra "o dia todo".
+
+**O alvo chega como `tipo:id` num campo só**, e vira a coluna certa por
+`parseTarget()`. Ela usa `Object.hasOwn`, não `in`: o teste manda
+`__proto__:…`, e `'__proto__' in ALVOS` é verdadeiro — o nome da coluna sai
+dali direto para o `insert`.
+
 ## O que falta
 
-- Telas de contatos, contas, funil e atividades
 - Busca e filtro (hoje a listagem traz as 200 mais recentes)
 - Importação
 - Atendimento e conversas — dependem das credenciais Meta/WhatsApp 🔒

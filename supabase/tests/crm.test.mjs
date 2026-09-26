@@ -154,6 +154,11 @@ describe('isolamento entre tenants', () => {
     // O RLS recusaria de qualquer jeito, porque o `with check` olha o valor
     // novo. Mas depender disso é depender de a política continuar escrita do
     // jeito certo; o privilégio de coluna é a regra direta.
+    //
+    // Até 25/09/2026 este teste aceitava `permission denied` **ou** o erro do
+    // RLS — e passava com o privilégio aberto, porque o RLS recusava. O erro
+    // era do teste: ele não distinguia a regra que dizia cobrar. Agora só o
+    // privilégio satisfaz. Ver 20260925065000_tenant_id_immutable.sql.
     await assert.rejects(
       asUser(db, fx.adminA, () =>
         db.query('update public.crm_leads set tenant_id = $1 where id = $2', [
@@ -161,7 +166,7 @@ describe('isolamento entre tenants', () => {
           fx.leadA,
         ]),
       ),
-      /permission denied|row-level security/i,
+      /permission denied/i,
     );
   });
 });
@@ -172,10 +177,19 @@ describe('permissão, não só pertencimento', () => {
   it('colaborador lê lead e não apaga', async () => {
     // `collaborator` tem leads.read/write e não tem leads.delete — ver a
     // matriz em docs/12-SECURITY/AUTHORIZATION.md, gerada do próprio banco.
+    //
+    // Até 25/09/2026 este teste tinha este nome e só conferia a leitura. A
+    // política de escrita era `for all` com `.write`, e o colaborador
+    // apagava — o título afirmava a garantia que o corpo não testava.
     const leitura = await asUser(db, fx.colabA, () =>
       db.query('select id from public.crm_leads where id = $1', [fx.leadA]),
     );
     assert.equal(leitura.rows.length, 1, 'colaborador precisa enxergar o lead');
+
+    const apagadas = await asUser(db, fx.colabA, () =>
+      db.query('delete from public.crm_leads where id = $1 returning id', [fx.leadA]),
+    );
+    assert.equal(apagadas.rows.length, 0, 'colaborador apagou um lead');
   });
 
   it('quem não é membro não enxerga nada do CRM', async () => {

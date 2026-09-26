@@ -42,7 +42,7 @@ verificação no banco é `public.has_permission(tenant_id, 'crm.leads.write')`.
 > rode o script depois de mudar o catálogo. Matriz de permissões errada na
 > documentação é pior que nenhuma.
 >
-> Totais: `tenant_admin` = 51 · `manager` = 48 · `collaborator` = 21
+> Totais: `tenant_admin` = 52 · `manager` = 49 · `collaborator` = 21
 
 ### Core
 
@@ -90,6 +90,7 @@ verificação no banco é `public.has_permission(tenant_id, 'crm.leads.write')`.
 | `erp.products.write`  | Criar e editar produtos     |  ✅   |   ✅   |      —      |
 | `erp.purchases.read`  | Ver compras                 |  ✅   |   ✅   |      —      |
 | `erp.purchases.write` | Registrar compras           |  ✅   |   ✅   |      —      |
+| `erp.sales.cancel`    | Cancelar vendas             |  ✅   |   ✅   |      —      |
 | `erp.sales.read`      | Ver vendas                  |  ✅   |   ✅   |     ✅      |
 | `erp.sales.write`     | Registrar vendas            |  ✅   |   ✅   |     ✅      |
 | `erp.suppliers.read`  | Ver fornecedores            |  ✅   |   ✅   |      —      |
@@ -126,6 +127,12 @@ verificação no banco é `public.has_permission(tenant_id, 'crm.leads.write')`.
 | ------------------------ | ------------------------- | :---: | :----: | :---------: |
 | `automation.rules.read`  | Ver automações            |  ✅   |   ✅   |      —      |
 | `automation.rules.write` | Criar e editar automações |  ✅   |   ✅   |      —      |
+
+A ação da automação roda como o banco (é gatilho), então a permissão é
+conferida ao **escrever** a regra: regra que cria atividade no CRM pede também
+`crm.activities.write` de quem a cria, edita ou liga — senão
+`automation.rules.write` seria porta lateral para escrever no CRM. Ver
+[[09-AUTOMATIONS/AUTOMATIONS#As três decisões]].
 
 ### IA
 
@@ -173,12 +180,96 @@ privilégio real foi fechada. Ver [[MULTI_TENANCY#O que o RLS **não** cobre]].
 **Promover alguém a Super Admin é operação de backend**, com `service_role` e
 auditoria. É a ação mais privilegiada da plataforma: não passa pelo cliente.
 
+## `for all` inclui `delete`
+
+Corrigido em 25/09/2026 — 🟡 testado, não verificado contra o banco real.
+
+O catálogo tem `crm.leads.delete`, `crm.contacts.delete`,
+`crm.companies.delete` e `crm.deals.delete`, e o Colaborador foi desenhado sem
+elas. As políticas de escrita dessas quatro tabelas eram `for all` com a
+permissão `.write` — e `for all` cobre `insert`, `update` **e `delete`**. O
+colaborador apagava pela API com a permissão de editar.
+
+Um teste tinha o nome "colaborador lê lead e não apaga" e só conferia a
+leitura. O título afirmava a garantia; o corpo não a testava.
+
+A migration `20260925020000_crm_delete_permission` separa cada política em
+três — `insert` e `update` com `.write`, `delete` com `.delete`.
+`crm-delete.test.mjs` cobra as quatro tabelas nos dois sentidos, e foi
+conferido sem a migration: cinco testes falham, inclusive o antigo, agora
+honesto.
+
+**Regra:** tabela com permissão de exclusão própria no catálogo **não** usa
+`for all`. Tabela sem ela — funil, etapa, tipo de atividade, atividade — pode
+usar, porque ali excluir é parte de escrever.
+
+## A permissão de configurações não era a que valia
+
+Corrigido em 25/09/2026 — 🟡 testado, não verificado contra o banco real.
+`tenants.settings` era escrita pela política de `tenants`, que confere
+`core.tenant.write`. Agora a coluna está fora do `GRANT UPDATE` e a escrita
+passa por `update_tenant_settings()`, que confere `core.settings.write`. Ver
+[[../03-CORE/SETTINGS|SETTINGS]].
+
+## O gestor se promovia a administrador
+
+Corrigido em 25/09/2026 — 🟡 testado, não verificado contra o banco real. O
+Gestor não tem `core.roles.write`, mas tinha `core.users.write`, que bastava
+para escrever `role_id = tenant_admin` no próprio vínculo. Agora quem atribui
+um papel precisa ter cada permissão dele. E a última pessoa administradora não
+sai, não é rebaixada nem suspensa. Ver [[../03-CORE/TEAM|TEAM]].
+
+## Cancelar venda é permissão própria
+
+Desde 25/09/2026 — 🟡 testado, não verificado contra o banco real.
+
+`erp.sales.cancel` entrou no catálogo junto com as tabelas de venda.
+Administrador e Gestor têm; Colaborador não. Registrar e cancelar são riscos
+diferentes: o golpe clássico de caixa é registrar a venda, receber, cancelar e
+ficar com o dinheiro — por isso todo PDV separa as duas coisas.
+
+A garantia é a política de `update` de `erp_sales`, e não a mensagem da
+função `erp_cancel_sale()`. Um teste cancela direto na tabela, como faria quem
+chamasse o PostgREST, e confere que nada muda.
+
+## `tenant_id` era editável — a revogação por coluna não fazia nada
+
+Corrigido em 25/09/2026 — 🟡 testado, não verificado contra o banco real.
+
+A migration do CRM terminava com `revoke update (tenant_id) on ... from
+authenticated`, e isso não revogava nada: o Supabase concede `update` na
+tabela, e privilégio de tabela cobre todas as colunas — revogar uma coluna não
+subtrai dele. `has_column_privilege(..., 'tenant_id', 'UPDATE')` respondia
+`true` em todas as tabelas de tenant, do CRM e do Core.
+
+O teste que dizia cobrar aceitava `permission denied` **ou** o erro do RLS, e o
+RLS recusava pelo `with check`. Passava com o privilégio aberto.
+
+`20260925065000_tenant_id_immutable` cria `lock_tenant_id(tabela)`: revoga o
+`update` da tabela e concede coluna por coluna, menos `id` e `tenant_id`. Um
+teste de integridade varre **toda** tabela de `public` com `tenant_id` — tabela
+nova que esqueça a função falha no dia em que nasce.
+
+> Depois disto, coluna nova numa tabela travada nasce **sem** `update` para
+> `authenticated`. Chame `lock_tenant_id()` de novo depois do `add column`.
+
 ## Regras para código novo
 
 - Toda rota protegida verifica permissão **no servidor**
 - Toda tabela de negócio ganha política de escrita com `has_permission(...)`
+- Tabela com permissão `.delete` no catálogo tem política de `delete` própria —
+  `for all` com `.write` deixa quem edita apagar
+- Coluna cuja escrita tem permissão própria no catálogo não fica sob a política
+  da tabela: sai do `GRANT UPDATE` e ganha função que confere a permissão dela
+- Permissão de escrever uma referência a papel é permissão de dar poder: confira
+  que quem escreve já tem o poder que está dando
 - Permissão nova entra no catálogo em migration, com os vínculos de papel
 - Depois de mudar o catálogo, rode `npm run docs:matrix` e atualize este documento
 - Teste de autorização chama a API direto, sem passar pela interface
 - Coluna que concede privilégio, muda cobrança ou define identidade sai do
   `GRANT UPDATE` do papel `authenticated`
+- `revoke update (coluna)` **não** funciona sobre um `grant` de tabela. Tabela
+  de tenant chama `lock_tenant_id()`; teste de privilégio espera
+  `permission denied`, nunca "`permission denied` ou RLS"
+- Tabela com RLS e sem política é interna: declare em `INTERNAS`, em
+  `supabase/tests/core.test.mjs`, e revogue todo privilégio
