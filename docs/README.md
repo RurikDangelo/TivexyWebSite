@@ -14,6 +14,7 @@ pasta (`docs/`). É versionada em git: documentação e código andam no mesmo c
 | [[03-CORE/AUTHENTICATION\|AUTHENTICATION]] | Como uma requisição vira um `Viewer`                       |
 | [[04-CRM/CRM\|CRM]]                        | O primeiro módulo de negócio                               |
 | [[15-OPERATIONS/RODAR-LOCAL\|RODAR-LOCAL]] | Como subir o sistema aqui e ter o que olhar                |
+| [[15-OPERATIONS/DEPLOY\|DEPLOY]]           | Como publicar o SaaS na Vercel, passo a passo              |
 
 ## As quatro fontes de verdade
 
@@ -77,7 +78,7 @@ sem implementação atrás vira ficção.
 | `API.md`                               | `02-ARCHITECTURE/` | ⬜ com as primeiras rotas        |
 | `SECURITY.md`                          | `12-SECURITY/`     | ⬜ com o Core                    |
 | `TESTING.md`                           | `00-SYSTEM/`       | ✅ escrito                       |
-| `DEPLOYMENT.md`                        | `15-OPERATIONS/`   | ⬜ com o primeiro deploy do SaaS |
+| `DEPLOY.md`                            | `15-OPERATIONS/`   | ✅ escrito                       |
 | `TROUBLESHOOTING.md`                   | `15-OPERATIONS/`   | ⬜ com a operação                |
 | `CHANGELOG.md`                         | `18-RELEASES/`     | ⬜ com a primeira release        |
 | `FINAL_AUDIT.md`                       | raiz de `docs/`    | ⬜ na auditoria final            |

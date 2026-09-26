@@ -505,7 +505,7 @@ Ordenadas por urgência:
 | 2   | **SMTP próprio no Supabase**                    | Convite e recuperação    | 🔴 Imediata |
 | 3   | Conferir o destino do formulário de contato     | Leads da landing         | 🟠 Alta     |
 | 4   | **Trocar a conta do conector Vercel**           | Qualquer coisa na Vercel | 🟠 Alta     |
-| 5   | Projeto Vercel do `apps/web` + variáveis        | Deploy do SaaS           | 🟡 Depois   |
+| 5   | Projeto Vercel do `apps/web` + variáveis        | Deploy do SaaS           | 🔴 Agora    |
 | 6   | Domínio `tivexy.com.br` + DNS                   | SEO, e-mail              | 🟠 Média    |
 | 7   | E-mail corporativo + SPF/DKIM/DMARC             | Convites do SaaS         | 🟠 Média    |
 | 8   | Credenciais OpenAI                              | AI Engine                | 🟡 Depois   |
@@ -527,6 +527,11 @@ link de acesso para o Super Admin repassar pelo canal que já usa com o cliente.
 Resolver é cadastrar um provedor em Project Settings → Authentication → SMTP.
 Depende do domínio `tivexy.com.br` e do e-mail corporativo, ambos nesta mesma
 tabela.
+
+O passo a passo do deploy está em [[15-OPERATIONS/DEPLOY]] — inclui as quatro
+variáveis que o `apps/web` lê, a opção de monorepo que o build exige, e o
+passo que todo mundo esquece: ensinar o Supabase sobre o endereço novo, sem
+o que o login quebra em produção.
 
 A ordem importa: o Supabase é o que **produz as chaves** que a variável de
 ambiente da Vercel vai precisar. Cadastrar env antes é preencher campo com valor
