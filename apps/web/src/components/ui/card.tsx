@@ -60,8 +60,17 @@ export function CardHeader({ className, ...props }: ComponentProps<'div'>) {
          * flex remontado a cada uso: título e descrição empilham na coluna 1 e a
          * ação ocupa a coluna 2 inteira. Sem ação, a segunda coluna tem largura
          * zero e o cabeçalho se comporta como a pilha de antes.
+         *
+         * `[&>*]:col-start-1` prende TODO filho à primeira coluna, e só a
+         * `CardAction` escapa declarando `col-start-2`. Sem isso o segundo filho
+         * era colocado automaticamente na coluna da ação: num cabeçalho com
+         * título e descrição — o caso mais comum — a descrição roubava a coluna
+         * `auto`, o título ficava com largura zero e os dois textos se
+         * sobrepunham. Aconteceu de verdade na tela de login, e valia para
+         * qualquer cartão sem ação.
          */
         'grid auto-rows-min grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1',
+        '[&>*]:col-start-1',
         'p-[var(--card-pad,1rem)] pb-[var(--card-pad-tight,0.75rem)]',
         className,
       )}
