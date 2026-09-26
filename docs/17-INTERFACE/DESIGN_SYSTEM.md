@@ -206,8 +206,15 @@ O azul da marca **não muda**: `--tvx-blue-600: #1648a6` continua sendo `--surfa
 
 | Token | Claro | Escuro | Motivo |
 |---|---|---|---|
-| `--surface-brand-hover` | blue-700 `#103b8a` | blue-300 `#8eb0ec` | hoje o botão primário **escurece** no tema escuro (`button.tsx:10` fixa blue-700) |
-| `--surface-brand-active` | blue-800 `#0c2e6e` | blue-200 `#bdd0f2` | não existe estado `active:` no sistema |
+| `--surface-brand-hover` | blue-700 `#103b8a` | `#3670dc` | hoje o botão primário **escurece** no tema escuro (`button.tsx:10` fixa blue-700) |
+| `--surface-brand-active` | blue-800 `#0c2e6e` | `#1d55bd` | não existe estado `active:` no sistema |
+
+> **Correção de 26/09/2026, medida e não estimada.** Esta tabela trazia blue-300 e
+> blue-200 para o escuro. Com `--content-on-brand` branco por cima, isso dá
+> **2,19:1** e **1,56:1** — pior que o defeito que a linha diz corrigir. Os valores
+> acima dão 4,66:1 e 6,80:1. No escuro o hover clareia e o pressionado escurece:
+> continuar clareando destruiria o contraste, e afundar é o gesto que a mão espera
+> de um botão apertado.
 | `--content-on-danger` | `#ffffff` | ink-900 `#0b1424` | `bg-danger text-white` no escuro dá 2,2:1 (`button.tsx:14`, `notification-bell.tsx:31`) |
 | `--content-on-success` / `--content-on-warning` | `#ffffff` | ink-900 | mesma classe de defeito |
 | `--content-subtle` | **`#67748c`** (≈4,6:1 sobre branco) | `#7c8cad` (já passa) | hoje `#8e9bb0` = 2,81:1, reprova AA e carrega nota de KPI, placeholder e eixo de gráfico |

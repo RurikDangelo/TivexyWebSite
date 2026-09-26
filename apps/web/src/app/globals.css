@@ -38,6 +38,15 @@
   --tvx-blue-700: #103b8a;
   --tvx-blue-800: #0c2e6e;
 
+  /*
+   * Dois azuis que existem só para o botão primário no tema escuro. Clarear o
+   * blue-500 é o que dá sensação de hover num fundo escuro, mas clarear demais
+   * apaga o texto branco por cima: blue-300 dá 2,19:1 e blue-200 dá 1,56:1.
+   * Estes dois foram escolhidos medindo — 4,66:1 e 6,80:1 com branco.
+   */
+  --tvx-blue-550: #3670dc;
+  --tvx-blue-580: #1d55bd;
+
   --tvx-navy-800: #12224a;
   --tvx-navy-900: #0a1633;
   --tvx-navy-950: #060e24;
@@ -186,8 +195,13 @@
    * No escuro o primário CLAREIA ao passar o mouse. Escurecer (o que o
    * `button.tsx` fazia fixando blue-700) faz o botão sumir no fundo.
    */
-  --surface-brand-hover: var(--tvx-blue-300);
-  --surface-brand-active: var(--tvx-blue-200);
+  --surface-brand-hover: var(--tvx-blue-550);
+  /*
+   * O pressionado ESCURECE, ao contrário do hover. Continuar clareando levaria
+   * o contraste a 1,56:1, e afundar é o gesto que a mão espera de um botão
+   * apertado — aqui as duas coisas apontam para o mesmo lado.
+   */
+  --surface-brand-active: var(--tvx-blue-580);
   --surface-accent-strong: rgb(35 96 212 / 0.28);
 
   --content: var(--tvx-white);

@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
  * `hover:bg-[var(--tvx-blue-700)]` era o defeito mais visível do primário: no
  * tema escuro ele ESCURECIA um botão que já está sobre fundo escuro, e a ação
  * principal sumia justamente quando o ponteiro chegava nela.
- * `--surface-brand-hover` é blue-700 no claro e blue-300 no escuro — a mesma
+ * `--surface-brand-hover` é blue-700 no claro e #3670dc no escuro — a mesma
  * classe anda para o lado certo nos dois temas.
  *
  * `not-disabled:` em todo estado interativo é consequência direta de trocar
