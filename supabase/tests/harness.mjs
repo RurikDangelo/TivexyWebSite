@@ -10,6 +10,8 @@
  *   auth.uid()        id do usuário da requisição
  *   authenticated     papel que as políticas usam em `to authenticated`
  *   anon              visitante não autenticado
+ *   storage.buckets   catálogo de baldes de arquivo
+ *   storage.objects   os arquivos, com RLS própria — é onde o logo do cliente mora
  *
  * Tudo o mais é Postgres puro e se comporta igual em produção.
  */
@@ -61,6 +63,44 @@ const SUPABASE_STUB = `
     grant execute on functions to anon, authenticated, service_role;
 
   grant execute on all functions in schema auth to anon, authenticated, service_role;
+
+  -- ── storage ──────────────────────────────────────────────────────────
+  --
+  -- Só o que as migrations tocam. Não é o esquema completo do Supabase
+  -- Storage: é a superfície que uma migration pode legitimamente usar —
+  -- declarar um balde e escrever política sobre os objetos dele. Se uma
+  -- migration futura precisar de mais coluna, ela aparece aqui como erro de
+  -- coluna inexistente, que é o aviso certo na hora certa.
+  create schema if not exists storage;
+
+  create table storage.buckets (
+    id                 text primary key,
+    name               text not null unique,
+    public             boolean not null default false,
+    file_size_limit    bigint,
+    allowed_mime_types text[],
+    created_at         timestamptz not null default now()
+  );
+
+  create table storage.objects (
+    id         uuid primary key default gen_random_uuid(),
+    bucket_id  text not null references storage.buckets (id),
+    name       text not null,
+    owner      uuid,
+    metadata   jsonb not null default '{}'::jsonb,
+    created_at timestamptz not null default now(),
+    unique (bucket_id, name)
+  );
+
+  -- No Supabase a RLS de storage.objects já vem ligada. Sem isto, uma política
+  -- escrita pela migration existiria sem efeito nenhum, e o teste que afirma
+  -- que só o Super Admin escreve passaria sem provar nada.
+  alter table storage.objects enable row level security;
+
+  grant usage on schema storage to anon, authenticated, service_role;
+  grant select on storage.buckets to anon, authenticated, service_role;
+  grant select, insert, update, delete on storage.objects to authenticated, service_role;
+  grant select on storage.objects to anon;
 `;
 
 export async function migrationFiles() {
