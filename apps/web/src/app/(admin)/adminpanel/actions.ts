@@ -10,7 +10,7 @@
  *
  * ## A conferência que não pode faltar
  *
- * `requireAccess('/admin')` de novo, dentro da ação. O layout já guardou a
+ * `requireAccess('/adminpanel')` de novo, dentro da ação. O layout já guardou a
  * página, e isso não basta: **Server Action é um endpoint**. Quem descobrir o
  * identificador dela pode chamá-la sem nunca abrir a página — e a guarda do
  * layout não roda em chamada de ação. Autorizar na tela e não na ação é o
@@ -65,7 +65,7 @@ export async function criarCliente(
   _anterior: CriarClienteState,
   form: FormData,
 ): Promise<CriarClienteState> {
-  const { viewer } = await requireAccess('/admin');
+  const { viewer } = await requireAccess('/adminpanel');
 
   const blueprint = blueprintByCode(texto(form, 'blueprint'));
   if (blueprint === null) {
@@ -138,7 +138,7 @@ export async function criarCliente(
     };
   }
 
-  revalidatePath('/admin');
+  revalidatePath('/adminpanel');
 
   return {
     erro: null,

@@ -46,7 +46,7 @@ const LIMITE_DE_REGISTROS = 50;
  */
 export async function generateMetadata({
   params,
-}: PageProps<'/admin/clientes/[id]'>): Promise<Metadata> {
+}: PageProps<'/adminpanel/clientes/[id]'>): Promise<Metadata> {
   const { id } = await params;
   if (!isUuid(id)) return { title: 'Cliente' };
 
@@ -78,7 +78,7 @@ function texto(valor: unknown): string | null {
  * `is_super_admin()`. As escritas são funções do banco que conferem o Super
  * Admin por conta própria e gravam a auditoria na mesma transação.
  */
-export default async function ClientePage({ params }: PageProps<'/admin/clientes/[id]'>) {
+export default async function ClientePage({ params }: PageProps<'/adminpanel/clientes/[id]'>) {
   const { id } = await params;
   if (!isUuid(id)) notFound();
 
@@ -218,7 +218,7 @@ export default async function ClientePage({ params }: PageProps<'/admin/clientes
     <Page variant="ajuste">
       <PageHeader
         titulo={String(t.name)}
-        trilha={[{ rotulo: 'Clientes', href: '/admin' }]}
+        trilha={[{ rotulo: 'Clientes', href: '/adminpanel' }]}
         className="mb-3"
       />
 

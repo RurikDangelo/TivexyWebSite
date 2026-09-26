@@ -59,7 +59,7 @@ export default async function NovoClientePage() {
     <Page variant="ajuste">
       <PageHeader
         titulo="Novo cliente"
-        trilha={[{ rotulo: 'Clientes', href: '/admin' }]}
+        trilha={[{ rotulo: 'Clientes', href: '/adminpanel' }]}
         descricao="O nicho escolhido decide módulos, papéis e vocabulário. Tudo que aparece na prévia é o plano que será executado — não um resumo dele."
       />
 

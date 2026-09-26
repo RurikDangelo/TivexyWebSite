@@ -29,7 +29,7 @@
  *
  * ## Por que a maquinaria de `status` fica
  *
- * Ela estava construída e desligada: os 16 itens eram `ready`, então o ramo de
+ * Ela estava construída e desligada: todos os itens eram `ready`, então o ramo de
  * item não-pronto de `sidebar-nav` nunca renderizava. A saída não é apagá-la —
  * é usá-la. É o mecanismo que a regra inegociável do CLAUDE.md pede: uma
  * capacidade que existe no banco e ainda não tem tela aparece como não
@@ -50,9 +50,9 @@ import {
   CreditCard,
   GraduationCap,
   LayoutDashboard,
+  MessagesSquare,
   Package,
   Settings,
-  ShieldCheck,
   ShoppingCart,
   Target,
   UserRound,
@@ -136,6 +136,13 @@ export const navigation = [
         descricao: 'Os números do período e o que precisa de atenção',
         href: '/painel',
         icon: LayoutDashboard,
+        status: 'ready',
+      },
+      {
+        label: 'Chat da equipe',
+        descricao: 'Conversa interna por canal — não é WhatsApp de cliente',
+        href: '/chat',
+        icon: MessagesSquare,
         status: 'ready',
       },
       {
@@ -298,19 +305,19 @@ export const navigation = [
       },
     ],
   },
-  {
-    label: 'Administração',
-    module: 'core',
-    items: [
-      {
-        label: 'Super Admin',
-        descricao: 'As empresas clientes e as automações que falharam',
-        href: '/admin',
-        icon: ShieldCheck,
-        status: 'ready',
-      },
-    ],
-  },
+  /*
+   * O grupo "Administração" saiu daqui — ADR-005.
+   *
+   * Ele era o 16º item desta mesma coluna, e o dono contestou exatamente isso:
+   * o admin não é um módulo do tenant, é o plano de controle de todos os
+   * tenants. Agora mora em `/adminpanel`, em route group próprio, com casca
+   * própria e sem sidebar de cliente — ver `components/admin/`.
+   *
+   * Não foi substituído por um atalho: quem é Super Admin entra pela porta,
+   * não por um item no menu da empresa que ele por acaso está operando. Um
+   * clique errado entre "Configurações" e "Administração" era a diferença
+   * entre mudar uma preferência e mudar a plataforma.
+   */
 ] as const satisfies readonly NavGroup[];
 
 /**
@@ -432,9 +439,12 @@ function alcanca(item: NavItem, viewer: Viewer): boolean {
  *   menu dela seria uma porta para "módulo não contratado".
  * - **Sem permissão** some. O barista não precisa de um "Financeiro" que o
  *   manda para a página de acesso negado.
- * - **O grupo de administração não existe para quem não é Super Admin.** Não
- *   desabilitado, não com cadeado — ausente. Um item "Super Admin" acinzentado
- *   no menu de um cliente conta a ele que existe um painel acima do dele.
+ * - **A administração da plataforma não está neste catálogo, para ninguém.**
+ *   Nem para o Super Admin: desde a ADR-005 ela é outra superfície
+ *   (`/adminpanel`), com casca própria. Antes havia aqui um grupo que só ele
+ *   via; agora não há grupo nenhum — o que também resolve o que o esconder já
+ *   resolvia, que é um cliente descobrir pelo menu que existe um painel acima
+ *   do dele.
  *
  * Esconder não é a proteção. A página nega, e o RLS nega abaixo dela; o menu
  * só não oferece o que vai ser negado.

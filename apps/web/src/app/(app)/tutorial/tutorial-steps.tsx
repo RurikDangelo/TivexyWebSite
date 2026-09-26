@@ -214,7 +214,7 @@ export function TutorialSteps({
                 acao={
                   superAdmin ? (
                     <Link
-                      href="/admin/clientes/novo"
+                      href="/adminpanel/clientes/novo"
                       className={buttonVariants({ variant: 'outline', size: 'sm' })}
                     >
                       Criar empresa no Admin

@@ -51,8 +51,16 @@ export const routeRules: readonly RouteMatcher[] = [
    */
   { prefix: '/acesso-negado', rule: { kind: 'authenticated' } },
 
-  /* Plataforma. Nenhum papel de tenant alcança. */
-  { prefix: '/admin', rule: { kind: 'superAdmin' } },
+  /*
+   * Plataforma. Nenhum papel de tenant alcança.
+   *
+   * O caminho mudou de `/admin` para `/adminpanel` na ADR-005: o painel deixou
+   * de ser o 16º item da sidebar do cliente e virou acesso separado, com casca
+   * própria. `matchRule` casa por segmento (`===` ou `prefixo + '/'`), então o
+   * prefixo antigo **não** cobriria o novo — é por isso que a string aqui tinha
+   * de mudar junto com o diretório, e não só o diretório.
+   */
+  { prefix: '/adminpanel', rule: { kind: 'superAdmin' } },
 
   /* Operação do tenant. */
   { prefix: '/painel', rule: { kind: 'member' } },
@@ -60,6 +68,13 @@ export const routeRules: readonly RouteMatcher[] = [
   { prefix: '/avisos', rule: { kind: 'member' } },
   /* O guia conta o progresso da empresa: precisa de uma. */
   { prefix: '/tutorial', rule: { kind: 'member' } },
+  /*
+   * O chat da equipe é `member`, não `permission`: a migração 20260926020000 não
+   * criou permissão nem módulo para ele, e de propósito — quem trabalha na
+   * empresa fala com a equipe. Quem pode ver qual canal é decisão do RLS de
+   * `chat_channels`, que é onde ela pertence; a rota só exige vínculo ativo.
+   */
+  { prefix: '/chat', rule: { kind: 'member' } },
 
   { prefix: '/crm/leads', rule: { kind: 'permission', permission: 'crm.leads.read' } },
   { prefix: '/crm/contatos', rule: { kind: 'permission', permission: 'crm.contacts.read' } },

@@ -21,12 +21,7 @@ import { ProductSearch, focarBusca } from './product-search';
 import { QuickCustomer } from './quick-customer';
 import { SaleLineItem } from './sale-line-item';
 import { SaleTotals } from './sale-totals';
-import {
-  type FormaNaVenda,
-  type Opcao,
-  type ProdutoNaVenda,
-  VENDA_INICIAL,
-} from './state';
+import { type FormaNaVenda, type Opcao, type ProdutoNaVenda, VENDA_INICIAL } from './state';
 
 export interface SaleFormProps {
   produtos: readonly ProdutoNaVenda[];
@@ -172,7 +167,11 @@ export function SaleForm({
          * de que o bipe entrou. `min-h-5` reserva a linha para o aviso não
          * empurrar a tabela ao aparecer.
          */}
-        <p role="status" aria-live="polite" className="-mt-2 min-h-5 text-caption text-content-muted">
+        <p
+          role="status"
+          aria-live="polite"
+          className="-mt-2 min-h-5 text-caption text-content-muted"
+        >
           {aviso}
         </p>
 

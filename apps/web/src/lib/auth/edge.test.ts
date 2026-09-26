@@ -35,7 +35,7 @@ describe('sem sessão', () => {
   });
 
   it('a área da plataforma também exige sessão', () => {
-    assert.equal(semSessao('/admin/clientes').kind, 'redirect');
+    assert.equal(semSessao('/adminpanel/clientes').kind, 'redirect');
   });
 
   it('rota não declarada é protegida — fechada por padrão', () => {
@@ -46,7 +46,7 @@ describe('sem sessão', () => {
 describe('com sessão', () => {
   it('passa tudo adiante, inclusive o que será negado depois', () => {
     // Nenhuma destas é liberação: `requireAccess()` decide com o Viewer real.
-    for (const caminho of ['/painel', '/admin', '/crm/leads', '/configuracoes']) {
+    for (const caminho of ['/painel', '/adminpanel', '/crm/leads', '/configuracoes']) {
       assert.equal(comSessao(caminho).kind, 'allow', caminho);
     }
   });
@@ -68,7 +68,7 @@ describe('com sessão', () => {
 
 describe('invariante', () => {
   it('só redireciona para /entrar, e só por falta de sessão', () => {
-    const caminhos = routeRules.map((r) => r.prefix).concat(['/', '/nova', '/admin/x']);
+    const caminhos = routeRules.map((r) => r.prefix).concat(['/', '/nova', '/adminpanel/x']);
     for (const caminho of caminhos) {
       for (const sessao of [true, false]) {
         const r = edgeOutcome(caminho, sessao, routeRules);

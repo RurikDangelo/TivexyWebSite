@@ -63,8 +63,19 @@ describe('navegação × rotas', () => {
     assert.deepEqual(publicos, []);
   });
 
-  it('o item de Super Admin exige escopo de plataforma', () => {
-    assert.equal(matchRule(routeRules, '/admin').kind, 'superAdmin');
+  it('o painel da plataforma exige escopo de plataforma, e não está no menu', () => {
+    /*
+     * ADR-005: o admin deixou de ser item da sidebar do cliente e virou acesso
+     * separado em `/adminpanel`. As duas metades importam — a regra continua
+     * `superAdmin`, e o caminho NÃO pode reaparecer no catálogo do cliente.
+     *
+     * `matchRule` casa por segmento, então o prefixo antigo `/admin` não
+     * cobriria `/adminpanel`: se alguém reverter o prefixo e esquecer o
+     * diretório, este teste é o que pega.
+     */
+    assert.equal(matchRule(routeRules, '/adminpanel').kind, 'superAdmin');
+    assert.equal(matchRule(routeRules, '/adminpanel/usuarios').kind, 'superAdmin');
+    assert.ok(!hrefs.some((href) => href.startsWith('/adminpanel')));
   });
 
   it('as rotas de saída do limbo não estão no menu', () => {

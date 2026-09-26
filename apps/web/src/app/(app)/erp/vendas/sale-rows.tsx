@@ -222,12 +222,7 @@ export function SaleRows({
       </THead>
       <TBody>
         {vendas.length === 0 ? (
-          <TableEmpty
-            colunas={COLUNAS}
-            icone={vazio.icone}
-            titulo={vazio.titulo}
-            acao={vazio.acao}
-          >
+          <TableEmpty colunas={COLUNAS} icone={vazio.icone} titulo={vazio.titulo} acao={vazio.acao}>
             {vazio.frase}
           </TableEmpty>
         ) : (

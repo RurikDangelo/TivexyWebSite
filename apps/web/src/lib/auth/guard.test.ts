@@ -156,7 +156,7 @@ describe('permissão', () => {
 
 describe('área da plataforma', () => {
   it('super admin entra', () => {
-    assert.deepEqual(decidir('/admin', superAdmin), { kind: 'allow' });
+    assert.deepEqual(decidir('/adminpanel', superAdmin), { kind: 'allow' });
   });
 
   it('administrador de tenant não entra, por mais permissões que tenha', () => {
@@ -164,15 +164,18 @@ describe('área da plataforma', () => {
       permissions: new Set<PermissionCode>(['core.tenant.write', 'core.users.read']),
       enabledModules: new Set<ModuleCode>(['core']),
     });
-    assert.deepEqual(decidir('/admin', donoDoTenant), {
+    assert.deepEqual(decidir('/adminpanel', donoDoTenant), {
       kind: 'deny',
       reason: 'missing-permission',
     });
   });
 
   it('caixa diferente não rebaixa a regra', () => {
-    // `/ADMIN` não pode cair no padrão `member`, que é mais fraco.
-    assert.deepEqual(decidir('/ADMIN', viewer()), { kind: 'deny', reason: 'missing-permission' });
+    // `/ADMINPANEL` não pode cair no padrão `member`, que é mais fraco.
+    assert.deepEqual(decidir('/ADMINPANEL', viewer()), {
+      kind: 'deny',
+      reason: 'missing-permission',
+    });
   });
 });
 

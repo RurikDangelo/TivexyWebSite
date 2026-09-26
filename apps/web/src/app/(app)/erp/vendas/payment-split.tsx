@@ -144,7 +144,13 @@ export function PaymentSplit({ formas, caixa, semItens, erro }: PaymentSplitProp
       })}
 
       {formas.length > 1 && (
-        <Button type="button" variant="ghost" size="sm" onClick={caixa.dividir} className="self-start">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={caixa.dividir}
+          className="self-start"
+        >
           <Plus aria-hidden />
           Dividir em outra forma
         </Button>

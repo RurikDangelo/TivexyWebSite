@@ -23,7 +23,7 @@ export function NoTenant() {
         icone={Building2}
         titulo="Nenhuma empresa escolhida"
         acao={
-          <Link href="/admin" className={buttonVariants({ variant: 'outline' })}>
+          <Link href="/adminpanel" className={buttonVariants({ variant: 'outline' })}>
             Ir para o Super Admin
           </Link>
         }

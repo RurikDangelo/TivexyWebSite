@@ -160,12 +160,11 @@ export function useSaleLines(produtos: readonly ProdutoNaVenda[]): Carrinho {
   return {
     itens,
     vazio: linhas.length === 0,
-    completo: itens.length > 0 && itens.every((i) => i.problema === null && i.produto !== undefined),
+    completo:
+      itens.length > 0 && itens.every((i) => i.problema === null && i.produto !== undefined),
     subtotalCentavos: subtotal,
     totalComDesconto: (descontoCentavos) => saleTotals(paraSomar, descontoCentavos).total,
-    json: JSON.stringify(
-      linhas.map((l) => ({ produto: l.produtoId, quantidade: l.quantidade })),
-    ),
+    json: JSON.stringify(linhas.map((l) => ({ produto: l.produtoId, quantidade: l.quantidade }))),
     adicionar,
     mudarQuantidade,
     passo,
@@ -245,7 +244,8 @@ export function usePayments(formas: readonly FormaNaVenda[], totalCentavos: numb
     pagoCentavos: pago,
     diferencaCentavos: totalCentavos - pago,
     fechado:
-      totalCentavos - pago === 0 && pagamentos.every((p, i) => valorDe(i) === '' || p.formaId !== ''),
+      totalCentavos - pago === 0 &&
+      pagamentos.every((p, i) => valorDe(i) === '' || p.formaId !== ''),
     dividido: pagamentos.length > 1,
     json: JSON.stringify(
       pagamentos

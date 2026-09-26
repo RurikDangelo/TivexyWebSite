@@ -153,8 +153,8 @@ export function PaymentMethods({
     if (formas.length === 0) {
       return (
         <EmptyState icone={CreditCard} titulo="Nenhuma forma cadastrada">
-          Sem forma de pagamento o balcão só registra venda de valor zero. Quem administra a
-          empresa cadastra nesta tela.
+          Sem forma de pagamento o balcão só registra venda de valor zero. Quem administra a empresa
+          cadastra nesta tela.
         </EmptyState>
       );
     }

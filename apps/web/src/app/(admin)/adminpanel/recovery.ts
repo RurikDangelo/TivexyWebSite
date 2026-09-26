@@ -83,7 +83,7 @@ async function modulosDoPlano(plan: string): Promise<ModuleCode[]> {
 }
 
 export async function retomarProvisionamento(form: FormData): Promise<RecoveryState> {
-  const { viewer } = await requireAccess('/admin');
+  const { viewer } = await requireAccess('/adminpanel');
   const runId = String(form.get('runId') ?? '');
 
   const registro = await lerRegistro(runId);
@@ -125,7 +125,7 @@ export async function retomarProvisionamento(form: FormData): Promise<RecoverySt
     request: { slug: registro.slug, name: registro.name, admin: registro.admin },
   });
 
-  revalidatePath('/admin');
+  revalidatePath('/adminpanel');
 
   return resultado.ok
     ? { erro: null, aviso: `${registro.name} foi provisionado.` }
@@ -133,7 +133,7 @@ export async function retomarProvisionamento(form: FormData): Promise<RecoverySt
 }
 
 export async function desfazerProvisionamento(form: FormData): Promise<RecoveryState> {
-  await requireAccess('/admin');
+  await requireAccess('/adminpanel');
   const runId = String(form.get('runId') ?? '');
 
   const db = sqlClient();
@@ -146,7 +146,7 @@ export async function desfazerProvisionamento(form: FormData): Promise<RecoveryS
 
   const resultado = await compensateProvisioning(db, identityPort(db), { idempotencyKey: chave });
 
-  revalidatePath('/admin');
+  revalidatePath('/adminpanel');
 
   return resultado.ok
     ? {

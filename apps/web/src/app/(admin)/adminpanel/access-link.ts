@@ -28,7 +28,7 @@ import { magicLinkFor } from '@/server/auth-links';
 import type { AccessLinkState } from './state.ts';
 
 export async function gerarLinkDeAcesso(form: FormData): Promise<AccessLinkState> {
-  await requireAccess('/admin');
+  await requireAccess('/adminpanel');
 
   const email = String(form.get('email') ?? '')
     .trim()

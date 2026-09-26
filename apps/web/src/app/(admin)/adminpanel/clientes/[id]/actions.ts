@@ -4,7 +4,7 @@
  * As decisões de plataforma sobre uma empresa: editar, suspender, reativar,
  * trocar o plano.
  *
- * `requireAccess('/admin')` de novo em cada ação — Server Action é endpoint,
+ * `requireAccess('/adminpanel')` de novo em cada ação — Server Action é endpoint,
  * e o layout não roda em chamada de ação. E, abaixo dela, cada função do
  * banco confere `is_super_admin()` por conta própria: a função é a porta, e
  * a conferência é a fechadura (20260925140000). Cada uma grava a auditoria na
@@ -29,15 +29,15 @@ function nomes(lista: unknown, mapa: Readonly<Record<string, string>>): string {
 }
 
 async function inicio(anterior: ClienteState, form: FormData) {
-  await requireAccess('/admin');
+  await requireAccess('/adminpanel');
   const falha = { ...CLIENTE_INICIAL, rodada: anterior.rodada };
   const id = campo(form, 'id');
   return { falha, id: isUuid(id) ? id : null };
 }
 
 function pronto(anterior: ClienteState, id: string, ok: string): ClienteState {
-  revalidatePath(`/admin/clientes/${id}`);
-  revalidatePath('/admin');
+  revalidatePath(`/adminpanel/clientes/${id}`);
+  revalidatePath('/adminpanel');
   return { ...CLIENTE_INICIAL, ok, rodada: anterior.rodada + 1 };
 }
 

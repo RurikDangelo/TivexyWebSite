@@ -194,3 +194,42 @@ export {
 } from './automation.ts';
 
 export { previewPlanChange, type PlanChangePreview } from './plans.ts';
+
+export {
+  CHAT_EDIT_WINDOW_MINUTES,
+  CHAT_GROUP_WINDOW_MINUTES,
+  CHAT_MESSAGE_MAX_LENGTH,
+  canDeleteMessage,
+  canEditMessage,
+  checkMessageBody,
+  editBlock,
+  firstUnreadId,
+  groupMessages,
+  relativeTime,
+  unreadCount,
+  type ChatBodyCheck,
+  type ChatEditBlock,
+  type ChatGroup,
+  type ChatMessage,
+  type ChatViewer,
+} from './chat.ts';
+
+export {
+  BRAND_INK_DARK,
+  BRAND_INK_LIGHT,
+  BRAND_LOGO_ACCEPT,
+  BRAND_LOGO_BUCKET,
+  BRAND_LOGO_MAX_BYTES,
+  BRAND_LOGO_TYPES,
+  CONTRAST_AA,
+  CONTRAST_AA_LARGE,
+  brandLogoPath,
+  brandScale,
+  checkBrandColor,
+  checkBrandLogo,
+  contrastRatio,
+  relativeLuminance,
+  type BrandColorCheck,
+  type BrandLogoCheck,
+  type BrandScale,
+} from './branding.ts';

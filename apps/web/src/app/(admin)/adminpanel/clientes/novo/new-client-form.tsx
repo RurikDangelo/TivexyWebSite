@@ -401,9 +401,19 @@ function Sucesso({
               <code className="block w-full rounded-control border border-line-subtle bg-surface px-2 py-1.5 font-mono text-caption break-all text-content">
                 {link.link}
               </code>
+              {/*
+               * A frase dizia "esta tela é o único lugar que gera o link:
+               * saindo dela, ele não volta". Deixou de ser verdade quando a
+               * aba Usuários nasceu — e uma tela que ameaça com uma perda que
+               * não existe faz alguém copiar o link para um lugar inseguro.
+               */}
               <p className="text-caption text-warning">
-                Vale uma vez e vence. É credencial — quem abrir entra como essa conta. Esta tela é o
-                único lugar que gera o link: saindo dela, ele não volta.
+                Vale uma vez e vence. É credencial — quem abrir entra como essa conta. Saindo desta
+                tela ele não volta, mas dá para gerar outro em{' '}
+                <Link href="/adminpanel/usuarios" className="underline underline-offset-4">
+                  Usuários
+                </Link>
+                .
               </p>
             </div>
           )}
@@ -420,13 +430,13 @@ function Sucesso({
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Link
-            href="/admin"
+            href="/adminpanel"
             className="text-label text-content-accent underline-offset-4 hover:underline"
           >
             Voltar para a lista
           </Link>
           <Link
-            href="/admin/clientes/novo"
+            href="/adminpanel/clientes/novo"
             className="text-label text-content-accent underline-offset-4 hover:underline"
           >
             Criar outro

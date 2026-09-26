@@ -26,7 +26,10 @@ export default function FormasLoading() {
       <div className="flex flex-col gap-5">
         <div className="overflow-clip rounded-card border border-line-subtle bg-surface-panel shadow-card">
           {Array.from({ length: LINHAS }, (_, i) => (
-            <div key={i} className="flex flex-col gap-3 border-b border-line-subtle p-4 last:border-b-0">
+            <div
+              key={i}
+              className="flex flex-col gap-3 border-b border-line-subtle p-4 last:border-b-0"
+            >
               <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_7rem]">
                 {['14rem', '8rem', '5rem'].map((largura) => (
                   <div key={largura} className="flex flex-col gap-1.5">

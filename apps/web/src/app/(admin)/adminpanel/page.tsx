@@ -212,7 +212,7 @@ function janelasDeCriacao(clientes: readonly Linha[]): {
   };
 }
 
-export default async function AdminPage({ searchParams }: PageProps<'/admin'>) {
+export default async function AdminPage({ searchParams }: PageProps<'/adminpanel'>) {
   const params = await searchParams;
   const ordemBruta = typeof params.ordem === 'string' ? params.ordem : undefined;
   const { chave, ascendente } = lerOrdem(ordemBruta);
@@ -308,7 +308,7 @@ export default async function AdminPage({ searchParams }: PageProps<'/admin'>) {
               : `Todas as empresas da plataforma. ${total} no total.`
         }
         acoes={
-          <Link href="/admin/clientes/novo" className={cn(buttonVariants())}>
+          <Link href="/adminpanel/clientes/novo" className={cn(buttonVariants())}>
             <Plus aria-hidden />
             Novo cliente
           </Link>
@@ -422,7 +422,7 @@ export default async function AdminPage({ searchParams }: PageProps<'/admin'>) {
                   titulo="Nenhum cliente ainda"
                   acao={
                     <Link
-                      href="/admin/clientes/novo"
+                      href="/adminpanel/clientes/novo"
                       className={cn(buttonVariants({ variant: 'outline' }))}
                     >
                       <Plus aria-hidden />
@@ -446,7 +446,7 @@ export default async function AdminPage({ searchParams }: PageProps<'/admin'>) {
                   return (
                     <TR
                       key={cliente.id}
-                      href={`/admin/clientes/${cliente.id}`}
+                      href={`/adminpanel/clientes/${cliente.id}`}
                       rotulo={`Abrir ${cliente.name}`}
                     >
                       <TD truncar>

@@ -28,6 +28,7 @@ import {
 } from '@tivexy/core';
 import { BLUEPRINTS } from '@tivexy/core/blueprints';
 
+import { ABAS_COM_TELA, ABAS_PENDENTES, abaAtiva } from '../components/admin/tabs.ts';
 import { capitalizar } from '../lib/terms/vocabulary.ts';
 import {
   type NavHref,
@@ -56,10 +57,10 @@ const SEM_RECURSO: Readonly<Record<string, string>> = {
   '/tutorial': 'guia de ponta a ponta, não uma lista',
   '/erp/financeiro': 'junta contas a receber, a pagar e o fluxo de caixa',
   '/configuracoes': 'nome da seção',
-  '/admin': 'área da plataforma, fora do tenant',
   '/avisos': 'os avisos são da própria pessoa, não um recurso da empresa',
   '/conta': 'a conta de quem olha, que não muda de nome com o nicho',
   '/empresas': 'ação de trocar de contexto, não a lista de um recurso da empresa',
+  '/chat': 'conversa da equipe, não um recurso da empresa',
 };
 
 /*
@@ -85,7 +86,6 @@ const FORA_DO_MENU: Readonly<Record<string, string>> = {
   '/convite': 'saída do limbo: quem a vê ainda não tem menu',
   '/onboarding': 'saída do limbo: conta sem empresa',
   '/preparando': 'saída do limbo: empresa em provisionamento',
-  '/admin/clientes/novo': 'ação da tela de Super Admin',
   '/crm/oportunidades/funis': 'configuração da tela-pai, alcançada de dentro dela',
   '/erp/produtos/categorias': 'configuração da tela-pai, alcançada de dentro dela',
   '/erp/vendas/formas': 'configuração da tela-pai, alcançada de dentro dela',
@@ -349,8 +349,18 @@ describe('quem vê o quê', () => {
     for (const grupo of visibleNavigation(recepcao, {})) assert.ok(grupo.items.length > 0);
   });
 
-  it('o grupo de administração não existe para quem não é Super Admin', () => {
-    /* Nem com todas as permissões de tenant: nenhum papel de tenant alcança a plataforma. */
+  it('a administração da plataforma não está no catálogo do cliente — nem para o Super Admin', () => {
+    /*
+     * ADR-005. Antes havia um grupo "Administração" que só o Super Admin via;
+     * agora o painel é outra superfície (`/adminpanel`) e não tem entrada
+     * nenhuma aqui. As duas metades da asserção importam:
+     *
+     * - para o dono do tenant, com TODAS as permissões de tenant, nada muda —
+     *   ele nunca alcançou a plataforma e continua sem alcançar;
+     * - para o próprio Super Admin, o item também não volta. Se ele voltasse,
+     *   a casca do cliente ganharia de novo um atalho para o plano de
+     *   controle, que é exatamente o que o dono contestou.
+     */
     const dono = viewer({
       modulos: ['core', 'crm', 'erp', 'inventory', 'finance', 'automation', 'integrations'],
       permissoes: itens.flatMap((i) => {
@@ -358,19 +368,26 @@ describe('quem vê o quê', () => {
         return r.kind === 'permission' ? [r.permission] : [];
       }),
     });
-    const grupos = visibleNavigation(dono, {}).map((g) => g.label);
-    assert.ok(!grupos.includes('Administração'));
-    assert.ok(!hrefsVisiveis(dono).includes('/admin'));
+    assert.ok(!visibleNavigation(dono, {}).some((g) => g.label === 'Administração'));
+
+    const plataforma = viewer({ isSuperAdmin: true, tenant: null, membershipStatus: null });
+    for (const href of [...hrefsVisiveis(dono), ...hrefsVisiveis(plataforma)]) {
+      assert.ok(!href.startsWith('/admin'), `${href} não pode estar no menu do cliente`);
+    }
   });
 
-  it('Super Admin sem empresa escolhida vê a plataforma, e não a operação', () => {
+  it('Super Admin sem empresa escolhida não recebe item nenhum da operação', () => {
     /*
      * `decideAccess` deixaria o Super Admin abrir `/crm/leads`, mas sem
      * empresa a página não tem de quem mostrar dado. Oferecer o item seria
      * oferecer uma tela vazia.
+     *
+     * Antes desta onda a lista não era vazia: sobrava `/admin`. Agora é —
+     * e é o resultado certo, porque a porta da plataforma está em outra
+     * casca, não neste menu.
      */
     const plataforma = viewer({ isSuperAdmin: true, tenant: null, membershipStatus: null });
-    assert.deepEqual(hrefsVisiveis(plataforma), ['/admin']);
+    assert.deepEqual(hrefsVisiveis(plataforma), []);
   });
 
   it('convite pendente não vê item nenhum da operação', () => {
@@ -434,5 +451,59 @@ describe('o rodapé da sidebar', () => {
     for (const href of caminhos(utilityNavigation(dono, {}, { empresas: 2 }))) {
       assert.ok(!noMenu.has(href), `${href} apareceria duas vezes na mesma coluna`);
     }
+  });
+});
+
+/* ── O painel da plataforma ───────────────────────────────────────────── */
+
+const RAIZ_DO_PAINEL = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'app',
+  '(admin)',
+);
+
+/**
+ * O mesmo invariante do menu do cliente, aplicado às abas do `/adminpanel`.
+ *
+ * A casca do painel é outra (ADR-005), mas o defeito de que ela pode sofrer é
+ * o mesmo: aba que promete tela inexistente, e tela que existe sem porta.
+ * O disco é a verdade; `components/admin/tabs.ts` é a declaração.
+ */
+describe('cobertura: as abas do painel da plataforma', () => {
+  it('toda aba pronta tem page.tsx no disco', () => {
+    for (const aba of ABAS_COM_TELA) {
+      const arquivo = path.join(RAIZ_DO_PAINEL, ...aba.href.split('/').filter(Boolean), 'page.tsx');
+      assert.ok(fs.existsSync(arquivo), `${aba.href} está declarada e não tem tela`);
+    }
+  });
+
+  it('toda aba pendente traz o motivo escrito, e nenhum caminho', () => {
+    /* Sem isto, uma aba nasce "em breve" e fica — que é a forma educada de fingir. */
+    for (const aba of ABAS_PENDENTES) {
+      assert.equal(aba.href, null, `${aba.chave} é pendente e mesmo assim aponta para algum lugar`);
+      assert.ok(aba.motivo.length > 40, `${aba.chave}: o motivo precisa explicar, não rotular`);
+    }
+  });
+
+  it('toda regra de rota do painel é a da plataforma', () => {
+    /*
+     * A casca não filtra aba por papel — quem decide é a regra da rota, e ela
+     * precisa valer para TODA aba, não só para a raiz. Uma aba nova fora do
+     * prefixo `/adminpanel` cairia no padrão `member` e abriria para tenant.
+     */
+    for (const aba of ABAS_COM_TELA) {
+      assert.equal(matchRule(routeRules, aba.href).kind, 'superAdmin', aba.href);
+    }
+  });
+
+  it('a aba ativa é a mais específica que casa com o caminho', () => {
+    assert.equal(abaAtiva('/adminpanel'), 'clientes');
+    /* Filhas da lista de clientes continuam na aba Clientes. */
+    assert.equal(abaAtiva('/adminpanel/clientes/novo'), 'clientes');
+    assert.equal(abaAtiva('/adminpanel/clientes/abc-123'), 'clientes');
+    assert.equal(abaAtiva('/adminpanel/usuarios'), 'usuarios');
+    assert.equal(abaAtiva('/adminpanel/ramos'), 'ramos');
+    assert.equal(abaAtiva('/adminpanel/dominios'), 'dominios');
   });
 });

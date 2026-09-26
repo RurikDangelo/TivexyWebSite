@@ -168,7 +168,16 @@ export type CompensateResult =
  * O nome da tabela sai daqui, nunca do documento: é o que permite
  * interpolá-lo no SQL abaixo sem abrir caminho para injeção.
  */
-const TABELA_DA_SEMENTE = {
+/**
+ * As entidades de semente que já têm tabela — o mapa que decide, na linha 469,
+ * entre semear de verdade e guardar como pendente.
+ *
+ * Exportado para a tela de Ramos (`/adminpanel/ramos`) poder dizer, blueprint
+ * por blueprint, **quais** sementes vão executar e quais vão ficar guardadas.
+ * A alternativa era a tela manter a própria cópia da lista, que é o jeito
+ * garantido de ela afirmar que algo é semeado depois de a lista daqui mudar.
+ */
+export const TABELA_DA_SEMENTE = {
   'crm.pipelines': 'crm_pipelines',
   'crm.pipeline_stages': 'crm_pipeline_stages',
   'crm.activity_types': 'crm_activity_types',
