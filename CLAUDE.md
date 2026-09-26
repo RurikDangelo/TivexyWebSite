@@ -19,7 +19,11 @@ Leia `docs/REPOSITORY_STRUCTURE.md` antes de criar qualquer diretório novo e
 
 - `apps/site` e `apps/web` são **projetos separados** com build e deploy independentes.
   Nunca faça a landing depender do SaaS, nem o SaaS depender da landing.
-- ERP, CRM e Admin **não são aplicações**. São módulos dentro de `apps/web`, sobre o Tivexy Core.
+- ERP e CRM **não são aplicações**. São módulos dentro de `apps/web`, sobre o Tivexy Core.
+- O **Admin é exceção declarada** (`docs/16-DECISIONS/ADR-005`): é o plano de controle de
+  todos os tenants, não um módulo de um tenant. Vive em route group próprio, com casca e
+  entrada próprias, fora da sidebar do cliente — mas dentro do mesmo `apps/web`, para não
+  duplicar auth nem sessão.
 - Regra que pertence ao Core fica no Core. Não duplique auth, tenants, usuários,
   permissões, notificações, automações ou integrações dentro de ERP/CRM.
 - Direção de dependência permitida: `apps/* → packages/*`. Nunca o contrário,

@@ -85,6 +85,17 @@ export default defineConfig({
         access: 'public',
         optional: true,
       }),
+      /*
+       * Onde o cliente entra no sistema. Tem padrão de propósito: o botão
+       * "Já sou cliente" não pode sumir da landing porque alguém esqueceu de
+       * cadastrar uma variável na Vercel. Quando o domínio próprio existir,
+       * troca-se aqui e no .env — não no componente.
+       */
+      PUBLIC_APP_URL: envField.string({
+        context: 'client',
+        access: 'public',
+        default: 'https://tivexy-web.vercel.app',
+      }),
     },
   },
 });

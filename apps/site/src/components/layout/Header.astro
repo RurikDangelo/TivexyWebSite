@@ -2,7 +2,7 @@
 import Button from '@/components/ui/Button.astro';
 import Icon from '@/components/ui/Icon.astro';
 import Logo from '@/components/ui/Logo.astro';
-import { hasWhatsapp, primaryNav, sectionHref, site, whatsappUrl } from '@/config/site';
+import { hasWhatsapp, loginUrl, primaryNav, sectionHref, site, whatsappUrl } from '@/config/site';
 ---
 
 <header class="site-header" data-header>
@@ -28,6 +28,15 @@ import { hasWhatsapp, primaryNav, sectionHref, site, whatsappUrl } from '@/confi
     </nav>
 
     <div class="site-header__actions">
+      <Button
+        href={loginUrl}
+        variant="ghost"
+        size="sm"
+        icon="arrow-up-right"
+        class="site-header__login"
+      >
+        Já sou cliente
+      </Button>
       <Button href={sectionHref('contato')} size="sm" class="site-header__cta">
         Falar com especialista
       </Button>
@@ -76,6 +85,17 @@ import { hasWhatsapp, primaryNav, sectionHref, site, whatsappUrl } from '@/confi
     </nav>
 
     <div class="mobile-menu__actions">
+      <Button
+        href={loginUrl}
+        variant="secondary"
+        size="lg"
+        icon="arrow-up-right"
+        iconPosition="end"
+        block
+        data-menu-link
+      >
+        Já sou cliente
+      </Button>
       <Button href={sectionHref('contato')} size="lg" block data-menu-link>
         Falar com especialista
       </Button>
@@ -223,7 +243,8 @@ import { hasWhatsapp, primaryNav, sectionHref, site, whatsappUrl } from '@/confi
     gap: var(--space-1);
   }
 
-  .site-header__actions :global(.site-header__cta) {
+  .site-header__actions :global(.site-header__cta),
+  .site-header__actions :global(.site-header__login) {
     display: none;
   }
 
@@ -244,6 +265,14 @@ import { hasWhatsapp, primaryNav, sectionHref, site, whatsappUrl } from '@/confi
 
   @media (--sm) {
     .site-header__actions :global(.site-header__cta) {
+      display: inline-flex;
+    }
+  }
+
+  /* O link de cliente só aparece quando há espaço de sobra: em telas médias a
+     prioridade do cabeçalho é a navegação e o CTA de venda. */
+  @media (--lg) {
+    .site-header__actions :global(.site-header__login) {
       display: inline-flex;
     }
   }
