@@ -11,10 +11,14 @@ import { EmptyState } from './empty-state';
  * Só o Super Admin chega aqui: `requireAccess` deixa a plataforma entrar em
  * qualquer rota, e a página não tem de quem mostrar dado. Uma página em
  * branco seria a resposta errada — ela parece defeito.
+ *
+ * Isto é um interstício: o `NoTenant` é retornado no lugar da página inteira,
+ * então ele carrega a própria medida enquanto o `<Page variant="intersticial">`
+ * não existir para carregá-la por ele.
  */
 export function NoTenant() {
   return (
-    <div className="mx-auto max-w-lg px-4 py-16">
+    <div className="mx-auto w-full max-w-lg px-4 py-12">
       <EmptyState
         icone={Building2}
         titulo="Nenhuma empresa escolhida"
