@@ -2,11 +2,12 @@
 
 import { type CrmStageKind, boardTotals, formatCents, stageTotals } from '@tivexy/core';
 import {
-  ArrowRightLeft,
   CalendarClock,
   CircleDot,
   GripVertical,
   Hourglass,
+  MoveRight,
+  SearchX,
   Trophy,
   XCircle,
 } from 'lucide-react';
@@ -14,14 +15,24 @@ import Link from 'next/link';
 import { type DragEvent, useOptimistic, useState, useTransition } from 'react';
 
 import { FormError } from '@/components/form/messages';
+import { SANGRIA_DO_GUTTER } from '@/components/page/page';
+import { Avatar } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { DropdownItem, DropdownLabel, DropdownMenu } from '@/components/ui/dropdown-menu';
+import { Segmented } from '@/components/ui/segmented';
+import { Stat, StatGrid } from '@/components/ui/stat';
+import { Tooltip } from '@/components/ui/tooltip';
 import { contagem, dias, formatDayMonth } from '@/lib/format';
-import { cn } from '@/lib/utils';
+import { atrasoDaLinha, cn } from '@/lib/utils';
 
 import { moverOportunidade } from './actions';
 import {
   type CartaoDeNegocio,
+  type CorteDoQuadro,
   type EtapaDoQuadro,
   JANELA_FECHADAS_DIAS,
+  LIMITE_ABERTAS,
+  LIMITE_FECHADAS,
   PARADO_A_PARTIR_DE,
 } from './state';
 
@@ -36,13 +47,15 @@ const TIPO: Record<CrmStageKind, { rotulo: string; Icone: typeof Trophy; classe:
   lost: { rotulo: 'Perdido', Icone: XCircle, classe: 'text-content-muted' },
 };
 
+type Recorte = 'tudo' | 'minhas';
+
 /**
  * O funil em colunas.
  *
  * **Duas formas de mover, e a segunda não é enfeite.** Arrastar é o gesto
  * natural com mouse, e não existe para quem usa teclado, leitor de tela ou o
- * dedo — o arrastar do HTML não funciona em toque. "Mover para" em cada cartão
- * é o mesmo movimento, pela mesma função, alcançável por qualquer um.
+ * dedo — o arrastar do HTML não funciona em toque. O menu "Mover" de cada
+ * cartão é o mesmo movimento, pela mesma função, alcançável por qualquer um.
  *
  * O cartão muda de coluna na hora (`useOptimistic`) e volta sozinho se o
  * servidor recusar: o estado otimista só vale durante a transição, e depois
@@ -57,6 +70,7 @@ export function Board({
   eu,
   singular,
   plural,
+  corte,
 }: {
   etapas: readonly EtapaDoQuadro[];
   negocios: readonly CartaoDeNegocio[];
@@ -68,6 +82,8 @@ export function Board({
   /** O nome do recurso no vocabulário do tenant — "tratamento", na clínica. */
   singular: string;
   plural: string;
+  /** Se a leitura bateu no teto. Decide entre "este é o total" e "isto é o que deu para somar". */
+  corte: CorteDoQuadro;
 }) {
   const [otimistas, aplicar] = useOptimistic(
     negocios as CartaoDeNegocio[],
@@ -79,8 +95,11 @@ export function Board({
   const [anuncio, setAnuncio] = useState('');
   const [alvo, setAlvo] = useState<string | null>(null);
   const [arrastando, setArrastando] = useState<string | null>(null);
-  const [soMinhas, setSoMinhas] = useState(false);
+  const [recorte, setRecorte] = useState<Recorte>('tudo');
+  /** O último cartão movido, para ele pulsar onde caiu em vez de reaparecer do nada. */
+  const [destacado, setDestacado] = useState<string | null>(null);
 
+  const soMinhas = recorte === 'minhas';
   const visiveis = soMinhas ? otimistas.filter((n) => n.responsavelId === eu) : otimistas;
   const somaveis = visiveis.map((n) => ({ stageId: n.etapaId, valueCents: n.valorCentavos }));
   const porEtapa = stageTotals(etapas, somaveis);
@@ -92,12 +111,27 @@ export function Board({
     const de = negocio.etapaId;
     setErro(null);
     iniciar(async () => {
+      /*
+       * O destaque entra JUNTO com o movimento otimista, não depois da resposta.
+       * O cartão troca de `<ul>`, o React o remonta, e é nessa montagem que o
+       * pulso precisa já estar na classe — senão não há animação nenhuma.
+       *
+       * Por que pulso e não View Transition: a API do navegador precisa de uma
+       * escrita síncrona no DOM dentro do callback, e `useOptimistic` só aplica
+       * dentro de uma transição, onde `flushSync` é proibido. O `<ViewTransition>`
+       * do React ainda não existe no pacote estável (19.2.8). Trocar o
+       * `animate-enter` — que partia de `opacity: 0` com até 240ms de atraso e
+       * fazia o cartão sumir meio segundo — pelo pulso é a correção que a seção 8
+       * pede, e essa é a que muda o que se vê.
+       */
+      setDestacado(negocio.id);
       aplicar({ id: negocio.id, para });
       const r = await moverOportunidade(negocio.id, de, para);
       if (r.erro === null) {
         setAnuncio(`"${negocio.titulo}" foi para ${nome.get(para) ?? 'a nova etapa'}.`);
       } else {
         setErro(r.erro);
+        setDestacado(null);
         setAnuncio(`Não foi possível mover "${negocio.titulo}".`);
       }
     });
@@ -116,49 +150,59 @@ export function Board({
         {anuncio}
       </p>
 
-      <dl className="grid gap-3 sm:grid-cols-3">
-        <Resumo
-          tipo="open"
+      <StatGrid colunas={3}>
+        <Stat
           rotulo="Em aberto"
-          total={totais.open.cents}
-          quantidade={contagem(totais.open.count, singular, plural)}
+          valor={totais.open.cents}
+          formato="moeda"
+          Icone={CircleDot}
+          nota={contagem(totais.open.count, singular, plural)}
+          parcial={corte.abertas ? `soma das ${LIMITE_ABERTAS} mais recentes` : undefined}
+          contar
+          animar
+          atraso={atrasoDaLinha(0)}
         />
-        <Resumo
-          tipo="won"
+        <Stat
           rotulo={`Ganhos · ${JANELA_FECHADAS_DIAS} dias`}
-          total={totais.won.cents}
-          quantidade={contagem(totais.won.count, singular, plural)}
+          valor={totais.won.cents}
+          formato="moeda"
+          Icone={Trophy}
+          tom="success"
+          nota={contagem(totais.won.count, singular, plural)}
+          parcial={corte.fechadas ? `soma das ${LIMITE_FECHADAS} mais recentes` : undefined}
+          contar
+          animar
+          atraso={atrasoDaLinha(1)}
         />
-        <Resumo
-          tipo="lost"
+        <Stat
           rotulo={`Perdas · ${JANELA_FECHADAS_DIAS} dias`}
-          total={totais.lost.cents}
-          quantidade={contagem(totais.lost.count, singular, plural)}
+          valor={totais.lost.cents}
+          formato="moeda"
+          Icone={XCircle}
+          /*
+           * Perda fechada não é falha do sistema: é o desfecho normal de um
+           * funil. Pintar de vermelho ensinaria a ignorar o vermelho de verdade.
+           */
+          nota={contagem(totais.lost.count, singular, plural)}
+          parcial={corte.fechadas ? `soma das ${LIMITE_FECHADAS} mais recentes` : undefined}
+          contar
+          animar
+          atraso={atrasoDaLinha(2)}
         />
-      </dl>
+      </StatGrid>
 
       {eu !== null && (
-        <div role="group" aria-label={`Filtrar ${plural}`} className="flex gap-1">
-          {[
-            { valor: false, rotulo: 'Tudo' },
-            { valor: true, rotulo: 'Sou responsável' },
-          ].map((opcao) => (
-            <button
-              key={opcao.rotulo}
-              type="button"
-              aria-pressed={soMinhas === opcao.valor}
-              onClick={() => setSoMinhas(opcao.valor)}
-              className={cn(
-                'h-8 rounded-full border px-3 text-xs font-medium transition-colors',
-                soMinhas === opcao.valor
-                  ? 'border-line-accent bg-surface-accent-soft text-content-accent'
-                  : 'border-line text-content-muted hover:bg-surface-muted',
-              )}
-            >
-              {opcao.rotulo}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          como="botao"
+          rotulo={`Filtrar ${plural}`}
+          itens={[
+            { chave: 'tudo', rotulo: 'Tudo' },
+            { chave: 'minhas', rotulo: 'Sou responsável' },
+          ]}
+          ativa={recorte}
+          /* Seta em vez de `setRecorte` direto: o `SetStateAction` do React entraria na inferência da chave. */
+          aoTrocar={(chave) => setRecorte(chave)}
+        />
       )}
 
       {erro !== null && <FormError>{erro}</FormError>}
@@ -168,14 +212,21 @@ export function Board({
        * elemento absoluto só é cortado pelo contêiner que rola se ele for o
        * bloco de contenção. Sem isto, o rótulo de leitor de tela de uma coluna
        * fora da tela escapava e esticava a página inteira na horizontal.
+       *
+       * A sangria vem do mesmo literal que o `<Page variant="quadro">` usa: a
+       * faixa rolável tem de chegar à borda da janela, e dois donos discordando
+       * do gutter é como o desalinhamento nasce.
        */}
-      <div className="relative -mx-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <ol className="flex flex-col gap-4 lg:flex-row lg:items-start">
+      <div className={cn('relative overflow-x-auto pb-2', SANGRIA_DO_GUTTER)}>
+        <ol aria-label="Etapas do funil" className="flex flex-col gap-3 md:flex-row md:items-start">
           {etapas.map((etapa) => {
             const cartoes = visiveis.filter((n) => n.etapaId === etapa.id);
+            const semFiltro = otimistas.filter((n) => n.etapaId === etapa.id).length;
             const t = porEtapa.get(etapa.id) ?? { count: 0, cents: 0 };
             const { Icone, classe, rotulo } = TIPO[etapa.kind];
             const terminal = etapa.kind !== 'open';
+            const parcial = terminal ? corte.fechadas : corte.abertas;
+            const recebendo = alvo === etapa.id && arrastando !== null;
 
             return (
               <li
@@ -192,57 +243,96 @@ export function Board({
                 }}
                 onDrop={(e) => soltar(e, etapa.id)}
                 className={cn(
-                  'flex flex-col rounded-lg border bg-surface-subtle transition-colors duration-150 lg:w-72 lg:shrink-0',
-                  alvo === etapa.id
-                    ? 'border-line-accent bg-surface-accent-soft'
-                    : 'border-line-subtle',
+                  'flex min-w-0 flex-col rounded-card border bg-surface-sunken',
+                  'transition-[background-color,border-color,box-shadow] transition-base',
+                  /*
+                   * Quadro a partir de `md`, não de `lg`: entre 768 e 1023px —
+                   * o tablet de balcão — as etapas viravam uma pilha vertical
+                   * de blocos largos e o `overflow-x-auto` do pai não servia
+                   * para nada.
+                   */
+                  'md:w-[19.5rem] md:shrink-0',
+                  /* Enquanto há um cartão no ar, toda coluna se declara alvo possível. */
+                  arrastando !== null && !recebendo && 'border-dashed border-line',
+                  recebendo
+                    ? 'border-line-accent bg-surface-accent-soft shadow-raised'
+                    : arrastando === null && 'border-line-subtle',
                 )}
               >
-                <header className="flex flex-col gap-0.5 border-b border-line-subtle px-3 py-2.5">
+                <header className="flex flex-col gap-1 rounded-t-card border-b border-line-subtle bg-surface-panel px-3 py-2.5">
                   <div className="flex items-center gap-2">
                     <Icone className={cn('size-4 shrink-0', classe)} aria-hidden />
                     <h2
                       id={`etapa-${etapa.id}`}
-                      className="min-w-0 flex-1 truncate text-sm font-semibold text-content"
+                      className="min-w-0 flex-1 truncate text-label text-content"
                     >
                       {etapa.name}
                       {terminal && <span className="sr-only"> ({rotulo})</span>}
                     </h2>
-                    <span className="rounded-full bg-surface-muted px-2 py-0.5 font-mono text-xs tabular-nums text-content-muted">
-                      {t.count}
-                    </span>
+                    <Badge tone="neutral" tamanho="xs" Icone={null}>
+                      <span className="tabular-nums">{t.count}</span>
+                      <span className="sr-only"> {t.count === 1 ? 'cartão' : 'cartões'}</span>
+                    </Badge>
                   </div>
-                  <p className="font-mono text-xs tabular-nums text-content-muted">
-                    {formatCents(t.cents)}
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    {/* O total da coluna é o segundo degrau da hierarquia: 22px contra os 32px da faixa. */}
+                    <p className="text-metric-sm tabular-nums text-content">
+                      {formatCents(t.cents)}
+                    </p>
                     {terminal && (
-                      <span className="text-content-subtle">
-                        {' '}
-                        · últimos {JANELA_FECHADAS_DIAS} dias
+                      <span className="text-caption text-content-subtle">
+                        últimos {JANELA_FECHADAS_DIAS} dias
                       </span>
                     )}
-                  </p>
+                    {parcial && (
+                      <Tooltip
+                        conteudo={`A leitura parou em ${terminal ? LIMITE_FECHADAS : LIMITE_ABERTAS} registros. Esta soma é do que foi lido, não do funil inteiro.`}
+                      >
+                        <span>
+                          <Badge tone="warning" tamanho="xs">
+                            parcial
+                          </Badge>
+                        </span>
+                      </Tooltip>
+                    )}
+                  </div>
                 </header>
 
                 {cartoes.length === 0 ? (
-                  <p className="px-3 py-6 text-center text-xs text-content-subtle">
-                    {podeMover ? 'Arraste para cá, ou use "Mover para".' : 'Nada nesta etapa.'}
-                  </p>
+                  <ColunaVazia
+                    filtrada={soMinhas && semFiltro > 0}
+                    podeMover={podeMover}
+                    plural={plural}
+                  />
                 ) : (
-                  <ul className="flex flex-col gap-2 p-2">
-                    {cartoes.map((negocio, i) => (
+                  /*
+                   * Teto em proporção da janela, não em pixels descontados do
+                   * cabeçalho: uma etapa com 80 cartões deixaria o quadro com
+                   * 6000px de altura e os outros cabeçalhos fora da tela. 70dvh
+                   * sobrevive a qualquer mudança na altura do topo.
+                   */
+                  <ul className="flex flex-col gap-2 overflow-y-auto overscroll-contain p-2 md:max-h-[70dvh]">
+                    {cartoes.map((negocio) => (
                       <Cartao
                         key={negocio.id}
                         negocio={negocio}
-                        ordem={i}
                         aberta={etapa.kind === 'open'}
                         hoje={hoje}
                         podeMover={podeMover}
                         arrastando={arrastando === negocio.id}
+                        destacado={destacado === negocio.id}
                         etapas={etapas}
                         onArrastar={setArrastando}
                         onMover={(para) => mover(negocio, para)}
                       />
                     ))}
+                    {recebendo && (
+                      /* O vão de destino: o cartão não cai num lugar que ninguém apontou. */
+                      <li
+                        aria-hidden
+                        className="h-14 shrink-0 rounded-card border-2 border-dashed border-line-accent"
+                      />
+                    )}
                   </ul>
                 )}
               </li>
@@ -254,59 +344,65 @@ export function Board({
   );
 }
 
-function Resumo({
-  tipo,
-  rotulo,
-  total,
-  quantidade,
+/**
+ * A coluna sem cartão — e as duas ausências são diferentes.
+ *
+ * "Ainda não passou ninguém por aqui" e "o filtro escondeu o que tem" pedem
+ * ações opostas: uma é trazer um negócio, a outra é afrouxar o recorte.
+ */
+function ColunaVazia({
+  filtrada,
+  podeMover,
+  plural,
 }: {
-  tipo: CrmStageKind;
-  rotulo: string;
-  total: number;
-  /** Já por extenso, no vocabulário do tenant: "3 tratamentos". */
-  quantidade: string;
+  filtrada: boolean;
+  podeMover: boolean;
+  plural: string;
 }) {
-  const { Icone, classe } = TIPO[tipo];
   return (
-    <div className="rounded-lg border border-line-subtle bg-surface-raised px-4 py-3 shadow-xs">
-      <dt className="flex items-center gap-1.5 text-xs font-medium text-content-muted">
-        <Icone className={cn('size-3.5', classe)} aria-hidden />
-        {rotulo}
-      </dt>
-      <dd className="mt-1 flex items-baseline gap-2">
-        <span className="font-display text-xl font-bold tabular-nums text-content">
-          {formatCents(total)}
-        </span>
-        <span className="text-xs text-content-muted">{quantidade}</span>
-      </dd>
+    <div className="flex flex-col items-center gap-1.5 px-3 py-8 text-center">
+      <span className="flex size-9 items-center justify-center rounded-pill bg-surface-muted">
+        {filtrada ? (
+          <SearchX className="size-4 text-content-subtle" aria-hidden />
+        ) : (
+          <MoveRight className="size-4 text-content-subtle" aria-hidden />
+        )}
+      </span>
+      <p className="text-caption text-content-muted">
+        {filtrada ? `Há ${plural} aqui, mas nenhum sob sua responsabilidade.` : 'Nada nesta etapa.'}
+      </p>
+      {!filtrada && podeMover && (
+        /*
+         * Não promete arrastar. O arrastar do HTML não funciona em toque, e
+         * esta frase aparecia igual no tablet, onde o gesto simplesmente não
+         * existe. O menu de cada cartão funciona em todo lugar.
+         */
+        <p className="text-caption text-content-subtle">
+          Use o menu <span className="font-medium text-content-muted">Mover</span> de um cartão para
+          trazer um para cá.
+        </p>
+      )}
     </div>
   );
 }
 
-function iniciais(nome: string): string {
-  const partes = nome.trim().split(/\s+/);
-  const primeira = partes[0]?.charAt(0) ?? '';
-  const ultima = partes.length > 1 ? (partes.at(-1)?.charAt(0) ?? '') : '';
-  return (primeira + ultima).toLocaleUpperCase('pt-BR');
-}
-
 function Cartao({
   negocio,
-  ordem,
   aberta,
   hoje,
   podeMover,
   arrastando,
+  destacado,
   etapas,
   onArrastar,
   onMover,
 }: {
   negocio: CartaoDeNegocio;
-  ordem: number;
   aberta: boolean;
   hoje: string;
   podeMover: boolean;
   arrastando: boolean;
+  destacado: boolean;
   etapas: readonly EtapaDoQuadro[];
   onArrastar: (id: string | null) => void;
   onMover: (para: string) => void;
@@ -314,6 +410,7 @@ function Cartao({
   const vencida = aberta && negocio.previsao !== null && negocio.previsao < hoje;
   const parada = aberta && negocio.diasParado >= PARADO_A_PARTIR_DE;
   const destinos = etapas.filter((e) => e.id !== negocio.etapaId);
+  const contexto = [negocio.conta, negocio.pessoa].filter(Boolean).join(' · ');
 
   return (
     <li
@@ -324,109 +421,108 @@ function Cartao({
         onArrastar(negocio.id);
       }}
       onDragEnd={() => onArrastar(null)}
-      style={{ animationDelay: `${Math.min(ordem, 8) * 30}ms` }}
       className={cn(
-        'animate-enter group rounded-md border border-line-subtle bg-surface-raised p-3 shadow-xs transition-shadow duration-150',
-        'hover:shadow-sm focus-within:border-line-accent',
-        podeMover && 'lg:cursor-grab lg:active:cursor-grabbing',
-        arrastando && 'opacity-50',
+        'group flex flex-col gap-1.5 rounded-card border border-line-subtle bg-surface-panel p-2.5',
+        'shadow-card transition-[box-shadow,opacity,border-color] transition-base',
+        'hover:border-line hover:shadow-raised focus-within:border-line-accent',
+        podeMover && 'md:cursor-grab md:active:cursor-grabbing',
+        /* O que está no ar sai do plano, mas continua legível: some por completo e o gesto perde a referência. */
+        arrastando && 'opacity-40 shadow-flat ring-2 ring-line-accent',
+        /* Pulso de confirmação onde o cartão caiu (seção 8, regra 4). */
+        destacado && 'animate-highlight',
       )}
     >
       <div className="flex items-start gap-2">
         <Link
           href={`/crm/oportunidades/${negocio.id}`}
-          className="min-w-0 flex-1 text-sm font-medium text-content hover:underline"
+          className="min-w-0 flex-1 text-label text-content hover:underline"
         >
           {negocio.titulo}
         </Link>
         {podeMover && (
           <GripVertical
-            className="mt-0.5 hidden size-4 shrink-0 text-content-subtle opacity-0 transition-opacity group-hover:opacity-100 lg:block"
+            className="mt-0.5 hidden size-4 shrink-0 text-content-subtle opacity-0 transition-opacity transition-base group-hover:opacity-100 md:block"
             aria-hidden
           />
         )}
       </div>
 
-      <p className="mt-1 font-display text-base font-semibold tabular-nums text-content">
-        {formatCents(negocio.valorCentavos)}
-      </p>
-
-      {(negocio.conta !== null || negocio.pessoa !== null) && (
-        <p className="mt-0.5 truncate text-xs text-content-muted">
-          {[negocio.conta, negocio.pessoa].filter(Boolean).join(' · ')}
+      <div className="flex min-w-0 items-baseline gap-2">
+        <p className="shrink-0 text-num font-semibold text-content">
+          {formatCents(negocio.valorCentavos)}
         </p>
-      )}
+        {contexto !== '' && (
+          <p className="min-w-0 truncate text-caption text-content-muted">{contexto}</p>
+        )}
+      </div>
 
       {(negocio.previsao !== null || parada || negocio.responsavel !== null) && (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-          {negocio.previsao !== null && (
-            <span
-              className={cn(
-                'inline-flex items-center gap-1 rounded px-1.5 py-0.5',
-                vencida
-                  ? 'bg-danger-soft text-danger'
-                  : 'bg-surface-muted text-content-muted dark:bg-surface-inset',
-              )}
-            >
-              <CalendarClock className="size-3" aria-hidden />
-              {vencida
-                ? `Previsão vencida · ${formatDayMonth(negocio.previsao)}`
-                : formatDayMonth(negocio.previsao)}
-            </span>
-          )}
-          {parada && (
-            <span
-              className={cn(
-                'inline-flex items-center gap-1 rounded px-1.5 py-0.5',
-                negocio.diasParado >= 30
-                  ? 'bg-warning-soft text-warning'
-                  : 'bg-surface-muted text-content-muted dark:bg-surface-inset',
-              )}
-            >
-              <Hourglass className="size-3" aria-hidden />
-              Sem mudança há {dias(negocio.diasParado)}
-            </span>
-          )}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {negocio.previsao !== null &&
+            (vencida ? (
+              <Badge tone="danger" tamanho="xs">
+                Vencida · {formatDayMonth(negocio.previsao)}
+              </Badge>
+            ) : (
+              <Badge tone="neutral" tamanho="xs" Icone={CalendarClock}>
+                {formatDayMonth(negocio.previsao)}
+              </Badge>
+            ))}
+          {parada &&
+            (negocio.diasParado >= 30 ? (
+              <Badge tone="warning" tamanho="xs">
+                Parada há {dias(negocio.diasParado)}
+              </Badge>
+            ) : (
+              <Badge tone="neutral" tamanho="xs" Icone={Hourglass}>
+                {dias(negocio.diasParado)} sem mudança
+              </Badge>
+            ))}
           {negocio.responsavel !== null && (
-            <span
-              title={negocio.responsavel}
-              className="ml-auto flex size-6 items-center justify-center rounded-full bg-surface-accent-soft text-[0.625rem] font-semibold text-content-accent"
-            >
-              <span aria-hidden>{iniciais(negocio.responsavel)}</span>
-              <span className="sr-only">Responsável: {negocio.responsavel}</span>
-            </span>
+            /* O `<span>` é o gatilho da dica: `Avatar` não repassa `aria-describedby`. */
+            <Tooltip conteudo={`Responsável: ${negocio.responsavel}`} className="ml-auto">
+              <span>
+                <Avatar
+                  nome={negocio.responsavel}
+                  rotulo={`Responsável: ${negocio.responsavel}`}
+                  tamanho="xs"
+                />
+              </span>
+            </Tooltip>
           )}
         </div>
       )}
 
       {podeMover && destinos.length > 0 && (
-        <details className="mt-2 border-t border-line-subtle pt-2 [&[open]>summary]:text-content">
-          <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded text-xs text-content-muted hover:text-content [&::-webkit-details-marker]:hidden">
-            <ArrowRightLeft className="size-3.5" aria-hidden />
-            Mover para…
-            <span className="sr-only"> ({negocio.titulo})</span>
-          </summary>
-          <ul className="mt-1.5 flex flex-col gap-0.5">
-            {destinos.map((destino) => {
-              const { Icone, classe } = TIPO[destino.kind];
-              return (
-                <li key={destino.id}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.currentTarget.closest('details')?.removeAttribute('open');
-                      onMover(destino.id);
-                    }}
-                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-content-default hover:bg-surface-muted"
-                  >
-                    <Icone className={cn('size-3.5 shrink-0', classe)} aria-hidden />
-                    <span className="truncate">{destino.name}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </details>
+        <div className="-mb-0.5 flex border-t border-line-subtle pt-1.5">
+          {/*
+           * Era um `<details>` inline: abrir empurrava todos os cartões abaixo
+           * para baixo, não fechava com Escape nem com clique fora, e o
+           * fechamento mexia no DOM por trás do React. O menu vive num portal.
+           */}
+          <DropdownMenu
+            rotulo={`Mover ${negocio.titulo}`}
+            alinhamento="inicio"
+            gatilho={
+              <>
+                <MoveRight className="size-3.5" aria-hidden />
+                Mover
+              </>
+            }
+            classNameGatilho="px-1.5 text-caption text-content-muted hover:bg-surface-muted hover:text-content"
+          >
+            <DropdownLabel>Mover para</DropdownLabel>
+            {destinos.map((destino) => (
+              <DropdownItem
+                key={destino.id}
+                Icone={TIPO[destino.kind].Icone}
+                onSelect={() => onMover(destino.id)}
+              >
+                {destino.name}
+              </DropdownItem>
+            ))}
+          </DropdownMenu>
+        </div>
       )}
     </li>
   );

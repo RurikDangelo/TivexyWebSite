@@ -10,15 +10,17 @@ import {
   isProductUnit,
   stockStatus,
 } from '@tivexy/core';
-import { ArrowLeft, Package } from 'lucide-react';
+import { Ban } from 'lucide-react';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { EmptyState } from '@/components/page/empty-state';
 import { type Fato, Facts } from '@/components/page/facts';
+import { PageHeader } from '@/components/page/header';
 import { NoTenant } from '@/components/page/no-tenant';
+import { GradeDeRegistro, Page } from '@/components/page/page';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { sectionTitle } from '@/config/navigation';
 import { requireAccess } from '@/lib/auth/require';
 import { MOVIMENTO, formatMargin } from '@/lib/erp/labels';
@@ -44,6 +46,19 @@ function relacao<T>(valor: unknown): T | null {
   const linha = Array.isArray(valor) ? valor[0] : valor;
   return (linha ?? null) as T | null;
 }
+
+/** Quantas movimentações a consulta traz. O número está na tela: lista cortada que não se diz cortada é mentira. */
+const MOVIMENTOS_NA_TELA = 10;
+
+/**
+ * Colunas laterais que acompanham a rolagem.
+ *
+ * O topo é `--header-h` mais o `py-6` do `<main>`, e não um `top-20` escolhido
+ * a olho: mudar a altura do cabeçalho passa a mover as colunas junto, em vez de
+ * deixá-las presas a um número que já não corresponde a nada.
+ */
+const COLUNA_FIXA =
+  'flex flex-col gap-4 xl:sticky xl:top-[calc(var(--header-h)+1.5rem)] xl:self-start';
 
 /**
  * Um produto: quanto custa, quanto rende, quanto há — e o que mexeu nisso.
@@ -88,6 +103,8 @@ export default async function ProdutoPage({ params }: PageProps<'/erp/produtos/[
   const minimo = produto.min_stock === null ? null : Number(produto.min_stock);
   const margem = grossMargin(preco, custo);
 
+  /* `error: null` explícito nos ramos que não consultam: é o que permite,
+     abaixo, distinguir "não perguntei" de "perguntei e falhou". */
   const [saldoR, movimentosR, categoriasR, membros] = await Promise.all([
     comEstoque && controla
       ? supabase
@@ -96,7 +113,7 @@ export default async function ProdutoPage({ params }: PageProps<'/erp/produtos/[
           .eq('tenant_id', tenantId)
           .eq('product_id', id)
           .maybeSingle()
-      : Promise.resolve({ data: null }),
+      : Promise.resolve({ data: null, error: null }),
     veMovimentos
       ? supabase
           .from('inventory_movements')
@@ -106,8 +123,8 @@ export default async function ProdutoPage({ params }: PageProps<'/erp/produtos/[
           .eq('tenant_id', tenantId)
           .eq('product_id', id)
           .order('created_at', { ascending: false })
-          .limit(10)
-      : Promise.resolve({ data: [] }),
+          .limit(MOVIMENTOS_NA_TELA)
+      : Promise.resolve({ data: [], error: null }),
     podeEditar
       ? supabase
           .from('erp_product_categories')
@@ -119,6 +136,12 @@ export default async function ProdutoPage({ params }: PageProps<'/erp/produtos/[
     veMovimentos ? tenantMembers(tenantId) : Promise.resolve([]),
   ]);
 
+  /*
+   * Saldo que não foi lido não é saldo zero. Sem esta guarda, uma falha de
+   * leitura vira "0 un · sem estoque" na ficha — a tela afirmando um número
+   * que o banco não devolveu.
+   */
+  const saldoIndisponivel = comEstoque && controla && saldoR.error !== null;
   const saldo = saldoR.data === null ? 0 : Number(saldoR.data.quantity);
   const situacao = stockStatus({ trackStock: controla, quantity: saldo, minStock: minimo });
   const categoria = relacao<{ name: string }>(produto.category);
@@ -143,58 +166,69 @@ export default async function ProdutoPage({ params }: PageProps<'/erp/produtos/[
     };
   });
 
+  const descricaoDoProduto =
+    typeof produto.description === 'string' && produto.description !== ''
+      ? produto.description
+      : null;
+
   const fatos: Fato[] = [
     {
       rotulo: 'Preço de venda',
       valor: (
-        <span className="font-mono tabular-nums">
+        <span className="tabular-nums">
           {formatCents(preco)} <span className="text-content-muted">por {unidade}</span>
         </span>
       ),
+      numerico: true,
     },
     {
       rotulo: 'Custo',
-      valor: custo === null ? null : <span className="font-mono">{formatCents(custo)}</span>,
+      valor: custo === null ? null : formatCents(custo),
+      numerico: true,
     },
     {
       rotulo: 'Margem',
       valor:
         margem === null ? null : (
-          <span className={cn('font-mono', margem < 0 && 'text-danger')}>
+          <span className={cn(margem < 0 && 'text-danger')}>
             {formatMargin(margem)}
             {margem < 0 ? ' — abaixo do custo' : ''}
           </span>
         ),
+      numerico: true,
     },
     { rotulo: 'Unidade', valor: `${unidade} — ${UNIT_INFO[unidade].singular}` },
     { rotulo: 'Categoria', valor: categoria?.name ?? null },
     {
       rotulo: 'Código interno',
-      valor:
-        typeof produto.sku === 'string' ? <span className="font-mono">{produto.sku}</span> : null,
+      valor: typeof produto.sku === 'string' ? produto.sku : null,
+      numerico: true,
     },
     {
       rotulo: 'Código de barras',
-      valor:
-        typeof produto.barcode === 'string' ? (
-          <span className="font-mono">{produto.barcode}</span>
-        ) : null,
+      valor: typeof produto.barcode === 'string' ? produto.barcode : null,
+      numerico: true,
     },
     ...(comEstoque
       ? [
           {
             rotulo: 'Estoque',
-            valor: controla ? (
-              <SituacaoDoEstoque saldo={saldo} situacao={situacao} unidade={unidade} />
-            ) : (
+            valor: !controla ? (
               'Não controla — serviço ou item feito na hora'
+            ) : saldoIndisponivel ? (
+              <span className="text-content-muted">
+                Não consegui ler o saldo agora. Recarregue a página.
+              </span>
+            ) : (
+              <SituacaoDoEstoque saldo={saldo} situacao={situacao} unidade={unidade} />
             ),
           },
-          ...(controla
+          ...(controla && !saldoIndisponivel
             ? [
                 {
                   rotulo: 'Estoque mínimo',
                   valor: minimo === null ? null : formatQuantity(minimo, unidade),
+                  numerico: true,
                 },
               ]
             : []),
@@ -203,43 +237,66 @@ export default async function ProdutoPage({ params }: PageProps<'/erp/produtos/[
     { rotulo: 'Cadastro', valor: formatInstant(String(produto.created_at), fuso) },
   ];
 
+  const temAcoes = podeEditar || podeExcluir;
+
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <Link
-        href="/erp/produtos"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-content-muted hover:text-content"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        {sectionTitle(terms, '/erp/produtos')}
-      </Link>
-
-      <header className="mb-6 flex items-center gap-4">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-surface-muted dark:bg-surface-inset">
-          <Package className="size-6 text-content-subtle" aria-hidden />
-        </span>
-        <div className="min-w-0">
-          <h1 className="font-display text-2xl font-bold break-words text-content sm:text-3xl">
-            {String(produto.name)}
-          </h1>
-          <p className="flex flex-wrap items-center gap-2 text-content-muted">
+    <Page variant="registro">
+      <PageHeader
+        titulo={String(produto.name)}
+        trilha={[{ rotulo: sectionTitle(terms, '/erp/produtos'), href: '/erp/produtos' }]}
+        descricao={
+          <span className="flex flex-wrap items-center gap-2">
             {capitalizar(rotulo.singular)}
-            {produto.active !== true && <Badge>Fora de venda</Badge>}
-          </p>
-        </div>
-      </header>
+            {produto.active !== true && (
+              <Badge Icone={Ban} className="align-middle">
+                Fora de venda
+              </Badge>
+            )}
+          </span>
+        }
+      />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
-        <div className="order-2 flex flex-col gap-6 lg:order-1">
+      {/* Sem permissão de escrita nem de exclusão não há terceira coluna — e uma
+          faixa de 20rem vazia à direita leria como conteúdo que não carregou. */}
+      <GradeDeRegistro className={temAcoes ? undefined : 'xl:grid-cols-[18rem_minmax(0,1fr)]'}>
+        <div className={COLUNA_FIXA}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Ficha</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Facts fatos={fatos} />
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="flex flex-col gap-4">
           {veMovimentos && (
             <Card>
               <CardHeader>
                 <CardTitle>Últimas movimentações</CardTitle>
+                {/* O `.limit()` está dito na tela: a lista é um recorte, não o histórico. */}
+                <CardDescription>
+                  As {MOVIMENTOS_NA_TELA} mais recentes. O histórico completo fica no estoque.
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <MovementList
-                  movimentos={movimentos}
-                  vazio="Nada entrou nem saiu ainda. A primeira entrada, a primeira venda ou uma contagem aparecem aqui."
-                />
+                {movimentosR.error !== null ? (
+                  <EmptyState
+                    estado="erro"
+                    titulo="Não consegui ler as movimentações"
+                    densidade="compacta"
+                    moldura={false}
+                  >
+                    A leitura falhou agora, então não dá para saber se houve movimento. Recarregue a
+                    página em instantes.
+                  </EmptyState>
+                ) : (
+                  <MovementList
+                    movimentos={movimentos}
+                    vazio="Nada entrou nem saiu ainda. A primeira entrada, a primeira venda ou uma contagem aparecem aqui."
+                  />
+                )}
               </CardContent>
             </Card>
           )}
@@ -269,30 +326,29 @@ export default async function ProdutoPage({ params }: PageProps<'/erp/produtos/[
                     codigoDeBarras: typeof produto.barcode === 'string' ? produto.barcode : null,
                     controlaEstoque: controla,
                     estoqueMinimo: minimo === null ? null : formatQuantityInput(minimo),
-                    descricao: typeof produto.description === 'string' ? produto.description : null,
+                    descricao: descricaoDoProduto,
                   }}
                 />
+              ) : descricaoDoProduto === null ? (
+                <p className="text-body text-content-subtle">Sem descrição.</p>
               ) : (
-                <p className="whitespace-pre-wrap text-sm text-content-default">
-                  {typeof produto.description === 'string' && produto.description !== ''
-                    ? produto.description
-                    : 'Sem descrição.'}
+                /* `max-w-prose` no parágrafo, nunca no contêiner: a medida de
+                   leitura é do texto, e a coluna continua servindo à tabela. */
+                <p className="max-w-prose whitespace-pre-wrap text-body-lg text-content-default">
+                  {descricaoDoProduto}
                 </p>
               )}
             </CardContent>
           </Card>
         </div>
 
-        <div className="order-1 flex flex-col gap-6 lg:order-2">
-          <Card className="h-fit">
-            <CardContent className="pt-5">
-              <Facts fatos={fatos} />
-            </CardContent>
-          </Card>
-
-          {(podeEditar || podeExcluir) && (
-            <Card className="h-fit">
-              <CardContent className="pt-5">
+        {temAcoes && (
+          <div className={COLUNA_FIXA}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Situação</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <ProductStatusActions
                   id={String(produto.id)}
                   nome={String(produto.name)}
@@ -302,9 +358,9 @@ export default async function ProdutoPage({ params }: PageProps<'/erp/produtos/[
                 />
               </CardContent>
             </Card>
-          )}
-        </div>
-      </div>
-    </div>
+          </div>
+        )}
+      </GradeDeRegistro>
+    </Page>
   );
 }

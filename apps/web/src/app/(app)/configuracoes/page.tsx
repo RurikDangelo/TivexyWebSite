@@ -10,8 +10,11 @@ import {
 import { Blocks, Lock } from 'lucide-react';
 import type { Metadata } from 'next';
 
+import { FormWarning } from '@/components/form/messages';
+import { EmptyState } from '@/components/page/empty-state';
 import { PageHeader } from '@/components/page/header';
 import { NoTenant } from '@/components/page/no-tenant';
+import { Page } from '@/components/page/page';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { sectionTitle } from '@/config/navigation';
@@ -27,7 +30,8 @@ import {
   termOf,
 } from '@/lib/terms/vocabulary';
 
-import { EmpresaForm, type PreferenciaNaTela, PreferenciasForm, TiposDeAtividade } from './forms';
+import { TiposDeAtividade } from './activity-types';
+import { EmpresaForm, type PreferenciaNaTela, PreferenciasForm } from './forms';
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: sectionTitle(await currentTerms(), '/configuracoes') };
@@ -46,6 +50,10 @@ const MOEDAS: Readonly<Record<string, string>> = { BRL: 'Real brasileiro (R$)' }
  *
  * O que é da plataforma — módulos contratados e o vocabulário do nicho —
  * aparece para leitura, com quem procurar para mudar.
+ *
+ * Toda leitura que falha é dita. Antes, um erro em `tenants` deixava o
+ * formulário com os campos vazios, e "razão social em branco" passava por
+ * cadastro incompleto em vez de leitura que não aconteceu.
  */
 export default async function ConfiguracoesPage() {
   const { choice, viewer } = await requireAccess('/configuracoes');
@@ -55,6 +63,7 @@ export default async function ConfiguracoesPage() {
   const terms = await currentTerms();
   const supabase = await supabaseServer();
   const modulos = [...viewer.enabledModules] as ModuleCode[];
+  const mostraTipos = viewer.enabledModules.has('crm') && can(viewer, 'crm.activities.read');
 
   const [empresaR, modulosR, tiposR] = await Promise.all([
     supabase
@@ -66,14 +75,16 @@ export default async function ConfiguracoesPage() {
       .from('tenant_modules')
       .select('is_enabled, modules(code, name)')
       .eq('tenant_id', tenantId),
-    viewer.enabledModules.has('crm') && can(viewer, 'crm.activities.read')
+    mostraTipos
       ? supabase
           .from('crm_activity_types')
           .select('id, name')
           .eq('tenant_id', tenantId)
           .order('position')
           .order('name')
-      : Promise.resolve({ data: null }),
+      : /* `error: null` também no ramo que nem consulta: quem lê o resultado não
+           deveria precisar saber qual dos dois caminhos produziu este objeto. */
+        Promise.resolve({ data: null, error: null }),
   ]);
 
   const empresa = empresaR.data;
@@ -125,24 +136,34 @@ export default async function ConfiguracoesPage() {
       doNicho: customTerm(terms, chave)?.plural ?? null,
     }));
 
+  const podeEditarEmpresa = can(viewer, 'core.tenant.write');
+  const podeEditarPreferencias = can(viewer, 'core.settings.write');
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+    <Page variant="ajuste">
       <PageHeader
         titulo={sectionTitle(terms, '/configuracoes')}
         descricao="Como esta empresa funciona no Tivexy."
       />
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
+        {empresaR.error !== null && (
+          <FormWarning>
+            Não consegui ler o cadastro da empresa agora. Os campos abaixo podem aparecer vazios sem
+            estarem vazios no banco — recarregue antes de salvar, para não apagar o que está lá.
+          </FormWarning>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle>Dados da empresa</CardTitle>
-            {!can(viewer, 'core.tenant.write') && (
+            {!podeEditarEmpresa && (
               <CardDescription>Só quem administra a conta muda estes dados.</CardDescription>
             )}
           </CardHeader>
           <CardContent>
             <EmpresaForm
-              podeEditar={can(viewer, 'core.tenant.write')}
+              podeEditar={podeEditarEmpresa}
               inicial={{
                 nome: String(empresa?.name ?? choice.tenant.name),
                 razaoSocial: typeof empresa?.legal_name === 'string' ? empresa.legal_name : null,
@@ -157,17 +178,17 @@ export default async function ConfiguracoesPage() {
           <CardHeader>
             <CardTitle>Preferências</CardTitle>
             <CardDescription>
-              {can(viewer, 'core.settings.write')
+              {podeEditarPreferencias
                 ? 'Valem para todo mundo desta empresa, a partir de agora.'
                 : 'Você pode ver, mas não mudar — isso é de quem administra a conta.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <PreferenciasForm itens={itens} podeEditar={can(viewer, 'core.settings.write')} />
+            <PreferenciasForm itens={itens} podeEditar={podeEditarPreferencias} />
           </CardContent>
         </Card>
 
-        {tiposR.data !== null && (
+        {mostraTipos && (
           <Card>
             <CardHeader>
               <CardTitle>Tipos de {termOf(terms, 'crm.activities').plural}</CardTitle>
@@ -177,6 +198,7 @@ export default async function ConfiguracoesPage() {
               <TiposDeAtividade
                 plural={termOf(terms, 'crm.activities').plural}
                 podeEditar={can(viewer, 'crm.activities.write')}
+                erro={tiposR.error !== null}
                 tipos={(tiposR.data ?? []).map((t) => ({ id: String(t.id), nome: String(t.name) }))}
               />
             </CardContent>
@@ -194,13 +216,35 @@ export default async function ConfiguracoesPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ul className="flex flex-wrap gap-2">
-              {contratados.map((m) => (
-                <li key={m.codigo}>
-                  <Badge tone="brand">{m.nome}</Badge>
-                </li>
-              ))}
-            </ul>
+            {modulosR.error !== null ? (
+              <EmptyState
+                estado="erro"
+                titulo="Não consegui ler os módulos"
+                densidade="compacta"
+                moldura={false}
+              >
+                Uma lista em branco aqui não significa nenhum módulo contratado — significa que a
+                leitura falhou. Recarregue a página em instantes.
+              </EmptyState>
+            ) : contratados.length === 0 ? (
+              <EmptyState
+                icone={Blocks}
+                titulo="Nenhum módulo habilitado"
+                densidade="compacta"
+                moldura={false}
+              >
+                Sem módulo não há CRM, vendas nem estoque nesta empresa. Fale com a Tivexy para
+                contratar.
+              </EmptyState>
+            ) : (
+              <ul className="flex flex-wrap gap-2">
+                {contratados.map((m) => (
+                  <li key={m.codigo}>
+                    <Badge tone="brand">{m.nome}</Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
 
@@ -215,7 +259,12 @@ export default async function ConfiguracoesPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+            {/*
+             * Continua sendo `<dl>`, e não `<Table>`: são pares nome→nome, sem
+             * coluna para ordenar nem linha para abrir, e a grade de duas
+             * colunas cabe o dobro de termos na altura de uma tabela.
+             */}
+            <dl className="grid gap-x-6 text-body sm:grid-cols-2">
               {vocabulario.map((v) => (
                 <div
                   key={v.chave}
@@ -235,6 +284,6 @@ export default async function ConfiguracoesPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </Page>
   );
 }

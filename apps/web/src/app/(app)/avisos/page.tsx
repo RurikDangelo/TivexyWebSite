@@ -1,20 +1,23 @@
-import { Bell, BellOff, CheckCheck } from 'lucide-react';
+import { Bell, BellOff, BellRing, CheckCheck, Inbox, SearchX } from 'lucide-react';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 
-import { FormError } from '@/components/form/messages';
 import { Submit } from '@/components/form/submit';
 import { EmptyState } from '@/components/page/empty-state';
 import { PageHeader } from '@/components/page/header';
 import { NoTenant } from '@/components/page/no-tenant';
+import { Page } from '@/components/page/page';
 import { Pagination } from '@/components/page/pagination';
+import { buttonVariants } from '@/components/ui/button';
+import { Stat, StatGrid } from '@/components/ui/stat';
+import { TBody, TH, THead, TR, Table, TableEmpty } from '@/components/ui/table';
 import { requireAccess } from '@/lib/auth/require';
-import { contagem } from '@/lib/format';
 import { paginaPedida } from '@/lib/search';
 import { tenantTimeZone } from '@/lib/settings/current';
 import { supabaseServer } from '@/lib/supabase/server';
 
 import { marcarTodosComoLidos } from './actions';
-import { type Aviso, NotificationList } from './notification-list';
+import { COLUNAS_DE_AVISOS, LinhaDeAviso, type Aviso } from './notification-row';
 
 export const metadata: Metadata = { title: 'Avisos' };
 
@@ -60,21 +63,25 @@ export default async function AvisosPage({ searchParams }: PageProps<'/avisos'>)
     quando: String(a.created_at),
     lido: a.read_at !== null,
   }));
+
+  /*
+   * Os três números são `count: 'exact'` do banco, não o tamanho da página:
+   * são totais de verdade. `null` quando a leitura falhou — o `Stat` escreve
+   * que não conseguiu ler, em vez de exibir um zero que passaria por medida.
+   */
+  const leu = lista.error === null && naoLidos.error === null;
+  const total = lista.count ?? 0;
   const pendentes = naoLidos.count ?? 0;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+    <Page variant="operacao">
       <PageHeader
         titulo="Avisos"
-        descricao={
-          pendentes === 0
-            ? 'Tudo lido. Os avisos nascem das automações da empresa, e ficam só aqui dentro.'
-            : `${contagem(pendentes, 'aviso não lido', 'avisos não lidos')}. Os avisos nascem das automações da empresa, e ficam só aqui dentro.`
-        }
+        descricao="O que as automações desta empresa mandaram para você. Nada aqui é e-mail: os avisos nascem e ficam dentro do Tivexy."
         acoes={
-          pendentes > 0 ? (
+          leu && pendentes > 0 ? (
             <form action={marcarTodosComoLidos}>
-              <Submit variant="outline" size="sm" pendente="Marcando…">
+              <Submit variant="outline" pendente="Marcando…">
                 <CheckCheck aria-hidden />
                 Marcar tudo como lido
               </Submit>
@@ -83,26 +90,111 @@ export default async function AvisosPage({ searchParams }: PageProps<'/avisos'>)
         }
       />
 
-      {(lista.error !== null || naoLidos.error !== null) && (
-        <div className="mb-4">
-          <FormError>Não consegui ler os avisos agora. Recarregue a página em instantes.</FormError>
+      <div className="flex flex-col gap-6">
+        <StatGrid colunas={3}>
+          <Stat
+            rotulo="Não lidos"
+            valor={leu ? pendentes : null}
+            Icone={BellRing}
+            tom="warning"
+            nota="é este o número do sino"
+            contar
+          />
+          <Stat
+            rotulo="Já lidos"
+            valor={leu ? total - pendentes : null}
+            Icone={Bell}
+            nota="ficam aqui, não somem"
+            contar
+          />
+          <Stat
+            rotulo="Todos os avisos"
+            valor={leu ? total : null}
+            Icone={Inbox}
+            nota="desde que a empresa começou"
+            contar
+          />
+        </StatGrid>
+
+        <div className="flex flex-col gap-4">
+          {leu ? (
+            <Table densidade="larga" rotulo="Seus avisos nesta empresa">
+              <THead sticky>
+                <TR>
+                  <TH className="w-px whitespace-nowrap">Situação</TH>
+                  <TH>Aviso</TH>
+                  <TH>Quando</TH>
+                  <TH alinhamento="fim">
+                    <span className="sr-only">Ações</span>
+                  </TH>
+                </TR>
+              </THead>
+
+              <TBody>
+                {avisos.map((aviso, i) => (
+                  <LinhaDeAviso
+                    key={aviso.id}
+                    aviso={aviso}
+                    fuso={fuso}
+                    animar={pagina === 1}
+                    indice={i}
+                  />
+                ))}
+
+                {avisos.length === 0 && total === 0 && (
+                  <TableEmpty colunas={COLUNAS_DE_AVISOS} icone={BellOff} titulo="Nenhum aviso">
+                    Um aviso aparece aqui quando uma automação da empresa manda um para você — por
+                    exemplo, num registro acima de um valor ou num saldo que chegou no mínimo.
+                    Enquanto nenhuma regra disparar, esta lista fica vazia, e isso é o esperado.
+                  </TableEmpty>
+                )}
+
+                {avisos.length === 0 && total > 0 && (
+                  <TableEmpty
+                    colunas={COLUNAS_DE_AVISOS}
+                    icone={SearchX}
+                    titulo="Nada nesta página"
+                    acao={
+                      <Link
+                        href="/avisos"
+                        className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                      >
+                        Voltar ao começo
+                      </Link>
+                    }
+                  >
+                    A lista acabou antes desta página — você tem {total.toLocaleString('pt-BR')}{' '}
+                    {total === 1 ? 'aviso' : 'avisos'} no total.
+                  </TableEmpty>
+                )}
+              </TBody>
+            </Table>
+          ) : (
+            <EmptyState
+              estado="erro"
+              titulo="Não consegui ler os avisos"
+              acao={
+                <Link href="/avisos" className={buttonVariants({ variant: 'outline' })}>
+                  Tentar de novo
+                </Link>
+              }
+            >
+              A leitura falhou agora, então não dá para saber se há aviso esperando por você — nem o
+              número do sino é confiável nesta carga. Nada foi marcado como lido.
+            </EmptyState>
+          )}
+
+          <Pagination pagina={pagina} porPagina={POR_PAGINA} total={total} params={{}} />
         </div>
-      )}
 
-      {avisos.length === 0 && lista.error === null ? (
-        <EmptyState icone={BellOff} titulo={pagina > 1 ? 'Nada nesta página' : 'Nenhum aviso'}>
-          Aviso aparece aqui quando uma automação da empresa manda um para você — por exemplo, num
-          registro acima de um valor ou num saldo que chegou no mínimo. Nada aqui é e-mail.
-        </EmptyState>
-      ) : (
-        <NotificationList avisos={avisos} fuso={fuso} />
-      )}
-
-      <Pagination pagina={pagina} porPagina={POR_PAGINA} total={lista.count ?? 0} params={{}} />
-      <p className="mt-6 flex items-center gap-1.5 text-xs text-content-subtle">
-        <Bell className="size-3.5" aria-hidden />O número no sino atualiza a cada página aberta —
-        não há aviso em tempo real.
-      </p>
-    </div>
+        <p className="flex max-w-prose items-start gap-2 text-caption text-content-subtle">
+          <Bell className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span>
+            O número no sino atualiza a cada página aberta — não há aviso em tempo real, e esta
+            lista não se ordena nem se filtra ainda.
+          </span>
+        </p>
+      </div>
+    </Page>
   );
 }

@@ -65,3 +65,44 @@ export function situacaoDeVendaPedida(valor: unknown): SituacaoDeVenda {
     ? (valor as SituacaoDeVenda)
     : 'todas';
 }
+
+/**
+ * As três colunas que a lista sabe ordenar, e a coluna do banco de cada uma.
+ *
+ * A lista é do banco, não da página: ordenar precisa ir até a consulta, senão
+ * "maior total" ordenaria só os 50 da página atual e mentiria sobre o resto.
+ * Por isso a chave da URL é traduzida aqui para o nome real da coluna — nada
+ * do que vem no endereço chega ao `.order()` sem passar por este mapa.
+ *
+ * Cliente e forma de pagamento ficam de fora de propósito: as duas moram em
+ * tabelas relacionadas, e ordenar por elas exigiria mudar a consulta de
+ * verdade — o que não é redesenho.
+ */
+const COLUNA_DA_ORDEM = {
+  numero: 'number',
+  quando: 'sold_at',
+  total: 'total_cents',
+} as const;
+
+export type ChaveDeOrdemDeVenda = keyof typeof COLUNA_DA_ORDEM;
+
+export interface OrdenacaoDeVenda {
+  chave: ChaveDeOrdemDeVenda;
+  coluna: (typeof COLUNA_DA_ORDEM)[ChaveDeOrdemDeVenda];
+  ascendente: boolean;
+}
+
+/** `?ordem=total` sobe, `?ordem=-total` desce. Chave desconhecida vira `null` — a ordem padrão da consulta. */
+export function ordenacaoPedida(valor: unknown): OrdenacaoDeVenda | null {
+  if (typeof valor !== 'string' || valor === '') return null;
+  const ascendente = !valor.startsWith('-');
+  const chave = ascendente ? valor : valor.slice(1);
+  if (!Object.hasOwn(COLUNA_DA_ORDEM, chave)) return null;
+  const conhecida = chave as ChaveDeOrdemDeVenda;
+  return { chave: conhecida, coluna: COLUNA_DA_ORDEM[conhecida], ascendente };
+}
+
+/** De volta ao texto do endereço. Vazio quando a ordem é a padrão, para não sujar a URL. */
+export function ordemNaUrl(ordenacao: OrdenacaoDeVenda | null): string {
+  return ordenacao === null ? '' : `${ordenacao.ascendente ? '' : '-'}${ordenacao.chave}`;
+}

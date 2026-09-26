@@ -1,11 +1,12 @@
 import { can } from '@tivexy/core';
-import { ArrowLeft, Package } from 'lucide-react';
+import { Package } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { EmptyState } from '@/components/page/empty-state';
 import { PageHeader } from '@/components/page/header';
 import { NoTenant } from '@/components/page/no-tenant';
+import { Page } from '@/components/page/page';
 import { buttonVariants } from '@/components/ui/button';
 import { sectionTitle } from '@/config/navigation';
 import { requireAccess } from '@/lib/auth/require';
@@ -27,6 +28,10 @@ export async function generateMetadata(): Promise<Metadata> {
  * Carrega o que está à venda, as formas de pagamento ativas e os clientes; o
  * resto acontece no navegador até o registro. O preço que a tela mostra é o
  * do cadastro, e é o mesmo que o banco vai gravar — não há campo de preço.
+ *
+ * Largura de operação, sem teto: é a tela onde a linha do item precisa caber
+ * nome, quantidade, unidade e total sem espremer. No teto de 1024px anterior
+ * sobravam 584px para a coluna de itens, menos que um tablet.
  */
 export default async function NovaVendaPage() {
   const { choice, viewer } = await requireAccess('/erp/vendas/nova');
@@ -37,6 +42,7 @@ export default async function NovaVendaPage() {
   const venda = termOf(terms, 'erp.sales');
   const produto = termOf(terms, 'erp.products');
   const cliente = termOf(terms, 'erp.customers');
+  const trilha = [{ rotulo: sectionTitle(terms, '/erp/vendas'), href: '/erp/vendas' }] as const;
 
   const supabase = await supabaseServer();
   const [produtosR, formasR, clientesR, ajustes] = await Promise.all([
@@ -72,27 +78,29 @@ export default async function NovaVendaPage() {
     codigoDeBarras: typeof p.barcode === 'string' ? p.barcode : null,
   }));
 
-  const voltar = (
-    <Link
-      href="/erp/vendas"
-      className="mb-4 inline-flex items-center gap-1.5 text-sm text-content-muted hover:text-content"
-    >
-      <ArrowLeft className="size-4" aria-hidden />
-      {sectionTitle(terms, '/erp/vendas')}
-    </Link>
-  );
-
-  if (produtosR.error === null && produtos.length === 0) {
+  /* Falhar em ler o cadastro não é "não há nada à venda": são coisas diferentes e a tela diz qual das duas. */
+  if (produtosR.error !== null) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-        {voltar}
-        <PageHeader titulo={`Registrar ${venda.singular}`} />
+      <Page variant="operacao">
+        <PageHeader titulo={`Registrar ${venda.singular}`} trilha={trilha} />
+        <EmptyState estado="erro" titulo={`Não consegui ler os ${produto.plural}`}>
+          Sem o cadastro não dá para montar a venda — e não sei dizer se ele está vazio ou se foi a
+          leitura que falhou. Recarregue em instantes.
+        </EmptyState>
+      </Page>
+    );
+  }
+
+  if (produtos.length === 0) {
+    return (
+      <Page variant="operacao">
+        <PageHeader titulo={`Registrar ${venda.singular}`} trilha={trilha} />
         <EmptyState
           icone={Package}
           titulo={`Ainda não há ${produto.plural} à venda`}
           acao={
             can(viewer, 'erp.products.write') ? (
-              <Link href="/erp/produtos" className={buttonVariants({ variant: 'outline' })}>
+              <Link href="/erp/produtos" className={buttonVariants()}>
                 Cadastrar {produto.singular}
               </Link>
             ) : undefined
@@ -101,14 +109,17 @@ export default async function NovaVendaPage() {
           Para vender, é preciso ter o que vender: com nome, unidade e preço, o cadastro já aparece
           aqui.
         </EmptyState>
-      </div>
+      </Page>
     );
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-      {voltar}
-      <PageHeader titulo={`Registrar ${venda.singular}`} />
+    <Page variant="operacao">
+      <PageHeader
+        titulo={`Registrar ${venda.singular}`}
+        trilha={trilha}
+        descricao={`Passe o leitor ou escreva o nome. O preço vem do cadastro de ${produto.plural}.`}
+      />
       <SaleForm
         produtos={produtos}
         formas={(formasR.data ?? []).map((f) => ({
@@ -124,13 +135,12 @@ export default async function NovaVendaPage() {
           venda: venda.singular,
           cliente: cliente.singular,
           produto: produto.singular,
-          produtos: produto.plural,
         }}
       />
-      <p className="mt-6 text-xs text-content-subtle">
+      <p className="mt-6 max-w-prose text-caption text-content-subtle">
         Registrar aqui não emite nota fiscal — a emissão depende de provedor fiscal e certificado
         digital, que ainda não estão configurados.
       </p>
-    </div>
+    </Page>
   );
 }

@@ -1,12 +1,12 @@
 import { addDays, can, instantFromLocal, todayIn } from '@tivexy/core';
-import { CreditCard, Plus, SearchX, ShoppingCart } from 'lucide-react';
+import { CreditCard, Plus, ShoppingCart } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { FormError } from '@/components/form/messages';
 import { EmptyState } from '@/components/page/empty-state';
 import { PageHeader } from '@/components/page/header';
 import { NoTenant } from '@/components/page/no-tenant';
+import { Page } from '@/components/page/page';
 import { Pagination } from '@/components/page/pagination';
 import { buttonVariants } from '@/components/ui/button';
 import { sectionTitle } from '@/config/navigation';
@@ -18,8 +18,21 @@ import { supabaseServer } from '@/lib/supabase/server';
 import { currentTerms } from '@/lib/terms/current';
 import { capitalizar, termOf } from '@/lib/terms/vocabulary';
 
-import { SaleRows, SalesFilters, SalesSummary, type VendaListada } from './sale-rows';
-import { POR_PAGINA, type Periodo, periodoPedido, situacaoDeVendaPedida } from './state';
+import {
+  SaleRows,
+  SalesFilters,
+  SalesSummary,
+  type VazioDaLista,
+  type VendaListada,
+} from './sale-rows';
+import {
+  POR_PAGINA,
+  type Periodo,
+  ordemNaUrl,
+  ordenacaoPedida,
+  periodoPedido,
+  situacaoDeVendaPedida,
+} from './state';
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: sectionTitle(await currentTerms(), '/erp/vendas') };
@@ -61,6 +74,8 @@ export default async function VendasPage({ searchParams }: PageProps<'/erp/venda
   const situacao = situacaoDeVendaPedida(params.situacao);
   const numeroBruto = typeof params.numero === 'string' ? params.numero.trim() : '';
   const numero = /^\d{1,12}$/.test(numeroBruto) ? numeroBruto : '';
+  const ordenacao = ordenacaoPedida(params.ordem);
+  const ordem = ordemNaUrl(ordenacao);
   const pagina = paginaPedida(params.pagina);
   const de = (pagina - 1) * POR_PAGINA;
 
@@ -88,11 +103,26 @@ export default async function VendasPage({ searchParams }: PageProps<'/erp/venda
   else if (situacao === 'canceladas') consulta = consulta.eq('status', 'cancelled');
   if (numero !== '') consulta = consulta.eq('number', numero);
 
+  /*
+   * A ordenação pedida na URL entra na consulta, nunca na página: ordenar só os
+   * 50 registros já carregados diria "o maior total" sobre um recorte, e o
+   * recorte não é o período. `ordenacaoPedida` já traduziu a chave da URL para
+   * o nome real da coluna — nada do endereço chega cru ao `.order()`.
+   *
+   * Sem pedido, a ordem continua sendo a de antes: mais recente primeiro.
+   */
+  const ordenada =
+    ordenacao === null
+      ? consulta.order('sold_at', { ascending: false }).order('number', { ascending: false })
+      : ordenacao.coluna === 'number'
+        ? consulta.order('number', { ascending: ordenacao.ascendente })
+        : consulta
+            .order(ordenacao.coluna, { ascending: ordenacao.ascendente })
+            /* Desempate estável: duas vendas do mesmo instante não podem trocar de lugar entre páginas. */
+            .order('number', { ascending: false });
+
   const [lista, resumoR] = await Promise.all([
-    consulta
-      .order('sold_at', { ascending: false })
-      .order('number', { ascending: false })
-      .range(de, de + POR_PAGINA - 1),
+    ordenada.range(de, de + POR_PAGINA - 1),
     supabase.rpc('erp_sales_summary', { p_tenant_id: tenantId, p_from: inicio, p_to: fim }),
   ]);
 
@@ -121,10 +151,68 @@ export default async function VendasPage({ searchParams }: PageProps<'/erp/venda
     descontoCentavos: Number(linhaDoResumo?.discount_cents ?? 0),
     canceladas: Number(linhaDoResumo?.cancelled_count ?? 0),
   };
+
   const filtrando = situacao !== 'todas' || numero !== '';
+  /* Um evento de entrada por rota: paginar, filtrar ou ordenar não repete a coreografia. */
+  const animar = Object.keys(params).length === 0;
+
+  const paramsDaUrl = {
+    periodo: periodo === '30d' ? '' : periodo,
+    situacao: situacao === 'todas' ? '' : situacao,
+    numero,
+    ordem,
+  };
+
+  /*
+   * Três ausências diferentes, três respostas diferentes. A da falha vive aqui
+   * fora da tabela: um cabeçalho de colunas de pé sobre uma leitura que não
+   * aconteceu afirma que a consulta voltou vazia, e ela não voltou.
+   */
+  const vazio: VazioDaLista = filtrando
+    ? {
+        icone: ShoppingCart,
+        titulo: 'Nada encontrado com este filtro',
+        frase:
+          numero !== ''
+            ? `Nenhum registro com o nº ${numero} ${NO_PERIODO[periodo]}. O número existe fora deste período?`
+            : `Nenhum registro nesta situação ${NO_PERIODO[periodo]}. Afrouxe o filtro para ver o resto.`,
+        acao: (
+          <Link
+            href={`/erp/vendas?periodo=${periodo}`}
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          >
+            Limpar os filtros
+          </Link>
+        ),
+      }
+    : {
+        icone: ShoppingCart,
+        titulo: `Sem ${rotulo.plural} ${NO_PERIODO[periodo]}`,
+        frase: podeVender
+          ? 'Cada registro baixa o estoque e lança o que entra no caixa — é daqui que o resto do ERP se alimenta.'
+          : 'Quando alguém da equipe registrar, aparece aqui.',
+        acao: (
+          <>
+            {podeVender && (
+              <Link href="/erp/vendas/nova" className={buttonVariants({ size: 'sm' })}>
+                <Plus aria-hidden />
+                Registrar {rotulo.singular}
+              </Link>
+            )}
+            {periodo !== 'tudo' && (
+              <Link
+                href="/erp/vendas?periodo=tudo"
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                Ver desde o início
+              </Link>
+            )}
+          </>
+        ),
+      };
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+    <Page variant="operacao">
       <PageHeader
         titulo={titulo}
         descricao={`${capitalizar(NO_PERIODO[periodo])}, no fuso da empresa.`}
@@ -144,71 +232,63 @@ export default async function VendasPage({ searchParams }: PageProps<'/erp/venda
         }
       />
 
-      <div className="mb-6 flex flex-col gap-4">
-        {resumoR.error === null && (
+      <div className="flex flex-col gap-4">
+        {resumoR.error === null ? (
           <SalesSummary resumo={resumo} rotuloPlural={capitalizar(rotulo.plural)} />
-        )}
-        <SalesFilters periodo={periodo} situacao={situacao} numero={numero} />
-      </div>
-
-      {(lista.error !== null || resumoR.error !== null) && (
-        <div className="mb-4">
-          <FormError>Não consegui ler tudo agora. Recarregue a página em instantes.</FormError>
-        </div>
-      )}
-
-      {vendas.length === 0 && lista.error === null ? (
-        filtrando ? (
+        ) : (
+          /* Falhar em somar não pode virar quatro zeros: zero é uma medida, e esta não foi feita. */
           <EmptyState
-            icone={SearchX}
-            titulo="Nada encontrado"
+            estado="erro"
+            titulo="Não consegui somar o período"
+            densidade="compacta"
             acao={
               <Link
                 href={`/erp/vendas?periodo=${periodo}`}
-                className={buttonVariants({ variant: 'outline' })}
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
               >
-                Limpar os filtros
+                Tentar de novo
               </Link>
             }
           >
-            {numero !== ''
-              ? `Nenhum registro com o nº ${numero} ${NO_PERIODO[periodo]}.`
-              : 'Nenhum registro nesta situação.'}
+            Os números do topo ficaram de fora desta carga. A lista abaixo continua valendo.
           </EmptyState>
-        ) : (
+        )}
+
+        <SalesFilters periodo={periodo} situacao={situacao} numero={numero} ordem={ordem} />
+
+        {lista.error !== null ? (
           <EmptyState
-            icone={ShoppingCart}
-            titulo={`Sem ${rotulo.plural} ${NO_PERIODO[periodo]}`}
+            estado="erro"
+            titulo="Não consegui ler os registros"
             acao={
-              periodo !== 'tudo' ? (
-                <Link
-                  href="/erp/vendas?periodo=tudo"
-                  className={buttonVariants({ variant: 'outline' })}
-                >
-                  Ver desde o início
-                </Link>
-              ) : undefined
+              <Link href="/erp/vendas" className={buttonVariants({ variant: 'outline' })}>
+                Tentar de novo
+              </Link>
             }
           >
-            {podeVender
-              ? 'Registre com o botão acima. Cada registro baixa o estoque e lança o que entra no caixa.'
-              : 'Quando alguém da equipe registrar, aparece aqui.'}
+            A leitura falhou no meio do caminho — não sei dizer se há registros neste período.
+            Recarregue em instantes.
           </EmptyState>
-        )
-      ) : (
-        <SaleRows vendas={vendas} rotuloSingular={capitalizar(rotulo.singular)} />
-      )}
-
-      <Pagination
-        pagina={pagina}
-        porPagina={POR_PAGINA}
-        total={total}
-        params={{
-          periodo: periodo === '30d' ? '' : periodo,
-          situacao: situacao === 'todas' ? '' : situacao,
-          numero,
-        }}
-      />
-    </div>
+        ) : (
+          <>
+            <SaleRows
+              vendas={vendas}
+              rotuloSingular={capitalizar(rotulo.singular)}
+              ordem={ordem === '' ? null : ordem}
+              params={paramsDaUrl}
+              animar={animar}
+              vazio={vazio}
+            />
+            <Pagination
+              pagina={pagina}
+              porPagina={POR_PAGINA}
+              total={total}
+              params={paramsDaUrl}
+              className="mt-0"
+            />
+          </>
+        )}
+      </div>
+    </Page>
   );
 }

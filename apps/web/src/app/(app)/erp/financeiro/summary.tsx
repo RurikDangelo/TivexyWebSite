@@ -4,12 +4,15 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   CalendarClock,
-  type LucideIcon,
+  CalendarX2,
   Scale,
 } from 'lucide-react';
 import Link from 'next/link';
 
-import { cn } from '@/lib/utils';
+import { EmptyState } from '@/components/page/empty-state';
+import { Stat, StatGrid } from '@/components/ui/stat';
+import { TBody, TD, TH, THead, TR, Table } from '@/components/ui/table';
+import { atrasoDaLinha, cn } from '@/lib/utils';
 
 import type { Aba } from './state';
 
@@ -26,54 +29,15 @@ export interface ResumoFinanceiro {
   aPagar30: number;
 }
 
-/** Com sinal, porque saldo negativo precisa se ler como negativo: "−R$ 120,00". */
-function comSinal(centavos: number): string {
-  if (centavos === 0) return formatCents(0);
-  return `${centavos > 0 ? '+' : '−'}${formatCents(Math.abs(centavos))}`;
-}
-
-function Cartao({
-  titulo,
-  Icone,
-  classeIcone,
-  valor,
-  classeValor,
-  detalhe,
-  href,
-}: {
-  titulo: string;
-  Icone: LucideIcon;
-  classeIcone: string;
-  valor: string;
-  classeValor?: string;
-  detalhe: React.ReactNode;
-  href?: string;
-}) {
-  const corpo = (
-    <>
-      <span className="flex items-center gap-1.5 text-xs text-content-muted">
-        <Icone className={cn('size-3.5 shrink-0', classeIcone)} aria-hidden />
-        {titulo}
-      </span>
-      <span
-        className={cn(
-          'font-display text-xl font-bold tabular-nums break-words sm:text-2xl',
-          classeValor ?? 'text-content',
-        )}
-      >
-        {valor}
-      </span>
-      <span className="text-xs text-content-subtle">{detalhe}</span>
-    </>
-  );
-  const classe =
-    'flex min-w-0 flex-col gap-1 rounded-lg border border-line-subtle bg-surface-raised p-3 sm:p-4';
-  return href === undefined ? (
-    <div className={classe}>{corpo}</div>
-  ) : (
-    <Link href={href} className={cn(classe, 'transition-colors hover:border-line')}>
-      {corpo}
-    </Link>
+/**
+ * O vencido, escrito e com símbolo — a cor sozinha não pode carregar o alarme.
+ */
+function Vencido({ centavos }: { centavos: number }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-danger">
+      <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
+      {formatCents(centavos)} vencidos
+    </span>
   );
 }
 
@@ -81,67 +45,105 @@ function Cartao({
  * Os quatro números do caixa: o mês realizado, o que há a receber e a pagar,
  * e o que vem nos próximos 30 dias.
  *
- * Vencido aparece dentro do total, em vermelho **e** escrito — "R$ 300,00
- * vencidos" —, e o cartão leva à lista já filtrada.
+ * `r === null` é falha de leitura, não caixa zerado: os quatro cartões dizem
+ * que não conseguiram ler em vez de exibir R$ 0,00 (CLAUDE.md).
+ *
+ * Não há `variacao` em nenhum deles de propósito. `finance_summary` devolve o
+ * mês corrente e a foto de hoje — não existe janela anterior apurada, e
+ * inventar uma comparação seria o defeito que o contrato chama de "0% sem
+ * base". Quando a RPC ganhar a janela anterior, `variacao` entra aqui.
  */
-export function FinanceSummary({ r }: { r: ResumoFinanceiro }) {
-  const saldoDoMes = r.entrouNoMes - r.saiuNoMes;
-  const saldo30 = r.aReceber30 - r.aPagar30;
+export function FinanceSummary({
+  r,
+  animar = false,
+}: {
+  r: ResumoFinanceiro | null;
+  /** Entrada da faixa. Só na primeira chegada à tela (seção 8, regra 3). */
+  animar?: boolean;
+}) {
+  const saldoDoMes = r === null ? null : r.entrouNoMes - r.saiuNoMes;
+  const saldo30 = r === null ? null : r.aReceber30 - r.aPagar30;
+  const semValor = 'não consegui ler agora';
+
   return (
-    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-      <Cartao
-        titulo="Saldo do mês"
+    <StatGrid colunas={4}>
+      <Stat
+        rotulo="Saldo do mês"
+        valor={saldoDoMes}
+        formato="moeda"
+        sinal
         Icone={Scale}
-        classeIcone="text-content-accent"
-        valor={comSinal(saldoDoMes)}
-        classeValor={saldoDoMes < 0 ? 'text-danger' : 'text-content'}
-        detalhe={`entrou ${formatCents(r.entrouNoMes)}, saiu ${formatCents(r.saiuNoMes)}`}
+        tom={saldoDoMes !== null && saldoDoMes < 0 ? 'danger' : 'neutral'}
+        semValor={semValor}
+        nota={
+          r === null
+            ? undefined
+            : `entrou ${formatCents(r.entrouNoMes)}, saiu ${formatCents(r.saiuNoMes)}`
+        }
+        animar={animar}
+        atraso={atrasoDaLinha(0)}
       />
-      <Cartao
-        titulo="A receber"
+      <Stat
+        rotulo="A receber"
+        valor={r === null ? null : r.aReceber}
+        formato="moeda"
+        contar
         Icone={ArrowDownLeft}
-        classeIcone="text-success"
-        valor={formatCents(r.aReceber)}
+        semValor={semValor}
         href={
-          r.aReceberVencido > 0
+          r !== null && r.aReceberVencido > 0
             ? '/erp/financeiro?aba=receber&filtro=vencidos'
             : '/erp/financeiro?aba=receber'
         }
-        detalhe={
-          r.aReceberVencido > 0 ? (
-            <span className="text-danger">{formatCents(r.aReceberVencido)} vencidos</span>
+        nota={
+          r === null ? undefined : r.aReceberVencido > 0 ? (
+            <Vencido centavos={r.aReceberVencido} />
           ) : (
             `${r.aReceberQuantos} em aberto, nada vencido`
           )
         }
+        animar={animar}
+        atraso={atrasoDaLinha(1)}
       />
-      <Cartao
-        titulo="A pagar"
+      <Stat
+        rotulo="A pagar"
+        valor={r === null ? null : r.aPagar}
+        formato="moeda"
+        contar
         Icone={ArrowUpRight}
-        classeIcone="text-danger"
-        valor={formatCents(r.aPagar)}
+        semValor={semValor}
         href={
-          r.aPagarVencido > 0
+          r !== null && r.aPagarVencido > 0
             ? '/erp/financeiro?aba=pagar&filtro=vencidos'
             : '/erp/financeiro?aba=pagar'
         }
-        detalhe={
-          r.aPagarVencido > 0 ? (
-            <span className="text-danger">{formatCents(r.aPagarVencido)} vencidos</span>
+        nota={
+          r === null ? undefined : r.aPagarVencido > 0 ? (
+            <Vencido centavos={r.aPagarVencido} />
           ) : (
             `${r.aPagarQuantos} em aberto, nada vencido`
           )
         }
+        animar={animar}
+        atraso={atrasoDaLinha(2)}
       />
-      <Cartao
-        titulo="Próximos 30 dias"
+      <Stat
+        rotulo="Próximos 30 dias"
+        valor={saldo30}
+        formato="moeda"
+        sinal
         Icone={CalendarClock}
-        classeIcone="text-content-accent"
-        valor={comSinal(saldo30)}
-        classeValor={saldo30 < 0 ? 'text-danger' : 'text-content'}
-        detalhe={`entra ${formatCents(r.aReceber30)}, sai ${formatCents(r.aPagar30)}`}
+        tom={saldo30 !== null && saldo30 < 0 ? 'danger' : 'neutral'}
+        semValor={semValor}
+        nota={
+          r === null
+            ? undefined
+            : `entra ${formatCents(r.aReceber30)}, sai ${formatCents(r.aPagar30)}`
+        }
+        animar={animar}
+        atraso={atrasoDaLinha(3)}
       />
-    </div>
+    </StatGrid>
   );
 }
 
@@ -154,76 +156,148 @@ export interface ProximoVencimento {
   vencido: boolean;
 }
 
-/** Os próximos vencimentos das duas direções, vencidos primeiro. */
-export function UpcomingDues({ itens }: { itens: readonly ProximoVencimento[] }) {
-  if (itens.length === 0) {
-    return (
-      <p className="text-sm text-content-muted">
-        Nada em aberto. Vendas a prazo e contas lançadas aparecem aqui quando vencerem.
-      </p>
-    );
-  }
-  return (
-    <ul className="flex flex-col divide-y divide-line-subtle">
-      {itens.map((i) => {
-        const entra = i.direcao === 'receivable';
-        const Icone = entra ? ArrowDownLeft : ArrowUpRight;
-        const aba: Aba = entra ? 'receber' : 'pagar';
-        return (
-          <li key={i.id}>
-            <Link
-              href={`/erp/financeiro?aba=${aba}`}
-              className="flex items-center gap-3 py-2.5 text-sm hover:bg-surface-subtle"
-            >
-              <Icone
-                className={cn('size-4 shrink-0', entra ? 'text-success' : 'text-danger')}
-                aria-hidden
-              />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-content">{i.descricao}</span>
-                <span className={cn('text-xs', i.vencido ? 'text-danger' : 'text-content-muted')}>
-                  {entra ? 'a receber' : 'a pagar'} · {i.prazoTexto}
-                  {i.vencido && <AlertTriangle className="ml-1 inline size-3" aria-hidden />}
-                </span>
-              </span>
-              <span className="shrink-0 font-mono tabular-nums text-content">
-                {formatCents(i.valorCentavos)}
-              </span>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
-  );
+/**
+ * O endereço do próprio lançamento, não o da lista inteira.
+ *
+ * Sem `q=`: o termo passa por `ilikeTerm`, que troca vírgula, aspas e
+ * parêntese por espaço — uma descrição com pontuação viraria uma busca que não
+ * encontra o item que o link prometia, e a tela responderia "nada encontrado".
+ * A âncora resolve sozinha: a lista em aberto é ordenada por vencimento, então
+ * quem está vencendo nos próximos sete dias está na primeira página.
+ */
+function enderecoDo(i: ProximoVencimento): string {
+  const aba: Aba = i.direcao === 'receivable' ? 'receber' : 'pagar';
+  return `/erp/financeiro?aba=${aba}&filtro=${i.vencido ? 'vencidos' : 'abertos'}#lanc-${i.id}`;
 }
 
-/** As três abas, como endereço. */
-export function FinanceTabs({ aba }: { aba: Aba }) {
-  const abas: { chave: Aba; rotulo: string; href: string }[] = [
-    { chave: 'visao', rotulo: 'Visão', href: '/erp/financeiro' },
-    { chave: 'receber', rotulo: 'A receber', href: '/erp/financeiro?aba=receber' },
-    { chave: 'pagar', rotulo: 'A pagar', href: '/erp/financeiro?aba=pagar' },
-  ];
+export interface UpcomingDuesProps {
+  itens: readonly ProximoVencimento[];
+  /**
+   * Quantos existem de fato na janela de sete dias. A lista mostra só os
+   * primeiros; sem este número o corte por `.limit()` passaria por total.
+   */
+  total: number;
+  /** A leitura falhou — diferente de "não há nada vencendo". */
+  erro?: boolean;
+}
+
+/** Os próximos vencimentos das duas direções, cada linha levando ao lançamento. */
+export function UpcomingDues({ itens, total, erro = false }: UpcomingDuesProps) {
+  if (erro) {
+    return (
+      <EmptyState
+        estado="erro"
+        titulo="Não consegui ler os vencimentos"
+        densidade="compacta"
+        moldura={false}
+      >
+        A leitura do banco falhou. Recarregue a página em instantes — nada foi perdido, isto é só a
+        tela.
+      </EmptyState>
+    );
+  }
+
+  if (itens.length === 0) {
+    return (
+      <EmptyState
+        icone={CalendarX2}
+        titulo="Nada vencendo nos próximos 7 dias"
+        densidade="compacta"
+        moldura={false}
+        acao={
+          <Link
+            href="/erp/financeiro?aba=receber"
+            className="text-body text-content-accent hover:underline"
+          >
+            Ver tudo o que está a receber
+          </Link>
+        }
+      >
+        É o que se quer ver aqui. Venda a prazo e conta lançada aparecem nesta caixa quando o
+        vencimento chega perto — e é daqui que se dá baixa.
+      </EmptyState>
+    );
+  }
+
   return (
-    <nav
-      aria-label="Financeiro"
-      className="mb-6 flex gap-1 overflow-x-auto border-b border-line-subtle"
-    >
-      {abas.map((a) => (
-        <Link
-          key={a.chave}
-          href={a.href}
-          aria-current={aba === a.chave ? 'page' : undefined}
-          className={cn(
-            '-mb-px shrink-0 border-b-2 px-3 py-2 text-sm transition-colors',
-            aba === a.chave
-              ? 'border-surface-brand font-medium text-content'
-              : 'border-transparent text-content-muted hover:text-content',
-          )}
-        >
-          {a.rotulo}
-        </Link>
-      ))}
-    </nav>
+    <div className="flex flex-col gap-2">
+      <Table densidade="densa" moldura="nenhuma" rotulo="Lançamentos vencendo nos próximos 7 dias">
+        <THead>
+          <TR>
+            <TH>Lançamento</TH>
+            <TH>Prazo</TH>
+            <TH alinhamento="fim">Valor</TH>
+          </TR>
+        </THead>
+        <TBody>
+          {itens.map((i) => {
+            const entra = i.direcao === 'receivable';
+            const Icone = entra ? ArrowDownLeft : ArrowUpRight;
+            const sentido = entra ? 'a receber' : 'a pagar';
+            return (
+              <TR
+                key={i.id}
+                href={enderecoDo(i)}
+                rotulo={`${i.descricao} — ${sentido}, ${i.prazoTexto}`}
+              >
+                {/*
+                 * Conteúdo em fluxo inline, sem flex aninhado: `truncar` corta na
+                 * própria célula, e um contêiner flex dentro dela não teria
+                 * largura definida para as reticências aparecerem.
+                 */}
+                <TD truncar rotulo="Lançamento">
+                  <Icone
+                    className={cn(
+                      'mr-2 inline size-4 shrink-0 align-text-bottom',
+                      entra ? 'text-success' : 'text-danger',
+                    )}
+                    aria-hidden
+                  />
+                  <span className="text-content">{i.descricao}</span>
+                </TD>
+                <TD rotulo="Prazo">
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 whitespace-nowrap text-caption',
+                      i.vencido ? 'text-danger' : 'text-content-muted',
+                    )}
+                  >
+                    {/* O ícone acompanha o vermelho: quem não distingue a cor lê o alerta. */}
+                    {i.vencido && <AlertTriangle className="size-3.5 shrink-0" aria-hidden />}
+                    {sentido} · {i.prazoTexto}
+                  </span>
+                </TD>
+                <TD numerico rotulo="Valor">
+                  {formatCents(i.valorCentavos)}
+                </TD>
+              </TR>
+            );
+          })}
+        </TBody>
+      </Table>
+
+      {total > itens.length && (
+        /*
+         * O rodapé existe porque a consulta é cortada: dizer só os oito
+         * primeiros e calar sobre o resto faria o painel passar por completo.
+         */
+        <p className="text-caption text-content-muted">
+          Mais {(total - itens.length).toLocaleString('pt-BR')} vencendo nos próximos 7 dias.{' '}
+          <Link
+            href="/erp/financeiro?aba=receber&filtro=abertos"
+            className="text-content-accent hover:underline"
+          >
+            A receber
+          </Link>
+          {' · '}
+          <Link
+            href="/erp/financeiro?aba=pagar&filtro=abertos"
+            className="text-content-accent hover:underline"
+          >
+            A pagar
+          </Link>
+        </p>
+      )}
+    </div>
   );
 }

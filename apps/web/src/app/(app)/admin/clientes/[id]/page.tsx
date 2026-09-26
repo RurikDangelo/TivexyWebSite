@@ -6,12 +6,12 @@ import {
   formatDocument,
 } from '@tivexy/core';
 import { blueprintByCode } from '@tivexy/core/blueprints';
-import { ArrowLeft } from 'lucide-react';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { FormError } from '@/components/form/messages';
+import { PageHeader } from '@/components/page/header';
+import { Page } from '@/components/page/page';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ACOES_DE_PLATAFORMA, SITUACAO } from '@/lib/admin/labels';
@@ -21,6 +21,8 @@ import { isUuid } from '@/lib/ids';
 import { embeddedCode } from '@/lib/supabase/embedded';
 import { supabaseServer } from '@/lib/supabase/server';
 
+import { AvisoDeEndereco, EnderecoPendente } from '../../endereco';
+import { FUSO_DA_PLATAFORMA } from '../../plataforma';
 import { DadosForm, PlanoForm, SituacaoForm } from './forms';
 import {
   type ExecucaoNaTela,
@@ -30,9 +32,29 @@ import {
 } from './history';
 import type { ModuloNaTela, PlanoNaTela } from './state';
 
-export const metadata: Metadata = { title: 'Cliente' };
+/** Tetos das duas listas do histórico. A tela diz que são tetos — ver as descrições dos cartões. */
+const LIMITE_DE_EXECUCOES = 20;
+const LIMITE_DE_REGISTROS = 50;
 
-const FUSO_DA_PLATAFORMA = 'America/Sao_Paulo';
+/**
+ * O nome do cliente na aba.
+ *
+ * Era `metadata` estático dizendo "Cliente": com três clientes abertos, as três
+ * abas diziam a mesma coisa. A consulta é uma coluna só, e o nome já é lido
+ * pela página — o custo é um `select name` a mais, e o ganho é poder achar a
+ * aba certa.
+ */
+export async function generateMetadata({
+  params,
+}: PageProps<'/admin/clientes/[id]'>): Promise<Metadata> {
+  const { id } = await params;
+  if (!isUuid(id)) return { title: 'Cliente' };
+
+  const supabase = await supabaseServer();
+  const { data } = await supabase.from('tenants').select('name').eq('id', id).maybeSingle();
+
+  return { title: typeof data?.name === 'string' ? data.name : 'Cliente' };
+}
 
 function relacao<T>(valor: unknown): T | null {
   const linha = Array.isArray(valor) ? valor[0] : valor;
@@ -83,25 +105,25 @@ export default async function ClientePage({ params }: PageProps<'/admin/clientes
       )
       .eq('tenant_id', id)
       .order('created_at', { ascending: false })
-      .limit(20),
+      .limit(LIMITE_DE_EXECUCOES),
     supabase
       .from('audit_logs')
       .select('id, action, metadata, created_at, actor_user_id')
       .eq('tenant_id', id)
       .in('action', ACOES_DE_PLATAFORMA)
       .order('created_at', { ascending: false })
-      .limit(50),
+      .limit(LIMITE_DE_REGISTROS),
   ]);
 
   if (empresa.error === null && empresa.data === null) notFound();
   const t = empresa.data;
   if (t === null) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+      <Page variant="ajuste">
         <FormError>
           Não consegui ler este cliente agora. Recarregue a página em instantes.
         </FormError>
-      </div>
+      </Page>
     );
   }
 
@@ -193,28 +215,24 @@ export default async function ClientePage({ params }: PageProps<'/admin/clientes
   const falhouLer = [planos, modulos, ligados, execucoes, registros].some((r) => r.error !== null);
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <Link
-        href="/admin"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-content-muted hover:text-content"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        Clientes
-      </Link>
-      <header className="mb-6 flex flex-col gap-2">
-        <h1 className="font-display text-2xl font-bold break-words text-content sm:text-3xl">
-          {t.name}
-        </h1>
-        <div className="flex flex-wrap items-center gap-2 text-sm text-content-muted">
-          <span className="font-mono text-xs">{t.slug}.tivexy.com.br</span>
-          <Badge tone={rotulo.tom}>{rotulo.rotulo}</Badge>
-          {texto(planoAtual?.name) !== null && <Badge>Plano {String(planoAtual?.name)}</Badge>}
-          {texto(t.document) !== null && (
-            <span className="font-mono text-xs">{formatDocument(String(t.document))}</span>
-          )}
-          <span>desde {formatInstant(String(t.created_at), fuso)}</span>
-        </div>
-      </header>
+    <Page variant="ajuste">
+      <PageHeader
+        titulo={String(t.name)}
+        trilha={[{ rotulo: 'Clientes', href: '/admin' }]}
+        className="mb-3"
+      />
+
+      {/* Os fatos do cliente antes de qualquer formulário: o que ele é, não o que se faz com ele. */}
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-caption text-content-muted">
+        <Badge tone={rotulo.tom}>{rotulo.rotulo}</Badge>
+        {texto(planoAtual?.name) !== null && <Badge>Plano {String(planoAtual?.name)}</Badge>}
+        <EnderecoPendente slug={String(t.slug)} />
+        {texto(t.document) !== null && (
+          <span className="font-mono">{formatDocument(String(t.document))}</span>
+        )}
+        <span>desde {formatInstant(String(t.created_at), fuso)}</span>
+      </div>
+      <AvisoDeEndereco className="mb-5" />
 
       {falhouLer && (
         <div className="mb-4">
@@ -224,7 +242,8 @@ export default async function ClientePage({ params }: PageProps<'/admin/clientes
         </div>
       )}
 
-      <div className="flex flex-col gap-6">
+      {/* `gap-4` entre blocos de uma mesma seção; `gap-6` é reservado a regiões da página. */}
+      <div className="flex flex-col gap-4">
         <Card>
           <CardHeader>
             <CardTitle>Situação</CardTitle>
@@ -276,7 +295,13 @@ export default async function ClientePage({ params }: PageProps<'/admin/clientes
           <CardHeader>
             <CardTitle>Dados</CardTitle>
             <CardDescription>
-              O endereço ({t.slug}.tivexy.com.br) não muda: link já enviado quebraria.
+              {/*
+               * O identificador, não "o endereço": `{slug}.tivexy.com.br` não
+               * resolve, e a frase antiga afirmava que ele estava em links já
+               * enviados. O que está em link enviado é o slug.
+               */}
+              O identificador ({String(t.slug)}) não muda: o provisionamento já o gravou, e trocá-lo
+              quebraria o que aponta para ele.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -293,7 +318,8 @@ export default async function ClientePage({ params }: PageProps<'/admin/clientes
           <CardHeader>
             <CardTitle>Provisionamentos</CardTitle>
             <CardDescription>
-              Cada execução, com as etapas. A que parou aparece aberta.
+              Cada execução, com as etapas. A que parou aparece aberta. A lista mostra no máximo as{' '}
+              {LIMITE_DE_EXECUCOES} mais recentes.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -305,7 +331,12 @@ export default async function ClientePage({ params }: PageProps<'/admin/clientes
           <CardHeader>
             <CardTitle>Decisões da plataforma</CardTitle>
             <CardDescription>
+              {/*
+               * "da auditoria, que não se apaga" continua verdade; o que não era
+               * verdade é a tela mostrar tudo. São os 50 mais recentes.
+               */}
               Suspensões, reativações, trocas de plano e edições — da auditoria, que não se apaga.
+              Aqui aparecem os {LIMITE_DE_REGISTROS} registros mais recentes.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -313,6 +344,6 @@ export default async function ClientePage({ params }: PageProps<'/admin/clientes
           </CardContent>
         </Card>
       </div>
-    </div>
+    </Page>
   );
 }

@@ -80,10 +80,10 @@ export function MovementForm(props: Props) {
     <form
       id="registrar"
       action={acao}
-      className="animate-enter rounded-lg border border-line-subtle bg-surface-raised p-4 shadow-xs"
+      className="animate-enter rounded-card border border-line-subtle bg-surface-panel p-4 shadow-card"
     >
       <div className="mb-4 flex items-center justify-between gap-2">
-        <h2 className="font-medium text-content">Registrar movimentação</h2>
+        <h2 className="text-h2 text-content">Registrar movimentação</h2>
         <Button
           type="button"
           variant="ghost"
@@ -130,17 +130,17 @@ function Campos({
       {estado.erro !== null && <FormError>{estado.erro}</FormError>}
 
       <fieldset className="flex flex-col gap-1.5">
-        <legend className="mb-1.5 text-sm font-medium text-content-default">Tipo</legend>
+        <legend className="mb-1.5 text-label text-content-default">Tipo</legend>
         <div className="grid grid-cols-3 gap-2">
           {TIPOS.map(({ valor, rotulo, Icone }) => (
             <label
               key={valor}
               className={cn(
-                'flex cursor-pointer flex-col items-center gap-1 rounded-md border px-2 py-2.5 text-sm transition-colors',
+                'flex cursor-pointer flex-col items-center gap-1 rounded-control border px-2 py-2.5 text-label transition-colors transition-base',
                 // O rádio é invisível; o foco aparece no cartão que o contém.
                 'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring',
                 tipo === valor
-                  ? 'border-line-accent bg-surface-accent-soft font-medium text-content-accent'
+                  ? 'border-line-accent bg-surface-accent-soft text-content-accent'
                   : 'border-line-field text-content-default hover:bg-surface-subtle',
               )}
             >
@@ -158,7 +158,7 @@ function Campos({
           ))}
         </div>
         {e.tipo !== undefined && (
-          <p role="alert" className="text-xs text-danger">
+          <p role="alert" className="text-caption text-danger">
             {e.tipo}
           </p>
         )}
@@ -216,7 +216,7 @@ function Campos({
           >
             <div className="relative">
               <span
-                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-content-subtle"
+                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-body text-content-subtle"
                 aria-hidden
               >
                 R$

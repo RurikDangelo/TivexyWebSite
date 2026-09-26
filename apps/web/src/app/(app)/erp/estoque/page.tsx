@@ -1,24 +1,22 @@
 import {
   type InventoryMovementKind,
   INVENTORY_MOVEMENT_KINDS,
-  STOCK_STATUS_ORDER,
   type StockStatus,
   can,
   isProductUnit,
   stockStatus,
   stockSummary,
 } from '@tivexy/core';
-import { Boxes, Package, SearchX } from 'lucide-react';
+import { Boxes, History, Package, RotateCw, SearchX } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { FormError } from '@/components/form/messages';
 import { EmptyState } from '@/components/page/empty-state';
 import { PageHeader } from '@/components/page/header';
 import { NoTenant } from '@/components/page/no-tenant';
+import { Page } from '@/components/page/page';
 import { Pagination } from '@/components/page/pagination';
 import { buttonVariants } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { sectionTitle } from '@/config/navigation';
 import { requireAccess } from '@/lib/auth/require';
 import { MOVIMENTO } from '@/lib/erp/labels';
@@ -36,7 +34,14 @@ import { MovementList, type MovimentoNaTela } from '../movement-list';
 import { type Aba, LedgerFilters, LevelFilters, StockTabs } from './filters';
 import { LevelRows, type SaldoNaTela, StockSummaryCards } from './levels';
 import { MovementForm } from './movement-form';
-import { POR_PAGINA, TETO_DO_SALDO, filtroPedido } from './state';
+import {
+  ORDEM_PADRAO,
+  POR_PAGINA,
+  TETO_DO_SALDO,
+  compararSaldo,
+  filtroPedido,
+  ordemPedida,
+} from './state';
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: sectionTitle(await currentTerms(), '/erp/estoque') };
@@ -63,12 +68,32 @@ const PASSA: Record<string, (s: StockStatus) => boolean> = {
 };
 
 /**
+ * Tentar de novo é `<a>`, não `<Link>`.
+ *
+ * A navegação do cliente para o mesmo endereço pode servir o que está no cache
+ * do roteador — devolvendo exatamente o mesmo erro sem ter ido ao banco. Um
+ * anchor comum recarrega o documento, que é o que a palavra "tentar" promete.
+ */
+function TentarDeNovo({ href }: { href: string }) {
+  return (
+    <a href={href} className={buttonVariants({ variant: 'outline' })}>
+      <RotateCw aria-hidden />
+      Tentar de novo
+    </a>
+  );
+}
+
+/**
  * O estoque: quanto há de cada coisa, o que pede ação, e o que mexeu nisso.
  *
- * O saldo vem ordenado pela urgência — negativo, zerado, no mínimo, em dia —,
+ * O saldo chega ordenado pela urgência — negativo, zerado, no mínimo, em dia —,
  * porque a pergunta de quem abre esta tela é "o que eu preciso repor". O
- * resumo precisa de todos os produtos controlados, então eles são lidos de
- * uma vez (até `TETO_DO_SALDO`); a lista é paginada depois.
+ * resumo precisa de todos os produtos controlados, então eles são lidos de uma
+ * vez (até `TETO_DO_SALDO`); a lista é paginada depois.
+ *
+ * Falha de leitura e estoque vazio são **dois** estados, e a tela nunca os
+ * confunde: quando a consulta não volta, nada é apresentado como zero — nem a
+ * contagem do cabeçalho, nem os tiles do resumo, nem o saldo de uma linha.
  */
 export default async function EstoquePage({ searchParams }: PageProps<'/erp/estoque'>) {
   const { choice, viewer } = await requireAccess('/erp/estoque');
@@ -131,7 +156,16 @@ export default async function EstoquePage({ searchParams }: PageProps<'/erp/esto
   const cabecalho = (
     <PageHeader
       titulo={titulo}
-      descricao={`${contagem(totalControlados, rotulo.singular, rotulo.plural)} com controle de estoque.`}
+      /*
+       * Com a leitura falhada, `count` é nulo e `totalControlados` cai para
+       * zero — e "0 produtos com controle de estoque" seria uma afirmação
+       * sobre o banco que ninguém apurou. A frase diz o que de fato aconteceu.
+       */
+      descricao={
+        produtosR.error === null
+          ? `${contagem(totalControlados, rotulo.singular, rotulo.plural)} com controle de estoque.`
+          : 'Não consegui ler o catálogo agora — a contagem fica de fora até a próxima tentativa.'
+      }
       acoes={
         <Link href="/erp/produtos" className={buttonVariants({ variant: 'outline' })}>
           <Package aria-hidden />
@@ -143,7 +177,7 @@ export default async function EstoquePage({ searchParams }: PageProps<'/erp/esto
 
   if (produtosR.error === null && totalControlados === 0) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+      <Page variant="operacao">
         {cabecalho}
         <EmptyState
           icone={Boxes}
@@ -157,7 +191,7 @@ export default async function EstoquePage({ searchParams }: PageProps<'/erp/esto
           O estoque lista o que foi cadastrado com &ldquo;Controla estoque&rdquo; ligado. Cadastre
           lá; a primeira entrada se registra aqui.
         </EmptyState>
-      </div>
+      </Page>
     );
   }
 
@@ -214,10 +248,11 @@ export default async function EstoquePage({ searchParams }: PageProps<'/erp/esto
     const filtrando = tipo !== '' || produtoPedido !== null;
 
     return (
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+      <Page variant="operacao">
         {cabecalho}
-        <StockTabs aba={aba} comRazao={veRazao} />
-        <div className="mb-6 flex flex-col gap-4">
+        <StockTabs aba={aba} comRazao={veRazao} className="mb-4" />
+
+        <div className="flex flex-col gap-4">
           <LedgerFilters
             tipo={tipo}
             produto={produtoPedido ?? ''}
@@ -226,31 +261,57 @@ export default async function EstoquePage({ searchParams }: PageProps<'/erp/esto
             rotuloVendas={capitalizar(termOf(terms, 'erp.sales').plural)}
           />
           {formulario}
-        </div>
-        {razaoR.error !== null && (
-          <div className="mb-4">
-            <FormError>Não consegui ler as movimentações agora. Recarregue em instantes.</FormError>
-          </div>
-        )}
-        <Card>
-          <CardContent className="pt-5">
+
+          {razaoR.error !== null ? (
+            /*
+             * Falha de leitura não é razão vazio. Uma lista vazia aqui diria
+             * "nada entrou nem saiu", que é uma afirmação sobre o estoque —
+             * e o que aconteceu foi que ninguém conseguiu olhar.
+             */
+            <EmptyState
+              estado="erro"
+              titulo="Não consegui ler as movimentações"
+              acao={<TentarDeNovo href="/erp/estoque?aba=movimentos" />}
+            >
+              A consulta ao banco falhou. Isto <strong>não</strong> significa que o razão está vazio
+              — significa que ele não pôde ser lido agora, e nada nesta tela foi preenchido por
+              estimativa.
+            </EmptyState>
+          ) : (
             <MovementList
               movimentos={movimentos}
+              moldura="painel"
+              animar={!filtrando && pagina === 1}
+              iconeVazio={filtrando ? SearchX : History}
+              tituloVazio={
+                filtrando ? 'Nenhuma movimentação com estes filtros' : 'Nada entrou nem saiu ainda'
+              }
+              acaoVazia={
+                filtrando ? (
+                  <Link
+                    href="/erp/estoque?aba=movimentos"
+                    className={buttonVariants({ variant: 'outline' })}
+                  >
+                    Limpar filtros
+                  </Link>
+                ) : undefined
+              }
               vazio={
                 filtrando
-                  ? 'Nenhuma movimentação com esses filtros.'
-                  : 'Nada entrou nem saiu ainda. A primeira entrada, venda ou contagem aparece aqui.'
+                  ? 'Há movimentações registradas, mas nenhuma passa por este tipo e este cadastro. Afrouxe um dos dois.'
+                  : 'O razão é o que explica por que o saldo mudou. A primeira entrada, venda ou contagem aparece aqui assim que for registrada.'
               }
             />
-          </CardContent>
-        </Card>
+          )}
+        </div>
+
         <Pagination
           pagina={pagina}
           porPagina={POR_PAGINA}
           total={total}
           params={{ aba: 'movimentos', tipo, produto: produtoPedido }}
         />
-      </div>
+      </Page>
     );
   }
 
@@ -258,11 +319,40 @@ export default async function EstoquePage({ searchParams }: PageProps<'/erp/esto
 
   const q = typeof params.q === 'string' ? params.q.trim() : '';
   const filtro = filtroPedido(params.situacao);
+  const ordem = ordemPedida(params.ordem);
+
+  const TETO_DOS_NIVEIS = TETO_DO_SALDO * 2;
   const { data: niveis, error: erroNiveis } = await supabase
     .from('inventory_stock_levels')
     .select('product_id, quantity')
     .eq('tenant_id', tenantId)
-    .limit(TETO_DO_SALDO * 2);
+    .limit(TETO_DOS_NIVEIS);
+
+  /*
+   * Qualquer uma das duas leituras falhando invalida a tela inteira: sem os
+   * produtos não há lista, e sem os níveis o `?? 0` de cada linha
+   * transformaria "não li" em "está zerado" — o KPI vermelho passaria a contar
+   * produtos que têm saldo no banco. É o achado de `page.tsx:327` da auditoria,
+   * e a correção é não desenhar número nenhum.
+   */
+  if (produtosR.error !== null || erroNiveis !== null) {
+    return (
+      <Page variant="operacao">
+        {cabecalho}
+        <StockTabs aba={aba} comRazao={veRazao} className="mb-4" />
+        <EmptyState
+          estado="erro"
+          titulo="Não consegui ler o saldo"
+          acao={<TentarDeNovo href="/erp/estoque" />}
+        >
+          A consulta ao banco falhou, então não dá para dizer o que há em cada prateleira. Nada foi
+          estimado: o que pareceria zerado pode ter saldo, e o que pareceria em dia pode estar
+          pedindo reposição.
+        </EmptyState>
+      </Page>
+    );
+  }
+
   const saldoDe = new Map((niveis ?? []).map((n) => [String(n.product_id), Number(n.quantity)]));
 
   const linhas: (SaldoNaTela & { custo: number | null; sku: string | null })[] = produtos.map(
@@ -284,6 +374,21 @@ export default async function EstoquePage({ searchParams }: PageProps<'/erp/esto
     })),
   );
 
+  /*
+   * As duas consultas têm teto. Passado ele, o resumo deixa de ser o total da
+   * empresa e vira a soma do pedaço lido — e é assim que ele passa a ser
+   * apresentado, com selo de "parcial" no tile e a frase abaixo dizendo onde a
+   * leitura parou. Exibir a soma truncada como total é o que o CLAUDE.md
+   * proíbe, não o fato de ela ser truncada.
+   */
+  const catalogoTruncado = totalControlados > TETO_DO_SALDO;
+  const niveisTruncados = (niveis ?? []).length >= TETO_DOS_NIVEIS;
+  const parcial = catalogoTruncado
+    ? `soma de ${produtos.length.toLocaleString('pt-BR')} dos ${totalControlados.toLocaleString('pt-BR')} cadastros`
+    : niveisTruncados
+      ? 'saldos lidos até o teto da consulta'
+      : undefined;
+
   const termo = semAcento(q);
   const visiveis = linhas
     .filter((l) => PASSA[filtro]!(l.situacao))
@@ -293,61 +398,49 @@ export default async function EstoquePage({ searchParams }: PageProps<'/erp/esto
         semAcento(l.nome).includes(termo) ||
         (l.sku !== null && semAcento(l.sku).includes(termo)),
     )
-    .sort(
-      (a, b) =>
-        STOCK_STATUS_ORDER.indexOf(a.situacao) - STOCK_STATUS_ORDER.indexOf(b.situacao) ||
-        a.nome.localeCompare(b.nome, 'pt-BR'),
-    );
+    .sort(compararSaldo(ordem));
   const pagina_ = visiveis.slice(de, de + POR_PAGINA);
 
+  /* O que os links de ordenação precisam preservar. `pagina` e `ordem` o próprio `hrefDeOrdem` descarta. */
+  const filtrosNaUrl = { q, situacao: filtro === 'todos' ? '' : filtro };
+
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+    <Page variant="operacao">
       {cabecalho}
-      <StockTabs aba={aba} comRazao={veRazao} />
+      <StockTabs aba={aba} comRazao={veRazao} className="mb-4" />
 
-      <div className="mb-6 flex flex-col gap-4">
-        <StockSummaryCards resumo={resumo} filtro={filtro} rotulo={rotulo} />
+      <div className="flex flex-col gap-4">
+        <StockSummaryCards resumo={resumo} filtro={filtro} rotulo={rotulo} parcial={parcial} />
         {formulario}
-        <LevelFilters q={q} situacao={filtro} plural={rotulo.plural} />
+        <LevelFilters q={q} situacao={filtro} ordem={ordem} plural={rotulo.plural} />
+
+        {(catalogoTruncado || niveisTruncados) && (
+          <p className="max-w-prose text-caption text-content-muted">
+            {catalogoTruncado &&
+              `Resumo e lista cobrem os primeiros ${TETO_DO_SALDO.toLocaleString('pt-BR')} de ${totalControlados.toLocaleString('pt-BR')} cadastros, em ordem alfabética — use a busca para achar o resto. `}
+            {niveisTruncados &&
+              `A leitura de saldos bateu no teto de ${TETO_DOS_NIVEIS.toLocaleString('pt-BR')} linhas: pode haver cadastro aparecendo como zerado que tem saldo no banco.`}
+          </p>
+        )}
+
+        <LevelRows
+          saldos={pagina_}
+          podeMovimentar={podeMovimentar}
+          ordem={ordem}
+          params={filtrosNaUrl}
+          busca={q}
+          filtro={filtro}
+          animar={q === '' && filtro === 'todos' && ordem === ORDEM_PADRAO && pagina === 1}
+          rotulo={rotulo}
+        />
       </div>
-
-      {(produtosR.error !== null || erroNiveis !== null) && (
-        <div className="mb-4">
-          <FormError>Não consegui ler o saldo agora. Recarregue a página em instantes.</FormError>
-        </div>
-      )}
-      {totalControlados > TETO_DO_SALDO && (
-        <p className="mb-4 text-sm text-content-muted">
-          Mostrando os primeiros {TETO_DO_SALDO.toLocaleString('pt-BR')} de{' '}
-          {totalControlados.toLocaleString('pt-BR')}, em ordem alfabética. Use a busca para achar o
-          resto.
-        </p>
-      )}
-
-      {pagina_.length === 0 ? (
-        <EmptyState
-          icone={SearchX}
-          titulo="Nada nesta situação"
-          acao={
-            <Link href="/erp/estoque" className={buttonVariants({ variant: 'outline' })}>
-              Ver tudo
-            </Link>
-          }
-        >
-          {q === ''
-            ? 'Nenhum cadastro está nesta situação agora — o que é bom sinal.'
-            : `Nenhum cadastro tem “${q}” no nome ou no código.`}
-        </EmptyState>
-      ) : (
-        <LevelRows saldos={pagina_} podeMovimentar={podeMovimentar} />
-      )}
 
       <Pagination
         pagina={pagina}
         porPagina={POR_PAGINA}
         total={visiveis.length}
-        params={{ q, situacao: filtro === 'todos' ? '' : filtro }}
+        params={{ ...filtrosNaUrl, ordem: ordem === ORDEM_PADRAO ? '' : ordem }}
       />
-    </div>
+    </Page>
   );
 }

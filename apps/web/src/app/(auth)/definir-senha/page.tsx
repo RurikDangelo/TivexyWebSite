@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
+import { LinkIcon } from 'lucide-react';
 import Link from 'next/link';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { buttonVariants } from '@/components/ui/button';
 import { currentSession } from '@/lib/auth/session';
+import { cn } from '@/lib/utils';
 
-import { Erro } from '../form-parts';
+import { AuthCard } from '../auth-card';
 import { PasswordForm } from './password-form';
 
 export const metadata: Metadata = { title: 'Definir senha' };
@@ -21,29 +23,37 @@ export const metadata: Metadata = { title: 'Definir senha' };
 export default async function DefinirSenhaPage() {
   const { email } = await currentSession();
 
+  if (email === null) {
+    /*
+     * Beco sem saída com saída. As três perguntas de um estado vazio: o que
+     * está vazio (não há sessão para gravar senha), por que importa (o link é
+     * de uso único e tem hora) e o que fazer agora (pedir outro). A frase é a
+     * mesma que estava na faixa de erro — mudou de papel, não de texto: não é
+     * erro de quem digitou, é um link que venceu.
+     */
+    return (
+      <AuthCard
+        titulo="Este link não vale mais"
+        descricao="O link expirou ou já foi usado. Peça uma nova recuperação para continuar."
+      >
+        <div className="flex flex-col items-start gap-4">
+          <span className="grid size-11 place-items-center rounded-pill bg-warning-soft">
+            <LinkIcon className="size-5 text-warning" aria-hidden />
+          </span>
+          <Link
+            href="/recuperar"
+            className={cn(buttonVariants({ variant: 'brand', size: 'lg' }), 'w-full')}
+          >
+            Pedir um link novo
+          </Link>
+        </div>
+      </AuthCard>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xl">Escolha uma senha</CardTitle>
-        <CardDescription>
-          {email === null ? 'Este link não vale mais.' : `Você está definindo a senha de ${email}.`}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {email === null ? (
-          <div className="flex flex-col gap-4">
-            <Erro>O link expirou ou já foi usado. Peça uma nova recuperação para continuar.</Erro>
-            <Link
-              href="/recuperar"
-              className="text-sm text-content-accent underline-offset-4 hover:underline"
-            >
-              Pedir novo link
-            </Link>
-          </div>
-        ) : (
-          <PasswordForm />
-        )}
-      </CardContent>
-    </Card>
+    <AuthCard titulo="Escolha uma senha" descricao={`Você está definindo a senha de ${email}.`}>
+      <PasswordForm />
+    </AuthCard>
   );
 }

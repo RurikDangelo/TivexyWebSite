@@ -1,15 +1,17 @@
 'use client';
 
 import type { FinanceDirection } from '@tivexy/core';
-import { Plus, X } from 'lucide-react';
-import { useActionState, useState } from 'react';
+import { Plus } from 'lucide-react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 
 import { Field, describedBy } from '@/components/form/field';
-import { FormError, FormSuccess } from '@/components/form/messages';
+import { FormError } from '@/components/form/messages';
 import { Submit } from '@/components/form/submit';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import { Input, Textarea } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/components/ui/toast';
 
 import { criarLancamento } from './actions';
 import { LANCAMENTO_INICIAL, type LancamentoFormState } from './state';
@@ -23,7 +25,7 @@ interface Props {
 
 const TEXTOS: Record<
   FinanceDirection,
-  { botao: string; quem: string; exemploQuem: string; exemplo: string; pago: string }
+  { botao: string; quem: string; exemploQuem: string; exemplo: string; pago: string; ajuda: string }
 > = {
   receivable: {
     botao: 'Lançar conta a receber',
@@ -31,6 +33,7 @@ const TEXTOS: Record<
     exemploQuem: 'Condomínio Solar',
     exemplo: 'Serviço de outubro',
     pago: 'Já recebido',
+    ajuda: 'Venda a prazo já entra sozinha. Aqui é o que não veio de venda.',
   },
   payable: {
     botao: 'Lançar conta a pagar',
@@ -38,59 +41,67 @@ const TEXTOS: Record<
     exemploQuem: 'Imobiliária Centro',
     exemplo: 'Aluguel de outubro',
     pago: 'Já pago',
+    ajuda: 'Aluguel, luz, fornecedor: o vencimento entra no fluxo de caixa.',
   },
 };
 
 /**
  * O lançamento avulso — o dinheiro da empresa que não veio de uma venda.
  *
- * "Já pago" registra o que aconteceu e ficou sem lançar: o aluguel de ontem.
- * Sem ele, o lançamento nasce em aberto, e o vencimento decide o previsto.
+ * Em diálogo, e não num painel que empurra a lista: o formulário tem oito
+ * campos e abria acima da tabela, jogando os lançamentos para fora da primeira
+ * tela justamente quando a pessoa precisava conferir se já não havia lançado
+ * aquilo. Assim o gatilho mora no cabeçalho da página — a única ação `brand`
+ * da tela — e a lista continua visível atrás.
+ *
+ * A confirmação é toast: um `FormSuccess` que fica para sempre ao lado do
+ * botão acaba sendo lido como o retorno do lançamento seguinte.
  */
 export function EntryForm(props: Props) {
   const [aberto, setAberto] = useState(false);
   const [estado, acao] = useActionState(criarLancamento, LANCAMENTO_INICIAL);
+  const { mostrar } = useToast();
   const t = TEXTOS[props.direcao];
 
-  if (!aberto) {
-    return (
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={() => setAberto(true)}>
-          <Plus aria-hidden />
-          {t.botao}
-        </Button>
-        {estado.ok !== null && <FormSuccess>{estado.ok}</FormSuccess>}
-      </div>
-    );
-  }
+  /*
+   * `rodada` só avança quando o insert passou — é o sinal de sucesso que o
+   * estado já carregava para limpar os campos. Comparar com o valor anterior
+   * evita reagir a uma renderização qualquer.
+   */
+  const rodadaVista = useRef(estado.rodada);
+  useEffect(() => {
+    if (estado.rodada === rodadaVista.current) return;
+    rodadaVista.current = estado.rodada;
+    mostrar({ tom: 'sucesso', titulo: estado.ok ?? 'Lançamento feito.' });
+    setAberto(false);
+  }, [estado, mostrar]);
 
   return (
-    <form
-      action={acao}
-      className="animate-enter rounded-lg border border-line-subtle bg-surface-raised p-4 shadow-xs"
-    >
-      <input type="hidden" name="direcao" value={props.direcao} />
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <h2 className="font-medium text-content">{t.botao}</h2>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label="Fechar"
-          onClick={() => setAberto(false)}
-        >
-          <X aria-hidden />
-        </Button>
-      </div>
-      <Campos key={estado.rodada} {...props} estado={estado} />
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Submit>Lançar</Submit>
-        <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
-          Cancelar
-        </Button>
-        {estado.ok !== null && <FormSuccess>{estado.ok}</FormSuccess>}
-      </div>
-    </form>
+    <>
+      <Button type="button" onClick={() => setAberto(true)}>
+        <Plus aria-hidden />
+        {t.botao}
+      </Button>
+
+      <Dialog
+        aberto={aberto}
+        aoFechar={() => setAberto(false)}
+        tamanho="lg"
+        titulo={t.botao}
+        descricao={t.ajuda}
+      >
+        <form action={acao} className="flex flex-col gap-4">
+          <input type="hidden" name="direcao" value={props.direcao} />
+          <Campos key={estado.rodada} {...props} estado={estado} />
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line-subtle pt-4">
+            <Button type="button" variant="outline" onClick={() => setAberto(false)}>
+              Cancelar
+            </Button>
+            <Submit pendente="Lançando…">Lançar</Submit>
+          </div>
+        </form>
+      </Dialog>
+    </>
   );
 }
 
@@ -100,9 +111,10 @@ function Campos({ direcao, hoje, categorias, estado }: Props & { estado: Lancame
   const [jaPago, setJaPago] = useState(false);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {estado.erro !== null && <FormError>{estado.erro}</FormError>}
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* `gap-3`: campos de um mesmo formulário, não regiões de página (seção 5). */}
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field
           nome="descricao"
           rotulo="Descrição"
@@ -124,7 +136,7 @@ function Campos({ direcao, hoje, categorias, estado }: Props & { estado: Lancame
         <Field nome="valor" rotulo="Valor" obrigatorio erro={e.valor}>
           <div className="relative">
             <span
-              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-content-subtle"
+              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-body text-content-subtle"
               aria-hidden
             >
               R$
@@ -182,8 +194,8 @@ function Campos({ direcao, hoje, categorias, estado }: Props & { estado: Lancame
           </datalist>
         </Field>
 
-        <div className="flex flex-col gap-3 rounded-md border border-line-subtle p-3 sm:col-span-2">
-          <label className="flex items-center gap-3 text-sm font-medium text-content-default">
+        <div className="flex flex-col gap-3 rounded-control border border-line-subtle p-3 sm:col-span-2">
+          <label className="flex items-center gap-3 text-label text-content-default">
             <Switch
               name="jaPago"
               checked={jaPago}

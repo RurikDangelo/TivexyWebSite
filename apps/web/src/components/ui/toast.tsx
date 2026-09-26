@@ -9,6 +9,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 
@@ -300,21 +301,33 @@ function ToastItem({
   );
 }
 
+const CONSULTA_DE_MOVIMENTO = '(prefers-reduced-motion: reduce)';
+
+function assinarMovimento(aoMudar: () => void): () => void {
+  const consulta = window.matchMedia(CONSULTA_DE_MOVIMENTO);
+  consulta.addEventListener('change', aoMudar);
+  return () => consulta.removeEventListener('change', aoMudar);
+}
+
+const lerMovimento = () => window.matchMedia(CONSULTA_DE_MOVIMENTO).matches;
+
+/*
+ * `false` no servidor: lá não existe media query, e é o valor que faz o HTML do
+ * servidor bater com a primeira pintura do cliente — divergir aqui é erro de
+ * hidratação.
+ */
+const lerMovimentoNoServidor = () => false;
+
 /**
  * Consultado uma vez no provider, não por toast: N ouvintes de media query
  * para a mesma pergunta seria desperdício, e o valor é o mesmo para todos.
- * Começa `false` para o servidor e o cliente renderizarem igual.
+ *
+ * `useSyncExternalStore` e não `useState` + `useEffect`: a preferência de
+ * movimento é estado de fora do React, e ler com effect significa pintar uma vez
+ * com o valor errado antes de corrigir. Aqui o valor certo já chega na primeira
+ * pintura do cliente, e o React tem como manter a leitura coerente quando
+ * interrompe uma renderização no meio.
  */
 function usePrefereMenosMovimento(): boolean {
-  const [reduz, setReduz] = useState(false);
-
-  useEffect(() => {
-    const consulta = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReduz(consulta.matches);
-    const aoMudar = (evento: MediaQueryListEvent) => setReduz(evento.matches);
-    consulta.addEventListener('change', aoMudar);
-    return () => consulta.removeEventListener('change', aoMudar);
-  }, []);
-
-  return reduz;
+  return useSyncExternalStore(assinarMovimento, lerMovimento, lerMovimentoNoServidor);
 }

@@ -4,20 +4,37 @@ import { type TenantStatus, previewPlanChange } from '@tivexy/core';
 import { useActionState, useState } from 'react';
 
 import { Field, describedBy } from '@/components/form/field';
-import { FormError, FormSuccess } from '@/components/form/messages';
+import { FormFeedback } from '@/components/form/messages';
 import { Submit } from '@/components/form/submit';
+import { Button } from '@/components/ui/button';
+import { AlertDialog } from '@/components/ui/dialog';
 import { Input, Select, Textarea } from '@/components/ui/input';
+import { SectionLabel } from '@/components/ui/section-label';
 
 import { reativarCliente, salvarCliente, suspenderCliente, trocarPlano } from './actions';
-import { CLIENTE_INICIAL, type ModuloNaTela, type PlanoNaTela } from './state';
+import { CLIENTE_INICIAL, type ClienteState, type ModuloNaTela, type PlanoNaTela } from './state';
 
-function Retorno({ erro, ok }: { erro: string | null; ok: string | null }) {
-  if (erro !== null) return <FormError>{erro}</FormError>;
-  if (ok !== null) return <FormSuccess>{ok}</FormSuccess>;
-  return null;
-}
+/*
+ * Os três formulários de decisão sobre um cliente.
+ *
+ * O `Retorno` local saiu: era a quarta reimplementação de `FormError`/
+ * `FormSuccess` no app, com a mesma regra (erro ganha do sucesso) escrita de
+ * novo. `FormFeedback` é o componente único.
+ *
+ * Os dois `window.confirm()` também saíram. O diálogo nativo não tem tema, não
+ * tem tipografia, trava a aba, não sabe esperar por uma ação de servidor e não
+ * cabe o resumo do que vai mudar — que, no caso da troca de plano, a tela já
+ * tinha calculado e não tinha onde mostrar. Pode ainda ser suprimido pelo
+ * navegador ("não deixar este site criar mais diálogos"), e aí retorna `false`
+ * e a ação simplesmente não acontece, sem nenhum aviso.
+ *
+ * Onde há `<AlertDialog>`, a ação de servidor é chamada direto dentro da ação
+ * de formulário do diálogo — e não por `useActionState`. O dispatch do hook
+ * retorna imediatamente, e o diálogo fecharia antes de o servidor responder,
+ * deixando o botão de confirmar sem estado pendente e o clique duplo livre.
+ */
 
-/** Nome, razão social e documento. O slug não muda: vira subdomínio, e link enviado quebraria. */
+/** Nome, razão social e documento. O identificador não muda: já está gravado no provisionamento. */
 export function DadosForm({
   id,
   nome,
@@ -31,10 +48,11 @@ export function DadosForm({
 }) {
   const [estado, salvar] = useActionState(salvarCliente, CLIENTE_INICIAL);
   const e = estado.campos;
+
   return (
     <form action={salvar} className="flex flex-col gap-4">
       <input type="hidden" name="id" value={id} />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field nome="cliente-nome" rotulo="Nome" obrigatorio erro={e.nome}>
           <Input
             id="cliente-nome"
@@ -78,17 +96,21 @@ export function DadosForm({
           />
         </Field>
       </div>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-3">
         <Submit variant="outline">Salvar dados</Submit>
-        <Retorno erro={estado.erro} ok={estado.ok} />
+        <FormFeedback estado={estado} />
       </div>
     </form>
   );
 }
 
 /**
- * Suspender ou reativar. Suspender pede o motivo — é o texto que a empresa
- * lê em `/preparando` — e pergunta antes: corta o acesso de todo mundo.
+ * Suspender ou reativar.
+ *
+ * O motivo mudou de lugar: ele é pedido **dentro** do diálogo, no instante da
+ * decisão, e não num campo solto que fica na tela esperando alguém esbarrar no
+ * botão. É a mesma informação, no momento em que ela é usada — a empresa lê
+ * esse texto quando tenta entrar.
  */
 export function SituacaoForm({
   id,
@@ -101,51 +123,59 @@ export function SituacaoForm({
   situacao: TenantStatus;
   motivo: string | null;
 }) {
-  const [suspensao, suspender] = useActionState(suspenderCliente, CLIENTE_INICIAL);
-  const [reativacao, reativar] = useActionState(reativarCliente, CLIENTE_INICIAL);
+  const [suspensao, setSuspensao] = useState<ClienteState>(CLIENTE_INICIAL);
+  const [reativacao, setReativacao] = useState<ClienteState>(CLIENTE_INICIAL);
+  const [confirmando, setConfirmando] = useState(false);
+
+  async function suspender(dados: FormData) {
+    setSuspensao(await suspenderCliente(suspensao, dados));
+  }
+
+  async function reativar(dados: FormData) {
+    setReativacao(await reativarCliente(reativacao, dados));
+  }
 
   if (situacao === 'active') {
     return (
-      <form
-        key={suspensao.rodada}
-        action={suspender}
-        onSubmit={(ev) => {
-          if (
-            !window.confirm(`Suspender ${nomeDaEmpresa}? Ninguém da empresa entra até reativar.`)
-          ) {
-            ev.preventDefault();
-          }
-        }}
-        className="flex flex-col gap-3"
-      >
-        <input type="hidden" name="id" value={id} />
-        <Field
-          nome="cliente-motivo"
-          rotulo="Motivo da suspensão"
-          obrigatorio
-          dica="A empresa lê este texto quando tenta entrar."
+      <div className="flex flex-col gap-3">
+        <Button type="button" variant="danger" onClick={() => setConfirmando(true)}>
+          Suspender
+        </Button>
+        {/* O sucesso da reativação continua visível depois que a empresa volta a ser `active`. */}
+        <FormFeedback estado={{ erro: suspensao.erro, ok: reativacao.ok ?? suspensao.ok }} />
+
+        <AlertDialog
+          aberto={confirmando}
+          aoFechar={() => setConfirmando(false)}
+          severidade="danger"
+          titulo={`Suspender ${nomeDaEmpresa}?`}
+          descricao="Ninguém da empresa entra até reativar — nem pela tela, nem pela API. Os dados ficam onde estão, e reativar devolve tudo."
+          confirmarRotulo="Suspender"
+          confirmarAction={suspender}
         >
-          <Textarea
-            id="cliente-motivo"
-            name="motivo"
-            required
-            maxLength={500}
-            rows={2}
-            placeholder="Pagamento de setembro em aberto."
-            aria-describedby={describedBy(
-              'cliente-motivo',
-              undefined,
-              'A empresa lê este texto quando tenta entrar.',
-            )}
-          />
-        </Field>
-        <div className="flex flex-wrap items-center gap-3">
-          <Submit variant="danger" pendente="Suspendendo…">
-            Suspender
-          </Submit>
-          <Retorno erro={suspensao.erro} ok={reativacao.ok ?? suspensao.ok} />
-        </div>
-      </form>
+          <input type="hidden" name="id" value={id} />
+          <Field
+            nome="cliente-motivo"
+            rotulo="Motivo da suspensão"
+            obrigatorio
+            dica="A empresa lê este texto quando tenta entrar."
+          >
+            <Textarea
+              id="cliente-motivo"
+              name="motivo"
+              required
+              maxLength={500}
+              rows={2}
+              placeholder="Pagamento de setembro em aberto."
+              aria-describedby={describedBy(
+                'cliente-motivo',
+                undefined,
+                'A empresa lê este texto quando tenta entrar.',
+              )}
+            />
+          </Field>
+        </AlertDialog>
+      </div>
     );
   }
 
@@ -153,20 +183,20 @@ export function SituacaoForm({
     return (
       <form action={reativar} className="flex flex-col gap-3">
         <input type="hidden" name="id" value={id} />
-        <p className="rounded-md bg-danger-soft px-3 py-2 text-sm text-content-default">
-          <span className="font-medium">Motivo informado: </span>
-          {motivo ?? 'nenhum registrado'}
-        </p>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-1 rounded-control bg-surface-sunken px-3 py-2">
+          <SectionLabel>Motivo informado</SectionLabel>
+          <p className="text-body text-content-default">{motivo ?? 'nenhum registrado'}</p>
+        </div>
+        <div className="flex flex-col gap-3">
           <Submit pendente="Reativando…">Reativar</Submit>
-          <Retorno erro={reativacao.erro} ok={suspensao.ok ?? reativacao.ok} />
+          <FormFeedback estado={{ erro: reativacao.erro, ok: suspensao.ok ?? reativacao.ok }} />
         </div>
       </form>
     );
   }
 
   return (
-    <p className="text-sm text-content-muted">
+    <p className="text-body text-content-muted">
       {situacao === 'provisioning'
         ? 'Em provisionamento: não se suspende nem reativa. Retome ou desfaça na lista de clientes.'
         : 'Cancelada: não volta por aqui.'}
@@ -177,6 +207,11 @@ export function SituacaoForm({
 /**
  * Trocar o plano, vendo antes o que muda nos módulos — a mesma conta que o
  * banco vai fazer (`previewPlanChange` × `admin_change_plan`, com teste).
+ *
+ * A prévia aparece duas vezes de propósito: na tela, enquanto se experimenta os
+ * planos; e dentro do diálogo, na hora de confirmar — porque é ali que ela
+ * responde "o que estou aceitando?", e era exatamente o que não cabia num
+ * `window.confirm`.
  */
 export function PlanoForm({
   id,
@@ -189,7 +224,8 @@ export function PlanoForm({
   planos: readonly PlanoNaTela[];
   modulos: readonly ModuloNaTela[];
 }) {
-  const [estado, trocar] = useActionState(trocarPlano, CLIENTE_INICIAL);
+  const [estado, setEstado] = useState<ClienteState>(CLIENTE_INICIAL);
+  const [confirmando, setConfirmando] = useState(false);
   const outros = planos.filter((p) => p.codigo !== planoAtual);
   const [escolhido, setEscolhido] = useState(outros[0]?.codigo ?? '');
   const [desligar, setDesligar] = useState(false);
@@ -205,19 +241,19 @@ export function PlanoForm({
       : previewPlanChange({ planModules: plano.modulos, enabled: ligados, disableOutside: true });
   const foraDoPlano = previa?.disable ?? [];
 
-  if (outros.length === 0) {
-    return <p className="text-sm text-content-muted">Não há outro plano à venda.</p>;
+  async function trocar(dados: FormData) {
+    setEstado(await trocarPlano(estado, dados));
   }
 
+  if (outros.length === 0) {
+    return <p className="text-body text-content-muted">Não há outro plano à venda.</p>;
+  }
+
+  const liga = previa === null || previa.enable.length === 0 ? null : previa.enable.map(nome);
+  const desliga = foraDoPlano.length === 0 ? null : foraDoPlano.map(nome);
+
   return (
-    <form
-      action={trocar}
-      onSubmit={(ev) => {
-        if (!window.confirm(`Trocar para o plano ${plano?.nome ?? valor}?`)) ev.preventDefault();
-      }}
-      className="flex flex-col gap-3"
-    >
-      <input type="hidden" name="id" value={id} />
+    <div className="flex flex-col gap-3">
       <Field nome="cliente-plano" rotulo="Plano novo" obrigatorio>
         <Select
           id="cliente-plano"
@@ -234,51 +270,93 @@ export function PlanoForm({
         </Select>
       </Field>
 
-      {previa !== null && (
-        <div
-          role="status"
-          className="flex flex-col gap-1 rounded-md bg-surface-subtle px-3 py-2 text-sm"
-        >
-          <p>
-            <span className="font-medium text-content">Liga: </span>
-            <span className="text-content-muted">
-              {previa.enable.length === 0
-                ? 'nada — já tem tudo'
-                : previa.enable.map(nome).join(', ')}
-            </span>
-          </p>
-          <p>
-            <span className="font-medium text-content">Fora do plano novo: </span>
-            <span className="text-content-muted">
-              {foraDoPlano.length === 0 ? 'nada' : foraDoPlano.map(nome).join(', ')}
-            </span>
-          </p>
-        </div>
-      )}
+      {previa !== null && <ResumoDaTroca liga={liga} desliga={desliga} anunciar />}
 
-      {foraDoPlano.length > 0 && (
-        <label className="flex items-start gap-2 text-sm text-content-default">
+      {desliga !== null && (
+        <label className="flex items-start gap-2 text-body text-content-default">
           <input
             type="checkbox"
-            name="desligar"
             checked={desligar}
             onChange={(ev) => setDesligar(ev.target.checked)}
             className="mt-0.5 size-4 accent-[var(--surface-brand)]"
           />
           <span>
-            Desligar o que ficou fora do plano ({foraDoPlano.map(nome).join(', ')}). Os dados ficam;
-            o acesso sai, e religar devolve tudo. Sem marcar, continuam ligados — como módulo
-            vendido à parte.
+            Desligar o que ficou fora do plano ({desliga.join(', ')}). Os dados ficam; o acesso sai,
+            e religar devolve tudo. Sem marcar, continuam ligados — como módulo vendido à parte.
           </span>
         </label>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Submit variant="outline" pendente="Trocando…">
+      <div className="flex flex-col gap-3">
+        <Button type="button" variant="outline" onClick={() => setConfirmando(true)}>
           Trocar plano
-        </Submit>
-        <Retorno erro={estado.erro} ok={estado.ok} />
+        </Button>
+        <FormFeedback estado={estado} />
       </div>
-    </form>
+
+      <AlertDialog
+        aberto={confirmando}
+        aoFechar={() => setConfirmando(false)}
+        /* Reversível: dá para trocar de volta. O vermelho fica para o que não volta. */
+        severidade="warning"
+        titulo={`Trocar para o plano ${plano?.nome ?? valor}?`}
+        descricao="O plano é o padrão de origem; quem decide acesso são os módulos ligados. É isto que muda:"
+        confirmarRotulo="Trocar plano"
+        confirmarAction={trocar}
+      >
+        <input type="hidden" name="id" value={id} />
+        <input type="hidden" name="plano" value={valor} />
+        {/*
+         * A ação lê `desligar === 'on'`, que é o valor de uma caixa marcada. O
+         * campo só existe quando a pessoa marcou lá fora — ausente é "não".
+         */}
+        {desligar && desliga !== null && <input type="hidden" name="desligar" value="on" />}
+
+        <ResumoDaTroca liga={liga} desliga={desliga} />
+
+        {desliga !== null && (
+          <p className="text-body text-content-muted">
+            {desligar
+              ? 'Os módulos fora do plano novo serão desligados. Os dados ficam, e religar devolve tudo.'
+              : 'Os módulos fora do plano novo continuam ligados, como módulo vendido à parte.'}
+          </p>
+        )}
+      </AlertDialog>
+    </div>
+  );
+}
+
+/**
+ * O que a troca liga e o que ela tira do plano.
+ *
+ * Um componente só porque o mesmo resumo aparece na tela e no diálogo — duas
+ * cópias divergiriam na primeira mudança de texto.
+ */
+function ResumoDaTroca({
+  liga,
+  desliga,
+  anunciar = false,
+}: {
+  liga: readonly string[] | null;
+  desliga: readonly string[] | null;
+  /** Na tela o resumo muda ao trocar o select, e o leitor de tela precisa saber. No diálogo ele é estático. */
+  anunciar?: boolean;
+}) {
+  return (
+    <div
+      role={anunciar ? 'status' : undefined}
+      className="flex flex-col gap-1 rounded-control bg-surface-sunken px-3 py-2 text-body"
+    >
+      <p>
+        <span className="font-medium text-content">Liga: </span>
+        <span className="text-content-muted">
+          {liga === null ? 'nada — já tem tudo' : liga.join(', ')}
+        </span>
+      </p>
+      <p>
+        <span className="font-medium text-content">Fora do plano novo: </span>
+        <span className="text-content-muted">{desliga === null ? 'nada' : desliga.join(', ')}</span>
+      </p>
+    </div>
   );
 }

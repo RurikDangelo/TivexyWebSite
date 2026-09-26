@@ -1,6 +1,16 @@
 import { can, todayIn } from '@tivexy/core';
+import { CalendarCheck2 } from 'lucide-react';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmptyState } from '@/components/page/empty-state';
+import { FormWarning } from '@/components/form/messages';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { ALVOS, type TipoDeAlvo } from '@/lib/crm/activity-input';
 import { currentSession } from '@/lib/auth/session';
 import { tenantMembers } from '@/lib/members';
@@ -19,6 +29,10 @@ import { loadAgenda } from './load';
  * É a mesma `loadAgenda()` da página da agenda, filtrada pelo alvo, e o mesmo
  * formulário com o alvo já escolhido. Quem não lê atividades não vê o painel
  * — a página continua inteira sem ele.
+ *
+ * A tabela entra sem moldura própria e na densidade densa: aqui ela divide a
+ * altura com o resto da página do registro, e borda dentro de borda lê como
+ * defeito de renderização.
  */
 export async function ActivityPanel({
   tenantId,
@@ -58,21 +72,66 @@ export async function ActivityPanel({
     <Card>
       <CardHeader>
         <CardTitle>{capitalizar(rotulo.plural)}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+        <CardDescription>
+          {/* Leitura que falhou não vira "nada pendente": as duas frases se parecem e só uma é verdade. */}
+          {agenda.erro
+            ? 'Não foi possível ler a agenda deste registro.'
+            : agenda.pendentes === 0
+              ? 'Nada pendente aqui.'
+              : /* `truncado`: a contagem bateu no teto da consulta e virou piso, não total. */
+                `${agenda.truncado ? 'pelo menos ' : ''}${agenda.pendentes} ${
+                  agenda.pendentes === 1 ? 'pendência' : 'pendências'
+                }, ${agenda.atrasadas} com atraso.`}
+        </CardDescription>
         {podeEditar && (
-          <NewActivityForm
-            singular={rotulo.singular}
-            hoje={todayIn(fuso)}
-            tipos={(tiposR.data ?? []).map((t) => ({ id: String(t.id), nome: String(t.name) }))}
-            membros={membros.map((m) => ({ id: m.userId, nome: m.nome }))}
-            alvoFixo={{ valor: `${tipo}:${id}`, nome }}
-          />
+          <CardAction>
+            <NewActivityForm
+              singular={rotulo.singular}
+              hoje={todayIn(fuso)}
+              tipos={(tiposR.data ?? []).map((t) => ({ id: String(t.id), nome: String(t.name) }))}
+              membros={membros.map((m) => ({ id: m.userId, nome: m.nome }))}
+              alvoFixo={{ valor: `${tipo}:${id}`, nome }}
+              /* A ação primária da tela do registro é outra; esta convive com ela. */
+              variante="outline"
+            />
+          </CardAction>
         )}
-        {vazia ? (
-          <p className="text-sm text-content-muted">Ainda não há {rotulo.plural} aqui.</p>
+      </CardHeader>
+
+      <CardContent className="flex flex-col gap-3">
+        {agenda.erroNoHistorico && !agenda.erro && (
+          <FormWarning>Não foi possível ler o histórico dos últimos 7 dias.</FormWarning>
+        )}
+
+        {agenda.erro ? (
+          <EmptyState
+            estado="erro"
+            densidade="compacta"
+            moldura={false}
+            titulo="Agenda indisponível"
+          >
+            A consulta falhou. Recarregue a página para tentar de novo — não dá para afirmar que não
+            há nada pendente.
+          </EmptyState>
+        ) : vazia ? (
+          <EmptyState
+            estado="vazio"
+            icone={CalendarCheck2}
+            densidade="compacta"
+            moldura={false}
+            titulo={`Sem ${rotulo.plural}`}
+          >
+            {podeEditar
+              ? `Nada agendado nem concluído nos últimos 7 dias para ${nome}. O botão acima já vem com o vínculo preenchido.`
+              : `Quando alguém da equipe agendar algo para ${nome}, aparece aqui.`}
+          </EmptyState>
         ) : (
-          <AgendaList secoes={agenda.secoes} podeEditar={podeEditar} mostrarAlvo={false} />
+          <AgendaList
+            secoes={agenda.secoes}
+            podeEditar={podeEditar}
+            mostrarAlvo={false}
+            dentroDeCartao
+          />
         )}
       </CardContent>
     </Card>

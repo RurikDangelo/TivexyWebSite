@@ -17,7 +17,7 @@
  * que nada desse erro.
  */
 
-import { type CrmLeadStatus, nextLeadStatuses, parseCents } from '@tivexy/core';
+import { CRM_LEAD_STATUSES, type CrmLeadStatus, nextLeadStatuses, parseCents } from '@tivexy/core';
 import { revalidatePath } from 'next/cache';
 
 import { requireAccess } from '@/lib/auth/require';
@@ -28,6 +28,8 @@ import {
   type ConversaoState,
   LEAD_INICIAL,
   type LeadFormState,
+  MOVER_INICIAL,
+  type MoverState,
 } from './state.ts';
 
 /** De onde a tela lê e escreve. Uma constante: o caminho também é a regra. */
@@ -172,27 +174,61 @@ export async function converterLead(
 }
 
 /**
+ * `nextLeadStatuses` tem `switch` exaustivo e nenhum `default`: um valor que
+ * não seja do enum devolve `undefined` e o `.includes` seguinte estoura. O
+ * campo vem do formulário, ou seja, da rede — conferir antes é o que separa
+ * uma mensagem de erro de um 500 sem explicação.
+ */
+function estadoConhecido(valor: string): valor is CrmLeadStatus {
+  return (CRM_LEAD_STATUSES as readonly string[]).includes(valor);
+}
+
+/**
  * Move o lead de estado.
  *
  * A transição permitida vem de `nextLeadStatuses()`, no Core — a mesma função
  * que a tela usa para desenhar os botões. Conferir aqui de novo não é
  * desconfiança do próprio código: o formulário chega pela rede, e o destino é
  * um campo que qualquer um edita.
+ *
+ * ## Por que devolve estado
+ *
+ * Antes esta função era `void` e descartava o retorno do banco. Recusa do RLS
+ * (quem só tem `crm.leads.read`), linha que outra aba já moveu e sucesso
+ * produziam o mesmo desfecho na tela: a página revalidava e voltava idêntica.
+ * Clicar em "Qualificar" não fazia nada e não dizia nada. Correção pedida pelo
+ * achado `actions.ts:193` da auditoria.
  */
-export async function moverLead(form: FormData): Promise<void> {
+export async function moverLead(_anterior: MoverState, form: FormData): Promise<MoverState> {
   const { choice } = await requireAccess(ROTA);
-  if (choice.kind !== 'resolved') return;
+  if (choice.kind !== 'resolved') {
+    return { ...MOVER_INICIAL, erro: 'Escolha uma empresa antes de mover.' };
+  }
 
   const id = texto(form, 'id');
-  const de = texto(form, 'de') as CrmLeadStatus;
-  const para = texto(form, 'para') as CrmLeadStatus;
+  const de = texto(form, 'de');
+  const para = texto(form, 'para');
 
-  if (id === '' || !nextLeadStatuses(de).includes(para)) return;
+  if (id === '' || !estadoConhecido(de) || !estadoConhecido(para)) {
+    return { ...MOVER_INICIAL, erro: 'Pedido inválido. Recarregue a lista e tente de novo.' };
+  }
+  if (!nextLeadStatuses(de).includes(para)) {
+    return {
+      ...MOVER_INICIAL,
+      erro: 'Essa mudança não é permitida a partir do estado atual. Recarregue a lista.',
+    };
+  }
 
   const supabase = await supabaseServer();
-  await supabase
+  /*
+   * `count: 'exact'` porque o RLS de leitura e o de escrita recusam de formas
+   * diferentes: violar o `with check` volta como `42501`, mas uma linha que a
+   * política de leitura não enxerga simplesmente não casa — zero linhas
+   * afetadas, `error` nulo. Sem a contagem, essa segunda recusa seria silêncio.
+   */
+  const { error, count } = await supabase
     .from('crm_leads')
-    .update({ status: para })
+    .update({ status: para }, { count: 'exact' })
     .eq('id', id)
     /*
      * O tenant no `where`, mesmo com o RLS filtrando. Sem ele, um id de outra
@@ -204,5 +240,23 @@ export async function moverLead(form: FormData): Promise<void> {
     /* E o estado de origem: dois cliques rápidos não aplicam a transição duas vezes. */
     .eq('status', de);
 
+  if (error !== null) {
+    return {
+      ...MOVER_INICIAL,
+      erro:
+        error.code === '42501'
+          ? 'Você não tem permissão para mudar o estado deste lead.'
+          : `Não consegui mover: ${error.message}`,
+    };
+  }
+
+  if (count === 0) {
+    return {
+      ...MOVER_INICIAL,
+      erro: 'Nada mudou: o lead já saiu desse estado, ou a permissão não alcança esta linha.',
+    };
+  }
+
   revalidatePath(ROTA);
+  return { erro: null, movido: para };
 }

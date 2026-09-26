@@ -3,8 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { type ModuleCode } from '@tivexy/core';
 import { BLUEPRINTS } from '@tivexy/core/blueprints';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
+import { PageHeader } from '@/components/page/header';
+import { Page } from '@/components/page/page';
 import { embeddedCode } from '@/lib/supabase/embedded';
 import { supabaseServer } from '@/lib/supabase/server';
 
@@ -50,22 +51,19 @@ export default async function NovoClientePage() {
   const mapa = await modulosPorPlano();
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <header className="mb-6">
-        <Link
-          href="/admin"
-          className="text-sm text-content-accent underline-offset-4 hover:underline"
-        >
-          ← Clientes
-        </Link>
-        <h1 className="mt-2 font-display text-2xl font-bold text-content">Novo cliente</h1>
-        <p className="mt-1 max-w-prose text-content-muted">
-          O nicho escolhido decide módulos, papéis e vocabulário. Tudo que aparece na prévia é o
-          plano que será executado — não um resumo dele.
-        </p>
-      </header>
+    /*
+     * `ajuste` é coluna única (seção 3). Antes eram três tetos empilhados —
+     * página em `max-w-4xl`, grade de duas colunas dentro dela e um `max-w-xl`
+     * no cartão —, e a coluna do formulário acabava com menos de 500px.
+     */
+    <Page variant="ajuste">
+      <PageHeader
+        titulo="Novo cliente"
+        trilha={[{ rotulo: 'Clientes', href: '/admin' }]}
+        descricao="O nicho escolhido decide módulos, papéis e vocabulário. Tudo que aparece na prévia é o plano que será executado — não um resumo dele."
+      />
 
       <NewClientForm blueprints={BLUEPRINTS} modulosPorPlano={mapa} chave={randomUUID()} />
-    </div>
+    </Page>
   );
 }

@@ -51,6 +51,29 @@ export interface MoverResultado {
 }
 
 /**
+ * O teto de cada consulta que alimenta o quadro.
+ *
+ * Mora aqui, e não solto na página, porque o quadro precisa **saber** que a
+ * soma pode estar cortada: a partir de 500 abertas, o número grande no topo
+ * deixa de ser o valor do funil e passa a ser o das 500 mais recentes. Exibir
+ * isso como total seria afirmar um dado que ninguém apurou (CLAUDE.md).
+ *
+ * O agregado honesto exige somar no banco (RPC ou `count exact` + `sum` por
+ * etapa). Enquanto ele não existe, a tela rotula o que mostra.
+ */
+export const LIMITE_ABERTAS = 500;
+export const LIMITE_FECHADAS = 200;
+
+/**
+ * Onde a leitura parou. `true` quando a consulta voltou cheia até o teto — e
+ * aí não dá para distinguir "acabou" de "foi cortada", então vale como cortada.
+ */
+export interface CorteDoQuadro {
+  abertas: boolean;
+  fechadas: boolean;
+}
+
+/**
  * Quantos dias de negócio fechado o quadro mostra.
  *
  * As colunas de ganho e perda não podem crescer para sempre — em um ano, a de
