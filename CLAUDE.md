@@ -52,10 +52,16 @@ Tudo roda a partir da raiz do monorepo (npm workspaces):
 npm install              # instala todos os workspaces
 npm run dev:site         # servidor de desenvolvimento da landing
 npm run validate:site    # tipos + lint + build da landing
+npm run validate         # tudo: tipos, lint, testes, os dois builds e formatação
 npm run format           # Prettier em todo o monorepo
 ```
 
 Dentro de um app específico, use os scripts locais (`npm run dev` em `apps/site`).
+
+`npm run validate` é o mesmo conjunto que o CI roda. Rode-o antes de abrir PR:
+em 27/09/2026 o CI reprovou por formatação num commit que passava em tudo
+localmente, porque `format:check` não estava no `validate`. Agora está — no fim,
+para que erro de tipo e teste quebrado apareçam antes de espaço em branco.
 
 Ao iniciar o servidor de desenvolvimento, use modo background.
 
