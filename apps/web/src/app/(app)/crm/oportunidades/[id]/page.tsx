@@ -1,13 +1,17 @@
-import { type CrmStageKind, can, formatCents, formatCentsInput, orderStages } from '@tivexy/core';
-import { ArrowLeft, CircleDot, Trophy, XCircle } from 'lucide-react';
+import { type CrmStageKind, can, formatCentsInput, orderStages } from '@tivexy/core';
+import { CircleDot, LayoutGrid, Trophy, XCircle } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { type Fato, Facts } from '@/components/page/facts';
+import { PageHeader } from '@/components/page/header';
 import { NoTenant } from '@/components/page/no-tenant';
+import { GradeDeRegistro, Page } from '@/components/page/page';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { buttonVariants } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Stat } from '@/components/ui/stat';
 import { sectionTitle } from '@/config/navigation';
 import { requireAccess } from '@/lib/auth/require';
 import { formatDate, formatInstant } from '@/lib/format';
@@ -19,7 +23,7 @@ import { currentTerms } from '@/lib/terms/current';
 import { capitalizar, termOf } from '@/lib/terms/vocabulary';
 
 import { ActivityPanel } from '../../atividades/panel';
-import { EditDealForm } from '../deal-form';
+import { EditDealForm, NotasEmLeitura } from '../deal-form';
 
 export async function generateMetadata(): Promise<Metadata> {
   const rotulo = termOf(await currentTerms(), 'crm.deals');
@@ -28,11 +32,17 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const SITUACAO: Record<
   CrmStageKind,
-  { rotulo: string; tom: 'brand' | 'success' | 'neutral'; Icone: typeof Trophy }
+  {
+    rotulo: string;
+    tom: 'brand' | 'success' | 'neutral';
+    /* O tom do `<Stat>` tem outro vocabulário: só `success` pinta, o resto fica neutro. */
+    tomDoValor: 'success' | 'neutral';
+    Icone: typeof Trophy;
+  }
 > = {
-  open: { rotulo: 'Em aberto', tom: 'brand', Icone: CircleDot },
-  won: { rotulo: 'Ganho', tom: 'success', Icone: Trophy },
-  lost: { rotulo: 'Perdido', tom: 'neutral', Icone: XCircle },
+  open: { rotulo: 'Em aberto', tom: 'brand', tomDoValor: 'neutral', Icone: CircleDot },
+  won: { rotulo: 'Ganho', tom: 'success', tomDoValor: 'success', Icone: Trophy },
+  lost: { rotulo: 'Perdido', tom: 'neutral', tomDoValor: 'neutral', Icone: XCircle },
 };
 
 function relacao<T>(valor: unknown): T | null {
@@ -45,6 +55,10 @@ function relacao<T>(valor: unknown): T | null {
  *
  * A situação exibida é a da etapa — "Ganho" porque a etapa é de ganho, não
  * porque alguém marcou. É a mesma regra do quadro, lida do mesmo lugar.
+ *
+ * Três colunas (seção 3, variante `registro`): fatos à esquerda, o que se faz
+ * no meio, onde o negócio está à direita. A grade anterior era `1fr 18rem`
+ * dentro de 896px — sobravam 520px para a coluna principal num monitor de 1920.
  */
 export default async function OportunidadePage({ params }: PageProps<'/crm/oportunidades/[id]'>) {
   const { choice, viewer } = await requireAccess('/crm/oportunidades');
@@ -76,6 +90,7 @@ export default async function OportunidadePage({ params }: PageProps<'/crm/oport
   const pessoa = relacao<{ name: string }>(negocio.contact);
   const situacao = SITUACAO[etapa?.kind ?? 'open'];
   const pipelineId = String(negocio.pipeline_id);
+  const notas = typeof negocio.notes === 'string' ? negocio.notes : null;
 
   const [etapasR, membros, contasR, pessoasR] = await Promise.all([
     supabase
@@ -126,44 +141,57 @@ export default async function OportunidadePage({ params }: PageProps<'/crm/oport
   ];
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <Link
-        href={`/crm/oportunidades?funil=${pipelineId}`}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-content-muted hover:text-content"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        {sectionTitle(terms, '/crm/oportunidades')}
-      </Link>
-
-      <header className="mb-6 flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone={situacao.tom}>
-            <situacao.Icone className="size-3.5" aria-hidden />
-            {situacao.rotulo}
-          </Badge>
-          <span className="text-sm text-content-muted">
-            {funil?.name} · {etapa?.name}
+    <Page variant="registro">
+      <PageHeader
+        trilha={[
+          {
+            rotulo: sectionTitle(terms, '/crm/oportunidades'),
+            href: `/crm/oportunidades?funil=${pipelineId}`,
+          },
+        ]}
+        titulo={String(negocio.title)}
+        descricao={
+          <span className="flex flex-wrap items-center gap-2">
+            <Badge tone={situacao.tom} Icone={situacao.Icone}>
+              {situacao.rotulo}
+            </Badge>
+            <span>
+              {funil?.name} · {etapa?.name}
+            </span>
           </span>
-        </div>
-        <h1 className="font-display text-2xl font-bold break-words text-content sm:text-3xl">
-          {String(negocio.title)}
-        </h1>
-        <p className="font-display text-xl font-semibold tabular-nums text-content-default">
-          {formatCents(Number(negocio.value_cents))}
-        </p>
-      </header>
+        }
+      />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
-        <div className="order-2 flex flex-col gap-6 lg:order-1">
+      <GradeDeRegistro>
+        {/* Na pilha do celular a ordem é: onde está, o que fazer, os fatos. */}
+        <Card className="order-3 h-fit xl:order-1">
+          <CardHeader>
+            <CardTitle>Fatos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Facts fatos={fatos} />
+          </CardContent>
+        </Card>
+
+        <div className="order-2 flex min-w-0 flex-col gap-4 xl:order-2">
           <ActivityPanel
             tenantId={tenantId}
             tipo="negocio"
             id={String(negocio.id)}
             nome={String(negocio.title)}
           />
+
           <Card>
             <CardHeader>
-              <CardTitle>{podeEditar ? 'Editar' : 'Notas'}</CardTitle>
+              {/*
+               * O mesmo título para os dois papéis. Antes ele alternava entre
+               * "Editar" e "Notas" conforme a permissão, e duas pessoas na
+               * mesma empresa chamavam a mesma tela por nomes diferentes.
+               */}
+              <CardTitle>Cadastro</CardTitle>
+              <CardDescription>
+                O combinado com o cliente e os vínculos deste registro.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {podeEditar ? (
@@ -193,26 +221,42 @@ export default async function OportunidadePage({ params }: PageProps<'/crm/oport
                       typeof negocio.expected_close_date === 'string'
                         ? negocio.expected_close_date
                         : null,
-                    notas: typeof negocio.notes === 'string' ? negocio.notes : null,
+                    notas,
                   }}
                 />
               ) : (
-                <p className="whitespace-pre-wrap text-sm text-content-default">
-                  {typeof negocio.notes === 'string' && negocio.notes !== ''
-                    ? negocio.notes
-                    : 'Sem notas.'}
-                </p>
+                <NotasEmLeitura notas={notas} />
               )}
             </CardContent>
           </Card>
         </div>
 
-        <Card className="order-1 h-fit lg:order-2">
-          <CardContent className="pt-5">
-            <Facts fatos={fatos} />
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+        <div className="order-1 flex flex-col gap-4 xl:order-3">
+          <Stat
+            rotulo="Valor"
+            valor={Number(negocio.value_cents)}
+            formato="moeda"
+            Icone={situacao.Icone}
+            tom={situacao.tomDoValor}
+            nota={etapa?.name}
+          />
+          <Card>
+            <CardHeader>
+              <CardTitle>{funil?.name ?? 'Funil'}</CardTitle>
+              <CardDescription>Etapa atual: {etapa?.name ?? 'não identificada'}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-start gap-3">
+              <Link
+                href={`/crm/oportunidades?funil=${pipelineId}`}
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                <LayoutGrid aria-hidden />
+                Ver no quadro
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </GradeDeRegistro>
+    </Page>
   );
 }

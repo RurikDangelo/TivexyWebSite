@@ -1,7 +1,7 @@
 'use client';
 
 import { UNIT_INFO, grossMargin, isProductUnit, parseCents } from '@tivexy/core';
-import { Plus, X } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useActionState, useEffect, useRef, useState } from 'react';
 
@@ -9,6 +9,7 @@ import { Field, describedBy } from '@/components/form/field';
 import { FormError, FormSuccess } from '@/components/form/messages';
 import { Submit } from '@/components/form/submit';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import { Input, Select, Textarea } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { OPCOES_DE_UNIDADE, formatMargin } from '@/lib/erp/labels';
@@ -40,7 +41,12 @@ interface Props {
 }
 
 /**
- * O cadastro de produto, recolhido até ser pedido.
+ * O cadastro de produto, num diálogo.
+ *
+ * Era um painel que se abria dentro da lista e empurrava a tabela 400px para
+ * baixo — e, fechado, ainda ocupava uma faixa inteira de altura acima dela só
+ * para hospedar um botão. No diálogo o gatilho mora no cabeçalho da página, a
+ * lista não se mexe, e o formulário ganha as duas colunas que não cabiam.
  *
  * Nome, unidade e preço bastam para vender. Custo, códigos e mínimo de
  * estoque são o que a loja vai preenchendo — exigir tudo na primeira vez faz
@@ -52,49 +58,44 @@ export function NewProductForm(props: Props) {
   const primeiro = useRef<HTMLInputElement>(null);
 
   // Depois de salvar, os campos remontam limpos (`key={estado.rodada}`) e o
-  // foco volta ao nome: cadastrar o próximo é digitar de novo.
+  // foco volta ao nome: cadastrar o próximo é digitar de novo. Por isso o
+  // diálogo NÃO fecha sozinho no sucesso — quem cadastra costuma cadastrar
+  // vários, e reabrir a cada item é um clique a mais em cada um.
   useEffect(() => {
     if (estado.rodada > 0) primeiro.current?.focus();
   }, [estado.rodada]);
 
-  if (!aberto) {
-    return (
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={() => setAberto(true)}>
-          <Plus aria-hidden />
-          Cadastrar {props.singular}
-        </Button>
-        {estado.salvo !== null && <FormSuccess>{`${estado.salvo} entrou na lista.`}</FormSuccess>}
-      </div>
-    );
-  }
-
   return (
-    <form
-      action={acao}
-      className="animate-enter rounded-lg border border-line-subtle bg-surface-raised p-4 shadow-xs"
-    >
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <h2 className="font-medium text-content">Cadastrar {props.singular}</h2>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label="Fechar cadastro"
-          onClick={() => setAberto(false)}
-        >
-          <X aria-hidden />
-        </Button>
-      </div>
-      <Campos key={estado.rodada} {...props} estado={estado} primeiro={primeiro} />
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Submit>Cadastrar</Submit>
-        <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
-          Cancelar
-        </Button>
-        {estado.salvo !== null && <FormSuccess>{`${estado.salvo} entrou na lista.`}</FormSuccess>}
-      </div>
-    </form>
+    <>
+      <Button onClick={() => setAberto(true)} aria-haspopup="dialog">
+        <Plus aria-hidden />
+        Cadastrar {props.singular}
+      </Button>
+
+      <Dialog
+        aberto={aberto}
+        aoFechar={() => setAberto(false)}
+        titulo={`Cadastrar ${props.singular}`}
+        descricao="Nome, unidade e preço já bastam para vender. O resto a loja preenche depois."
+        tamanho="lg"
+      >
+        {/*
+         * As ações ficam dentro do <form>, e não no `rodape` do Dialog: é o
+         * `useFormStatus` do <Submit> que impede o clique duplo virar dois
+         * cadastros, e ele só enxerga o formulário de dentro dele.
+         */}
+        <form action={acao} className="flex flex-col gap-4">
+          <Campos key={estado.rodada} {...props} estado={estado} primeiro={primeiro} />
+          {estado.salvo !== null && <FormSuccess>{`${estado.salvo} entrou na lista.`}</FormSuccess>}
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line-subtle pt-4">
+            <Button type="button" variant="outline" onClick={() => setAberto(false)}>
+              Fechar
+            </Button>
+            <Submit>Cadastrar</Submit>
+          </div>
+        </form>
+      </Dialog>
+    </>
   );
 }
 
@@ -118,7 +119,7 @@ function Dinheiro(props: React.ComponentProps<typeof Input>) {
   return (
     <div className="relative">
       <span
-        className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-content-subtle"
+        className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-body text-content-subtle"
         aria-hidden
       >
         R$
@@ -164,7 +165,8 @@ function Campos({
     <div className="flex flex-col gap-4">
       {estado.erro !== null && <FormError>{estado.erro}</FormError>}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* `gap-3`: campos de um mesmo formulário, não blocos de uma seção (seção 5). */}
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field nome="nome" rotulo="Nome" obrigatorio erro={e.nome} className="sm:col-span-2">
           <Input
             ref={primeiro}
@@ -233,7 +235,7 @@ function Campos({
           </Select>
           <Link
             href="/erp/produtos/categorias"
-            className="text-xs text-content-accent hover:underline"
+            className="inline-flex min-h-6 w-fit items-center text-caption text-content-accent underline-offset-4 transition-base hover:underline"
           >
             Criar ou renomear categorias
           </Link>
@@ -269,7 +271,7 @@ function Campos({
         </Field>
 
         {comEstoque && (
-          <div className="flex flex-col gap-3 rounded-md border border-line-subtle p-3 sm:col-span-2">
+          <div className="flex flex-col gap-3 rounded-card border border-line-subtle bg-surface-sunken p-3 sm:col-span-2">
             <input type="hidden" name="controlaEstoqueNaTela" value="1" />
             <label className="flex items-start gap-3">
               <Switch
@@ -280,8 +282,8 @@ function Campos({
                 className="mt-0.5"
               />
               <span className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium text-content-default">Controla estoque</span>
-                <span id="controla-dica" className="text-xs text-content-subtle">
+                <span className="text-label text-content">Controla estoque</span>
+                <span id="controla-dica" className="text-caption text-content-subtle">
                   Desligado para serviço ou item preparado na hora: a venda não baixa nada.
                 </span>
               </span>

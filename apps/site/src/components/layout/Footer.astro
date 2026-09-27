@@ -1,7 +1,15 @@
 ---
 import Icon from '@/components/ui/Icon.astro';
 import Logo from '@/components/ui/Logo.astro';
-import { contact, hasEmail, hasWhatsapp, sectionHref, site, whatsappUrl } from '@/config/site';
+import {
+  contact,
+  hasEmail,
+  hasWhatsapp,
+  loginUrl,
+  sectionHref,
+  site,
+  whatsappUrl,
+} from '@/config/site';
 import { products } from '@/data/products';
 import { services } from '@/data/services';
 
@@ -43,6 +51,9 @@ const year = new Date().getFullYear();
       <div class="site-footer__group">
         <h2 class="site-footer__heading">Empresa</h2>
         <ul role="list">
+          <li>
+            <a href={loginUrl}>Já sou cliente — entrar</a>
+          </li>
           <li>
             <a href={sectionHref('como-funciona')}>Como funciona</a>
           </li>

@@ -3,18 +3,20 @@ import {
   can,
   dateIn,
   financeStatus,
+  formatCents,
   formatDocument,
   formatQuantity,
   isProductUnit,
   todayIn,
 } from '@tivexy/core';
-import { ArrowLeft } from 'lucide-react';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import type { Fato } from '@/components/page/facts';
+import { PageHeader } from '@/components/page/header';
 import { NoTenant } from '@/components/page/no-tenant';
+import { Page } from '@/components/page/page';
+import { Badge } from '@/components/ui/badge';
 import { sectionTitle } from '@/config/navigation';
 import { requireAccess } from '@/lib/auth/require';
 import { formatDate, formatInstant } from '@/lib/format';
@@ -109,9 +111,10 @@ export default async function VendaPage({ params, searchParams }: PageProps<'/er
   );
   const devolucao = lancamentos.find((l) => l.direction === 'payable') ?? null;
   const cliente = relacao<{ id: string; name: string; document: string | null }>(venda.customer);
+  const quando = formatInstant(String(venda.sold_at), fuso);
 
   const fatos: Fato[] = [
-    { rotulo: 'Quando', valor: formatInstant(String(venda.sold_at), fuso) },
+    { rotulo: 'Quando', valor: quando },
     {
       rotulo: 'Quem registrou',
       valor: nomeDe(membros, typeof venda.created_by === 'string' ? venda.created_by : null),
@@ -123,7 +126,7 @@ export default async function VendaPage({ params, searchParams }: PageProps<'/er
           <>
             {cliente.name}
             {cliente.document !== null && (
-              <span className="block font-mono text-xs text-content-muted">
+              <span className="block text-num text-content-muted">
                 {formatDocument(cliente.document)}
               </span>
             )}
@@ -133,19 +136,24 @@ export default async function VendaPage({ params, searchParams }: PageProps<'/er
   ];
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <Link
-        href="/erp/vendas"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-content-muted hover:text-content"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        {sectionTitle(terms, '/erp/vendas')}
-      </Link>
+    <Page variant="registro">
+      <PageHeader
+        titulo={titulo}
+        trilha={[{ rotulo: sectionTitle(terms, '/erp/vendas'), href: '/erp/vendas' }]}
+        descricao={
+          /* Cor nunca sozinha: o selo carrega ícone e palavra, e o texto ao lado diz o resto. */
+          <span className="flex flex-wrap items-center gap-2">
+            <span>
+              {quando} · {formatCents(Number(venda.total_cents))}
+            </span>
+            {cancelada && <Badge tone="danger">Cancelamento</Badge>}
+          </span>
+        }
+      />
 
       <SaleReceipt
         id={String(venda.id)}
         titulo={titulo}
-        quando={formatInstant(String(venda.sold_at), fuso)}
         subtotalCentavos={Number(venda.subtotal_cents)}
         descontoCentavos={Number(venda.discount_cents)}
         totalCentavos={Number(venda.total_cents)}
@@ -159,6 +167,7 @@ export default async function VendaPage({ params, searchParams }: PageProps<'/er
           unitarioCentavos: Number(item.unit_price_cents),
           totalCentavos: Number(item.total_cents),
         }))}
+        erroDosItens={itensR.error !== null}
         pagamentos={(pagamentosR.data ?? []).map((p) => {
           const prazo = Number(p.settlement_days);
           const lanc = lancamentoDo.get(String(p.id));
@@ -183,6 +192,7 @@ export default async function VendaPage({ params, searchParams }: PageProps<'/er
                   ),
           };
         })}
+        erroDosPagamentos={pagamentosR.error !== null}
         devolucao={
           devolucao === null
             ? null
@@ -215,6 +225,6 @@ export default async function VendaPage({ params, searchParams }: PageProps<'/er
         registrada={registrada === '1'}
         podeVender={can(viewer, 'erp.sales.write')}
       />
-    </div>
+    </Page>
   );
 }

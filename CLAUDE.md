@@ -19,7 +19,11 @@ Leia `docs/REPOSITORY_STRUCTURE.md` antes de criar qualquer diretório novo e
 
 - `apps/site` e `apps/web` são **projetos separados** com build e deploy independentes.
   Nunca faça a landing depender do SaaS, nem o SaaS depender da landing.
-- ERP, CRM e Admin **não são aplicações**. São módulos dentro de `apps/web`, sobre o Tivexy Core.
+- ERP e CRM **não são aplicações**. São módulos dentro de `apps/web`, sobre o Tivexy Core.
+- O **Admin é exceção declarada** (`docs/16-DECISIONS/ADR-005`): é o plano de controle de
+  todos os tenants, não um módulo de um tenant. Vive em route group próprio, com casca e
+  entrada próprias, fora da sidebar do cliente — mas dentro do mesmo `apps/web`, para não
+  duplicar auth nem sessão.
 - Regra que pertence ao Core fica no Core. Não duplique auth, tenants, usuários,
   permissões, notificações, automações ou integrações dentro de ERP/CRM.
 - Direção de dependência permitida: `apps/* → packages/*`. Nunca o contrário,
@@ -48,10 +52,16 @@ Tudo roda a partir da raiz do monorepo (npm workspaces):
 npm install              # instala todos os workspaces
 npm run dev:site         # servidor de desenvolvimento da landing
 npm run validate:site    # tipos + lint + build da landing
+npm run validate         # tudo: tipos, lint, testes, os dois builds e formatação
 npm run format           # Prettier em todo o monorepo
 ```
 
 Dentro de um app específico, use os scripts locais (`npm run dev` em `apps/site`).
+
+`npm run validate` é o mesmo conjunto que o CI roda. Rode-o antes de abrir PR:
+em 27/09/2026 o CI reprovou por formatação num commit que passava em tudo
+localmente, porque `format:check` não estava no `validate`. Agora está — no fim,
+para que erro de tipo e teste quebrado apareçam antes de espaço em branco.
 
 Ao iniciar o servidor de desenvolvimento, use modo background.
 

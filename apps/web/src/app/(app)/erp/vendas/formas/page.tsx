@@ -1,12 +1,10 @@
 import { can } from '@tivexy/core';
-import { ArrowLeft } from 'lucide-react';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
-import { FormError } from '@/components/form/messages';
+import { EmptyState } from '@/components/page/empty-state';
 import { PageHeader } from '@/components/page/header';
 import { NoTenant } from '@/components/page/no-tenant';
-import { Card, CardContent } from '@/components/ui/card';
+import { Page } from '@/components/page/page';
 import { sectionTitle } from '@/config/navigation';
 import { requireAccess } from '@/lib/auth/require';
 import { supabaseServer } from '@/lib/supabase/server';
@@ -53,28 +51,24 @@ export default async function FormasPage() {
   }));
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-      <Link
-        href="/erp/vendas"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-content-muted hover:text-content"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        {sectionTitle(terms, '/erp/vendas')}
-      </Link>
+    <Page variant="operacao">
       <PageHeader
         titulo="Formas de pagamento"
+        trilha={[{ rotulo: sectionTitle(terms, '/erp/vendas'), href: '/erp/vendas' }]}
         descricao="O que aparece no balcão, e em quantos dias o dinheiro de cada uma chega. Nada aqui cobra nem fala com banco."
       />
-      {error !== null && (
-        <div className="mb-4">
-          <FormError>Não consegui ler as formas agora. Recarregue a página em instantes.</FormError>
-        </div>
+
+      {/*
+       * Falha de leitura não pode cair na lista vazia: "nenhuma forma
+       * cadastrada" é uma afirmação sobre o banco, e o banco não respondeu.
+       */}
+      {error !== null ? (
+        <EmptyState estado="erro" titulo="Não consegui ler as formas de pagamento">
+          Não sei dizer quantas existem nem quais estão no balcão. Recarregue a página em instantes.
+        </EmptyState>
+      ) : (
+        <PaymentMethods formas={formas} podeEditar={can(viewer, 'core.settings.write')} />
       )}
-      <Card>
-        <CardContent className="pt-5">
-          <PaymentMethods formas={formas} podeEditar={can(viewer, 'core.settings.write')} />
-        </CardContent>
-      </Card>
-    </div>
+    </Page>
   );
 }

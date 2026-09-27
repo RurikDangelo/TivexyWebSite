@@ -38,7 +38,7 @@
     "docs:matrix": "node scripts/permission-matrix.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "validate": "npm run check:core && npm run test:core && npm run validate:site && npm run validate:web && npm run test:web && npm run test:db",
+    "validate": "npm run check:core && npm run test:core && npm run validate:site && npm run validate:web && npm run test:web && npm run test:db && npm run format:check",
     "db:status": "node scripts/db.mjs status",
     "db:list": "node scripts/db.mjs list",
     "db:super-admin": "node scripts/super-admin.mjs"

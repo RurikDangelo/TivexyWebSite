@@ -52,6 +52,11 @@ const ESCRITAS_PARA_GENTE = [
   /^suspender pede /,
   /^o motivo /,
   /^plano desconhecido/,
+  // Marca e módulos por empresa — 20260926010000.
+  /^cor inválida/,
+  /^o logo /,
+  /^módulo (desconhecido|fora de catálogo)/,
+  /^o módulo já está /,
 ];
 
 function frase(texto: string): string {

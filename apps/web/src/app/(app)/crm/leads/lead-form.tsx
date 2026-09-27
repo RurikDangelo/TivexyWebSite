@@ -1,11 +1,14 @@
 'use client';
 
-import { CheckCircle2, Loader2, Plus, X } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useActionState, useEffect, useRef, useState } from 'react';
-import { useFormStatus } from 'react-dom';
 
+import { describedBy, Field, idDoCampo, useEscopo } from '@/components/form/field';
+import { FormError, FormSuccess } from '@/components/form/messages';
+import { Submit } from '@/components/form/submit';
 import { Button } from '@/components/ui/button';
-import { Input, Label } from '@/components/ui/input';
+import { Dialog } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 
 import { criarLead } from './actions';
 import { LEAD_INICIAL } from './state';
@@ -13,35 +16,25 @@ import { LEAD_INICIAL } from './state';
 /**
  * Cadastro rápido de lead.
  *
- * Fica recolhido por padrão e abre no lugar, sem trocar de página: quem usa
- * esta tela está anotando alguém que acabou de ligar, e perder a lista de
- * vista para cadastrar um nome é o que faz a pessoa anotar no papel.
- *
  * Só o nome é obrigatório, e isso é decisão de produto, não descuido. Um lead
  * é justamente o contato de quem ainda não se sabe quase nada — exigir e-mail
  * e telefone faria a pessoa inventar valores para conseguir salvar.
+ *
+ * O diálogo **não fecha ao salvar**: quem cadastra um lead normalmente cadastra
+ * três seguidos, anotando quem acabou de ligar. Salvar limpa os campos, devolve
+ * o foco ao primeiro e deixa a confirmação à vista.
+ *
+ * Os três primitivos que este arquivo reimplementava — `Field`, `Submit` e a
+ * faixa de erro — voltaram a ser importados (achado `lead-form.tsx:146`). A
+ * cópia local do erro usava `bg-danger/10`, que no tema escuro é salmão e não
+ * é a cor de erro do resto do sistema.
  */
-function Enviar() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? (
-        <>
-          <Loader2 className="size-4 animate-spin" aria-hidden />
-          Salvando…
-        </>
-      ) : (
-        'Cadastrar'
-      )}
-    </Button>
-  );
-}
-
 export function LeadForm({ singular }: { singular: string }) {
   const [estado, acao] = useActionState(criarLead, LEAD_INICIAL);
   const [aberto, setAberto] = useState(false);
   const formulario = useRef<HTMLFormElement>(null);
   const primeiro = useRef<HTMLInputElement>(null);
+  const escopo = useEscopo();
 
   /*
    * Depois de salvar: limpa e devolve o foco ao primeiro campo. Quem cadastra
@@ -54,143 +47,99 @@ export function LeadForm({ singular }: { singular: string }) {
     primeiro.current?.focus();
   }, [estado.criado]);
 
-  if (!aberto) {
-    return (
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={() => setAberto(true)}>
-          <Plus aria-hidden />
-          Cadastrar {singular}
-        </Button>
-        {estado.criado !== null && (
-          <p role="status" className="flex items-center gap-1.5 text-sm text-success">
-            <CheckCircle2 className="size-4" aria-hidden />
-            {estado.criado} entrou na lista.
-          </p>
-        )}
-      </div>
-    );
-  }
-
   return (
-    <form
-      ref={formulario}
-      action={acao}
-      className="rounded-lg border border-line-subtle bg-surface-raised p-4"
-    >
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-medium text-content">Cadastrar {singular}</h2>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label="Fechar cadastro"
-          onClick={() => setAberto(false)}
-        >
-          <X aria-hidden />
-        </Button>
-      </div>
+    <>
+      {/* A única ação `brand` da tela (seção 7, extensão do Button). */}
+      <Button type="button" onClick={() => setAberto(true)}>
+        <Plus aria-hidden />
+        Cadastrar {singular}
+      </Button>
 
-      {estado.erro !== null && (
-        <p role="alert" className="mb-4 rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
-          {estado.erro}
-        </p>
-      )}
+      <Dialog
+        aberto={aberto}
+        aoFechar={() => setAberto(false)}
+        titulo={`Cadastrar ${singular}`}
+        descricao="Só o nome é obrigatório. O resto entra quando você souber."
+        tamanho="lg"
+      >
+        <form ref={formulario} action={acao} className="flex flex-col gap-4">
+          {estado.erro !== null && <FormError>{estado.erro}</FormError>}
+          {estado.criado !== null && (
+            <FormSuccess>{estado.criado} entrou na lista. Pode cadastrar o próximo.</FormSuccess>
+          )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Campo
-          nome="name"
-          rotulo="Nome"
-          obrigatorio
-          referencia={primeiro}
-          erro={estado.campos.name}
-          placeholder="Maria Souza"
-        />
-        <Campo
-          nome="company_name"
-          rotulo="Empresa"
-          dica="Texto livre — ainda não vira cadastro de conta."
-          placeholder="Padaria do Bairro"
-        />
-        <Campo
-          nome="email"
-          rotulo="E-mail"
-          tipo="email"
-          erro={estado.campos.email}
-          placeholder="maria@exemplo.com.br"
-        />
-        <Campo
-          nome="phone"
-          rotulo="Telefone"
-          tipo="tel"
-          erro={estado.campos.phone}
-          placeholder="(11) 90000-0000"
-        />
-        <Campo
-          nome="source"
-          rotulo="Origem"
-          dica="De onde veio: indicação, Instagram, feira."
-          placeholder="Indicação"
-        />
-      </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field nome="name" rotulo="Nome" obrigatorio erro={estado.campos.name} escopo={escopo}>
+              <Input
+                ref={primeiro}
+                id={idDoCampo('name', escopo)}
+                name="name"
+                required
+                placeholder="Maria Souza"
+                aria-invalid={estado.campos.name !== undefined}
+                aria-describedby={describedBy('name', estado.campos.name, undefined, escopo)}
+              />
+            </Field>
 
-      <div className="mt-4 flex items-center gap-2">
-        <Enviar />
-        <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
-          Cancelar
-        </Button>
-      </div>
-    </form>
-  );
-}
+            <Field
+              nome="company_name"
+              rotulo="Empresa"
+              dica="Texto livre — ainda não vira cadastro de conta."
+              escopo={escopo}
+            >
+              <Input
+                id={idDoCampo('company_name', escopo)}
+                name="company_name"
+                placeholder="Padaria do Bairro"
+                aria-describedby={describedBy('company_name', undefined, 'dica', escopo)}
+              />
+            </Field>
 
-function Campo({
-  nome,
-  rotulo,
-  tipo = 'text',
-  obrigatorio = false,
-  dica,
-  erro,
-  placeholder,
-  referencia,
-}: {
-  nome: string;
-  rotulo: string;
-  tipo?: string;
-  obrigatorio?: boolean;
-  dica?: string;
-  erro?: string;
-  placeholder?: string;
-  referencia?: React.RefObject<HTMLInputElement | null>;
-}) {
-  const idDica = dica !== undefined ? `${nome}-dica` : undefined;
-  const idErro = erro !== undefined ? `${nome}-erro` : undefined;
+            <Field nome="email" rotulo="E-mail" erro={estado.campos.email} escopo={escopo}>
+              <Input
+                id={idDoCampo('email', escopo)}
+                name="email"
+                type="email"
+                placeholder="maria@exemplo.com.br"
+                aria-invalid={estado.campos.email !== undefined}
+                aria-describedby={describedBy('email', estado.campos.email, undefined, escopo)}
+              />
+            </Field>
 
-  return (
-    <div className="flex flex-col gap-1.5">
-      <Label htmlFor={nome}>
-        {rotulo}
-        {!obrigatorio && <span className="ml-1 text-xs text-content-subtle">(opcional)</span>}
-      </Label>
-      <Input
-        ref={referencia}
-        id={nome}
-        name={nome}
-        type={tipo}
-        required={obrigatorio}
-        placeholder={placeholder}
-        aria-invalid={erro !== undefined}
-        aria-describedby={[idErro, idDica].filter(Boolean).join(' ') || undefined}
-      />
-      {erro !== undefined && (
-        <p id={idErro} role="alert" className="text-xs text-danger">
-          {erro}
-        </p>
-      )}
-      {dica !== undefined && (
-        <p id={idDica} className="text-xs text-content-subtle">
-          {dica}
-        </p>
-      )}
-    </div>
+            <Field nome="phone" rotulo="Telefone" erro={estado.campos.phone} escopo={escopo}>
+              <Input
+                id={idDoCampo('phone', escopo)}
+                name="phone"
+                type="tel"
+                placeholder="(11) 90000-0000"
+                aria-invalid={estado.campos.phone !== undefined}
+                aria-describedby={describedBy('phone', estado.campos.phone, undefined, escopo)}
+              />
+            </Field>
+
+            <Field
+              nome="source"
+              rotulo="Origem"
+              dica="De onde veio: indicação, Instagram, feira."
+              escopo={escopo}
+            >
+              <Input
+                id={idDoCampo('source', escopo)}
+                name="source"
+                placeholder="Indicação"
+                aria-describedby={describedBy('source', undefined, 'dica', escopo)}
+              />
+            </Field>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Submit>Cadastrar</Submit>
+            <Button type="button" variant="ghost" onClick={() => setAberto(false)}>
+              Fechar
+            </Button>
+          </div>
+        </form>
+      </Dialog>
+    </>
   );
 }

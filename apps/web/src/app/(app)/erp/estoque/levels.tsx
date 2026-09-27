@@ -2,25 +2,30 @@ import {
   type ProductUnit,
   type StockStatus,
   type StockSummary,
-  formatCents,
   formatQuantity,
 } from '@tivexy/core';
 import {
   AlertTriangle,
   ArrowDownLeft,
   CircleCheck,
-  type LucideIcon,
+  Inbox,
   Scale,
+  SearchX,
   Wallet,
 } from 'lucide-react';
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
+import { Stat, StatGrid } from '@/components/ui/stat';
+import { TBody, TD, TH, THead, TR, Table, TableEmpty, hrefDeOrdem } from '@/components/ui/table';
+import { Tooltip } from '@/components/ui/tooltip';
+import { SITUACAO_DO_ESTOQUE } from '@/lib/erp/labels';
 import { contagem } from '@/lib/format';
-import { cn } from '@/lib/utils';
+import { atrasoDaLinha, cn } from '@/lib/utils';
 
-import { SituacaoDoEstoque } from '../produtos/product-rows';
+import { ICONE_DO_ESTOQUE } from '../produtos/product-rows';
 import type { FiltroDeSituacao } from './state';
 
 export interface SaldoNaTela {
@@ -34,168 +39,297 @@ export interface SaldoNaTela {
   ativo: boolean;
 }
 
-function Cartao({
-  href,
-  ativo,
-  Icone,
-  classeIcone,
-  titulo,
-  valor,
-  detalhe,
-}: {
-  href: string;
-  ativo: boolean;
-  Icone: LucideIcon;
-  classeIcone: string;
-  titulo: string;
-  valor: string;
-  detalhe: string;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={ativo ? 'true' : undefined}
-      className={cn(
-        'flex min-w-0 flex-col gap-1 rounded-lg border bg-surface-raised p-3 transition-colors sm:p-4',
-        ativo ? 'border-line-accent' : 'border-line-subtle hover:border-line',
-      )}
-    >
-      <span className="flex items-center gap-1.5 text-xs text-content-muted">
-        <Icone className={cn('size-3.5 shrink-0', classeIcone)} aria-hidden />
-        {titulo}
-      </span>
-      <span className="font-display text-xl font-bold tabular-nums text-content sm:text-2xl">
-        {valor}
-      </span>
-      <span className="text-xs text-content-subtle">{detalhe}</span>
-    </Link>
-  );
-}
-
 /**
  * O resumo no topo: o que pede ação, e quanto o estoque vale a custo.
  *
- * Cada cartão é um filtro — clicar em "pedem reposição" lista quais. O valor
- * diz quantos ficaram de fora por falta de custo, em vez de somar como se
- * fossem zero.
+ * Cada tile é um filtro — clicar em "pedem reposição" lista quais. O `Cartao`
+ * local que existia aqui era a terceira de cinco implementações do mesmo
+ * cartão de KPI; agora é o primitivo `Stat`, que também já sabe dizer quando o
+ * número é uma soma **truncada** em vez de um total (prop `parcial`).
  */
 export function StockSummaryCards({
   resumo,
   filtro,
   rotulo,
+  parcial,
 }: {
   resumo: StockSummary;
   filtro: FiltroDeSituacao;
   rotulo: { singular: string; plural: string };
+  /**
+   * Presente: a consulta parou antes do fim do catálogo, e estes números
+   * cobrem só o pedaço lido. O tile passa a exibir "parcial" em vez de
+   * apresentar a soma como total da empresa (CLAUDE.md).
+   */
+  parcial?: string;
 }) {
   const s = resumo.porSituacao;
   const repor = s.low + s.out;
+  const total = s.ok + repor + s.negative;
+
   return (
-    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-      <Cartao
+    <StatGrid colunas={4}>
+      <Stat
+        rotulo="Pedem reposição"
+        valor={repor}
+        Icone={AlertTriangle}
+        tom="warning"
         href="/erp/estoque?situacao=repor"
         ativo={filtro === 'repor'}
-        Icone={AlertTriangle}
-        classeIcone="text-warning"
-        titulo="Pedem reposição"
-        valor={String(repor)}
-        detalhe={`${s.out} sem estoque, ${s.low} no mínimo`}
+        contar
+        nota={`${s.out} sem estoque, ${s.low} no mínimo`}
+        parcial={parcial}
       />
-      <Cartao
+      <Stat
+        rotulo="Saldo negativo"
+        valor={s.negative}
+        Icone={AlertTriangle}
+        tom="danger"
         href="/erp/estoque?situacao=negativo"
         ativo={filtro === 'negativo'}
-        Icone={AlertTriangle}
-        classeIcone="text-danger"
-        titulo="Saldo negativo"
-        valor={String(s.negative)}
-        detalhe={s.negative === 0 ? 'nada vendido sem entrada' : 'vendido antes da entrada'}
+        contar
+        nota={s.negative === 0 ? 'nada vendido sem entrada' : 'vendido antes da entrada'}
+        parcial={parcial}
       />
-      <Cartao
+      <Stat
+        rotulo="Em dia"
+        valor={s.ok}
+        Icone={CircleCheck}
+        tom="success"
         href="/erp/estoque?situacao=em-dia"
         ativo={filtro === 'em-dia'}
-        Icone={CircleCheck}
-        classeIcone="text-success"
-        titulo="Em dia"
-        valor={String(s.ok)}
-        detalhe={contagem(s.ok + repor + s.negative, rotulo.singular, rotulo.plural) + ' ao todo'}
+        contar
+        nota={`${contagem(total, rotulo.singular, rotulo.plural)} ao todo`}
+        parcial={parcial}
       />
-      <Cartao
+      <Stat
+        rotulo="Valor a custo"
+        valor={resumo.valorACusto}
+        formato="moeda"
+        Icone={Wallet}
         href="/erp/estoque"
         ativo={filtro === 'todos'}
-        Icone={Wallet}
-        classeIcone="text-content-accent"
-        titulo="Valor a custo"
-        valor={formatCents(resumo.valorACusto)}
-        detalhe={
+        contar
+        nota={
           resumo.semCusto === 0
             ? 'saldo × custo cadastrado'
             : `${contagem(resumo.semCusto, 'sem custo ficou', 'sem custo ficaram')} de fora`
         }
+        parcial={parcial}
       />
-    </div>
+    </StatGrid>
   );
 }
 
-/** As linhas do saldo. O nome leva à página do produto; os botões, ao formulário. */
+/** Ícone + palavra: a situação nunca é só a cor (R8 do DESIGN_SYSTEM). */
+function Situacao({ situacao }: { situacao: StockStatus }) {
+  const { Icone, classe } = ICONE_DO_ESTOQUE[situacao];
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      <Icone className={cn('size-4 shrink-0', classe)} aria-hidden />
+      {SITUACAO_DO_ESTOQUE[situacao].rotulo}
+    </span>
+  );
+}
+
+/** Ausência de dado é travessão para o olho e frase para quem ouve. */
+function SemValor({ children }: { children: ReactNode }) {
+  return (
+    <span className="text-content-subtle">
+      <span aria-hidden>—</span>
+      <span className="sr-only">{children}</span>
+    </span>
+  );
+}
+
+export interface LevelRowsProps {
+  saldos: readonly SaldoNaTela[];
+  podeMovimentar: boolean;
+  /** O `?ordem=` vigente: decide a seta do cabeçalho e o destino do próximo clique. */
+  ordem: string;
+  /** Busca e filtros em vigor, para os links de ordenação os preservarem. */
+  params: Readonly<Record<string, string | null | undefined>>;
+  /** O termo buscado, só para explicar um resultado vazio. */
+  busca: string;
+  filtro: FiltroDeSituacao;
+  /**
+   * Cadência de entrada. Falso ao filtrar, ordenar ou paginar: a coreografia é
+   * agradável na primeira vez e irritante na décima (seção 8, regra 3).
+   */
+  animar: boolean;
+  /** Como o nicho chama o que está em estoque — vira o cabeçalho da primeira coluna. */
+  rotulo: { singular: string; plural: string };
+}
+
+/**
+ * O saldo, linha a linha — agora tabela de verdade.
+ *
+ * Saíram os cartões-linha de ~90px que faziam 8 registros caberem numa tela de
+ * 1080p; entrou a densidade `larga` (44px), que cabe cerca de vinte. O que se
+ * ganha não é só rolagem: com colunas, saldo e mínimo passam a alinhar por
+ * dígito entre linhas, que é o que permite varrer a coluna em vez de ler
+ * registro por registro.
+ *
+ * Nenhuma linha de exemplo quando não há dado: o vazio fica dentro da própria
+ * tabela, com o cabeçalho de pé, e diz qual das duas ausências é.
+ */
 export function LevelRows({
   saldos,
   podeMovimentar,
-}: {
-  saldos: readonly SaldoNaTela[];
-  podeMovimentar: boolean;
-}) {
+  ordem,
+  params,
+  busca,
+  filtro,
+  animar,
+  rotulo,
+}: LevelRowsProps) {
+  const colunas = podeMovimentar ? 6 : 5;
+  const coluna = (chave: string) => ({
+    chave,
+    atual: ordem,
+    href: hrefDeOrdem(params, chave, ordem),
+  });
+  const filtrando = busca !== '' || filtro !== 'todos';
+
   return (
-    <ul className="overflow-hidden rounded-lg border border-line-subtle bg-surface-raised">
-      {saldos.map((s, i) => (
-        <li
-          key={s.id}
-          style={{ animationDelay: `${Math.min(i, 10) * 20}ms` }}
-          className="animate-enter flex items-center gap-3 border-b border-line-subtle p-4 last:border-b-0"
-        >
-          <div className="min-w-0 flex-1">
-            <p className="flex min-w-0 items-center gap-2">
-              <Link
-                href={`/erp/produtos/${s.id}`}
-                className="truncate font-medium text-content hover:underline"
-              >
-                {s.nome}
-              </Link>
-              {!s.ativo && <Badge className="hidden shrink-0 sm:inline-flex">Fora de venda</Badge>}
-            </p>
-            {!s.ativo && <Badge className="my-0.5 sm:hidden">Fora de venda</Badge>}
-            <p className="truncate text-sm text-content-muted">
-              {s.categoria ?? 'Sem categoria'}
-              {s.minimo !== null && ` · mínimo ${formatQuantity(s.minimo, s.unidade)}`}
-            </p>
-            <SituacaoDoEstoque
-              saldo={s.saldo}
-              situacao={s.situacao}
-              unidade={s.unidade}
-              className="mt-1 text-sm text-content-default"
-            />
-          </div>
+    <Table densidade="larga" rotulo={`Saldo por ${rotulo.singular}`}>
+      {/*
+       * Cabeçalho fixo: numa página de 50 linhas, rolar até a trigésima sem
+       * saber qual coluna é o saldo e qual é o mínimo é o mesmo que não ter
+       * coluna nenhuma.
+       */}
+      <THead sticky>
+        <TR>
+          <TH ordem={coluna('nome')}>{rotulo.singular}</TH>
+          <TH ordem={coluna('categoria')}>Categoria</TH>
+          <TH ordem={coluna('saldo')} alinhamento="fim">
+            Saldo
+          </TH>
+          <TH ordem={coluna('minimo')} alinhamento="fim">
+            Mínimo
+          </TH>
+          <TH ordem={coluna('situacao')}>Situação</TH>
           {podeMovimentar && (
-            <div className="flex shrink-0 gap-1">
-              <Link
-                href={`/erp/estoque?produto=${s.id}&tipo=in#registrar`}
-                aria-label={`Registrar entrada de ${s.nome}`}
-                title="Entrada"
-                className={buttonVariants({ variant: 'outline', size: 'icon' })}
-              >
-                <ArrowDownLeft aria-hidden />
-              </Link>
-              <Link
-                href={`/erp/estoque?produto=${s.id}&tipo=adjustment#registrar`}
-                aria-label={`Contar ${s.nome}`}
-                title="Contagem"
-                className={buttonVariants({ variant: 'outline', size: 'icon' })}
-              >
-                <Scale aria-hidden />
-              </Link>
-            </div>
+            <TH alinhamento="fim">
+              <span className="sr-only">Ações</span>
+            </TH>
           )}
-        </li>
-      ))}
-    </ul>
+        </TR>
+      </THead>
+
+      <TBody>
+        {saldos.length === 0 ? (
+          /*
+           * Três ausências, três respostas — nunca "nenhum registro" sozinho.
+           * A busca não achou, o filtro não tem ninguém, ou a página pedida
+           * passou do fim da lista. Falha de leitura NÃO chega aqui: a página
+           * a trata antes, porque uma tabela vazia afirmaria que o estoque
+           * está zerado quando ninguém conseguiu olhar.
+           */
+          <TableEmpty
+            colunas={colunas}
+            icone={busca !== '' ? SearchX : filtro !== 'todos' ? CircleCheck : Inbox}
+            titulo={
+              busca !== ''
+                ? `Nada com “${busca}”`
+                : filtro !== 'todos'
+                  ? 'Nada nesta situação'
+                  : 'Nada nesta página'
+            }
+            acao={
+              filtrando ? (
+                <Link href="/erp/estoque" className={buttonVariants({ variant: 'outline' })}>
+                  Limpar filtros
+                </Link>
+              ) : (
+                <Link href="/erp/estoque" className={buttonVariants({ variant: 'outline' })}>
+                  Voltar ao começo da lista
+                </Link>
+              )
+            }
+          >
+            {busca !== ''
+              ? 'Nenhum cadastro tem esse texto no nome nem no código. Confira a grafia, ou limpe os filtros para ver a lista inteira.'
+              : filtro !== 'todos'
+                ? 'Nenhum cadastro está nesta situação agora — o que, nesta situação, é boa notícia. Limpe o filtro para ver a lista inteira.'
+                : 'A página pedida passou do fim da lista. Volte ao começo para ver os cadastros.'}
+          </TableEmpty>
+        ) : (
+          saldos.map((s, i) => (
+            <TR
+              key={s.id}
+              href={`/erp/produtos/${s.id}`}
+              rotulo={s.nome}
+              className={animar ? 'animate-enter' : undefined}
+              style={animar ? { animationDelay: atrasoDaLinha(i) } : undefined}
+            >
+              <TD rotulo={rotulo.singular} truncar>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className={cn('truncate', s.ativo ? 'text-content' : 'text-content-muted')}>
+                    {s.nome}
+                  </span>
+                  {!s.ativo && (
+                    <Badge tamanho="xs" className="shrink-0">
+                      Fora de venda
+                    </Badge>
+                  )}
+                </span>
+              </TD>
+
+              <TD rotulo="Categoria" truncar className="text-content-muted">
+                {s.categoria ?? <SemValor>sem categoria</SemValor>}
+              </TD>
+
+              <TD numerico rotulo="Saldo">
+                {formatQuantity(s.saldo, s.unidade)}
+              </TD>
+
+              <TD numerico rotulo="Mínimo">
+                {s.minimo === null ? (
+                  <SemValor>sem mínimo definido</SemValor>
+                ) : (
+                  formatQuantity(s.minimo, s.unidade)
+                )}
+              </TD>
+
+              <TD rotulo="Situação">
+                <Situacao situacao={s.situacao} />
+              </TD>
+
+              {podeMovimentar && (
+                <TD acoes rotulo="Ações">
+                  {/*
+                   * `-my-1` devolve à linha os 44px da densidade: o alvo de
+                   * toque continua com 32px, mas deixa de empurrar a altura
+                   * da linha para 52px e desalinhar esta lista de todas as
+                   * outras do sistema.
+                   */}
+                  <span className="-my-1 flex justify-end gap-1">
+                    <Tooltip conteudo="Registrar entrada">
+                      <Link
+                        href={`/erp/estoque?produto=${s.id}&tipo=in#registrar`}
+                        aria-label={`Registrar entrada de ${s.nome}`}
+                        className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
+                      >
+                        <ArrowDownLeft aria-hidden />
+                      </Link>
+                    </Tooltip>
+                    <Tooltip conteudo="Contar o que está na prateleira">
+                      <Link
+                        href={`/erp/estoque?produto=${s.id}&tipo=adjustment#registrar`}
+                        aria-label={`Contar ${s.nome}`}
+                        className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
+                      >
+                        <Scale aria-hidden />
+                      </Link>
+                    </Tooltip>
+                  </span>
+                </TD>
+              )}
+            </TR>
+          ))
+        )}
+      </TBody>
+    </Table>
   );
 }

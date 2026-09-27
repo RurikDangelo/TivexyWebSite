@@ -1,19 +1,17 @@
 import { can } from '@tivexy/core';
-import { ArrowLeft } from 'lucide-react';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
-import { FormError } from '@/components/form/messages';
+import { EmptyState } from '@/components/page/empty-state';
 import { PageHeader } from '@/components/page/header';
 import { NoTenant } from '@/components/page/no-tenant';
-import { Card, CardContent } from '@/components/ui/card';
+import { Page } from '@/components/page/page';
 import { sectionTitle } from '@/config/navigation';
 import { requireAccess } from '@/lib/auth/require';
 import { supabaseServer } from '@/lib/supabase/server';
 import { currentTerms } from '@/lib/terms/current';
 import { termOf } from '@/lib/terms/vocabulary';
 
-import { Categories, type CategoriaNaTela } from './categories';
+import { Categories, type CategoriaNaTela, NewCategoryForm } from './categories';
 
 export const metadata: Metadata = { title: 'Categorias' };
 
@@ -36,6 +34,7 @@ export default async function CategoriasPage() {
 
   const terms = await currentTerms();
   const rotulo = termOf(terms, 'erp.products');
+  const podeEditar = can(viewer, 'erp.products.write');
   const supabase = await supabaseServer();
   const { data, error } = await supabase
     .from('erp_product_categories')
@@ -51,37 +50,32 @@ export default async function CategoriasPage() {
   }));
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
-      <Link
-        href="/erp/produtos"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-content-muted hover:text-content"
-      >
-        <ArrowLeft className="size-4" aria-hidden />
-        {sectionTitle(terms, '/erp/produtos')}
-      </Link>
-
+    <Page variant="operacao">
       <PageHeader
         titulo="Categorias"
         descricao={`Como ${rotulo.plural} se agrupam na lista e nos filtros.`}
+        trilha={[{ rotulo: sectionTitle(terms, '/erp/produtos'), href: '/erp/produtos' }]}
       />
 
-      {error !== null && (
-        <div className="mb-4">
-          <FormError>
-            Não consegui ler as categorias agora. Recarregue a página em instantes.
-          </FormError>
-        </div>
-      )}
+      {/*
+       * O cadastro fica ao lado da lista a partir de `xl`, onde sobra largura:
+       * a tela era a mais estreita do sistema (672px) e a lista rolava sozinha
+       * numa coluna que usava um terço do monitor.
+       */}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
+        {/* Falha de leitura não é lista vazia: sem a distinção, "ainda não há
+            categorias" acusaria a loja de não ter cadastrado o que talvez tenha. */}
+        {error !== null ? (
+          <EmptyState estado="erro" titulo="Não consegui carregar as categorias">
+            A leitura falhou agora — não dá para saber quais existem, e criar outra aqui pode
+            repetir uma que já está lá. Recarregue a página em instantes.
+          </EmptyState>
+        ) : (
+          <Categories categorias={categorias} podeEditar={podeEditar} rotulo={rotulo} />
+        )}
 
-      <Card>
-        <CardContent className="pt-5">
-          <Categories
-            categorias={categorias}
-            podeEditar={can(viewer, 'erp.products.write')}
-            rotulo={rotulo}
-          />
-        </CardContent>
-      </Card>
-    </div>
+        {podeEditar && <NewCategoryForm rotulo={rotulo} />}
+      </div>
+    </Page>
   );
 }

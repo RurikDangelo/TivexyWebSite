@@ -1,8 +1,18 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+export interface PaginationProps {
+  pagina: number;
+  porPagina: number;
+  total: number;
+  /** O que mais está no endereço e precisa sobreviver à troca de página. */
+  params: Readonly<Record<string, string | null>>;
+  className?: string;
+}
 
 /**
  * Anterior e próxima, preservando a busca.
@@ -10,18 +20,7 @@ import { cn } from '@/lib/utils';
  * O total vem do banco (`count: 'exact'`), então "de 312" é o número de
  * verdade, não uma estimativa — e sem ele não há como dizer se existe próxima.
  */
-export function Pagination({
-  pagina,
-  porPagina,
-  total,
-  params,
-}: {
-  pagina: number;
-  porPagina: number;
-  total: number;
-  /** O que mais está no endereço e precisa sobreviver à troca de página. */
-  params: Readonly<Record<string, string | null>>;
-}) {
+export function Pagination({ pagina, porPagina, total, params, className }: PaginationProps) {
   const paginas = Math.max(1, Math.ceil(total / porPagina));
   if (paginas <= 1) return null;
 
@@ -37,37 +36,69 @@ export function Pagination({
   const fim = Math.min(total, pagina * porPagina);
 
   return (
-    <nav aria-label="Páginas" className="mt-4 flex items-center justify-between gap-3 text-sm">
-      <p className="text-content-muted">
-        {inicio.toLocaleString('pt-BR')}–{fim.toLocaleString('pt-BR')} de{' '}
-        {total.toLocaleString('pt-BR')}
-      </p>
+    <nav
+      aria-label="Páginas"
+      className={cn('mt-4 flex flex-wrap items-center justify-between gap-3', className)}
+    >
+      <div className="min-w-0">
+        <p className="text-body text-content-muted">
+          <span className="text-num text-content">
+            {inicio.toLocaleString('pt-BR')}–{fim.toLocaleString('pt-BR')}
+          </span>{' '}
+          de <span className="text-num text-content">{total.toLocaleString('pt-BR')}</span>
+        </p>
+        <p className="text-caption text-content-subtle">
+          Página {pagina.toLocaleString('pt-BR')} de {paginas.toLocaleString('pt-BR')}
+        </p>
+      </div>
       <div className="flex gap-2">
-        <Link
-          href={link(pagina - 1)}
-          aria-disabled={pagina <= 1}
-          tabIndex={pagina <= 1 ? -1 : undefined}
-          className={cn(
-            buttonVariants({ variant: 'outline', size: 'sm' }),
-            pagina <= 1 && 'pointer-events-none opacity-50',
-          )}
-        >
-          <ChevronLeft aria-hidden />
-          Anterior
-        </Link>
-        <Link
-          href={link(pagina + 1)}
-          aria-disabled={pagina >= paginas}
-          tabIndex={pagina >= paginas ? -1 : undefined}
-          className={cn(
-            buttonVariants({ variant: 'outline', size: 'sm' }),
-            pagina >= paginas && 'pointer-events-none opacity-50',
-          )}
-        >
-          Próxima
-          <ChevronRight aria-hidden />
-        </Link>
+        <Passo href={link(pagina - 1)} fim={pagina <= 1} sentido="anterior" />
+        <Passo href={link(pagina + 1)} fim={pagina >= paginas} sentido="proxima" />
       </div>
     </nav>
+  );
+}
+
+/**
+ * Um dos dois passos. Na borda da lista o destino não existe, e aí o controle
+ * deixa de ser link: um `<span>` sai da ordem de tabulação e da leitura sozinho,
+ * sem o `aria-disabled` num `<a>` que continuava clicável pelo teclado. Quem
+ * ouve a página na primeira página simplesmente não encontra "Anterior" — que é
+ * a verdade — e a contagem acima já diz onde está.
+ */
+function Passo({
+  href,
+  fim,
+  sentido,
+}: {
+  href: string;
+  fim: boolean;
+  sentido: 'anterior' | 'proxima';
+}) {
+  const classe = cn(buttonVariants({ variant: 'outline', size: 'sm' }), fim && 'opacity-50');
+  const conteudo: ReactNode =
+    sentido === 'anterior' ? (
+      <>
+        <ChevronLeft aria-hidden />
+        Anterior
+      </>
+    ) : (
+      <>
+        Próxima
+        <ChevronRight aria-hidden />
+      </>
+    );
+
+  if (fim) {
+    return (
+      <span className={classe} aria-hidden>
+        {conteudo}
+      </span>
+    );
+  }
+  return (
+    <Link href={href} className={classe}>
+      {conteudo}
+    </Link>
   );
 }

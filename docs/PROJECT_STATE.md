@@ -146,7 +146,7 @@ A prévia do formulário roda `planProvisioning`, a **mesma** função que o
 servidor executa. Não é uma descrição paralela do que deveria acontecer: é o
 próprio plano, e por isso não tem como divergir dele.
 
-`/admin` mostra os provisionamentos parados no meio com as duas saídas lado a
+`/adminpanel` mostra os provisionamentos parados no meio com as duas saídas lado a
 lado. Nenhuma é a padrão: retomar serve para falha passageira, desfazer para
 entrada errada, e o executor não escolhe sozinho.
 
@@ -235,7 +235,7 @@ que não há.
 
 **A guarda está ligada, e o fio inteiro foi percorrido no banco real** — não em
 modelo. Em 20/09/2026: entrar com senha, o cookie virar sessão,
-`current_viewer()` responder do Postgres do projeto, `/admin` abrir para Super
+`current_viewer()` responder do Postgres do projeto, `/adminpanel` abrir para Super
 Admin, e `/painel` sem sessão cair em `/entrar?proxima=%2Fpainel`.
 
 **Três camadas, e nenhuma delas sozinha:**
@@ -251,8 +251,8 @@ o invariante de que ele nunca nega por um motivo que não consultou: agir sobre
 a ausência aparente de empresa mandaria um administrador legítimo para o
 onboarding.
 
-**O caminho é literal em quem chama**, nunca lido de cabeçalho: `'/admin'` está
-escrito no layout. Cabeçalho vem da requisição, e quem pedisse `/admin`
+**O caminho é literal em quem chama**, nunca lido de cabeçalho: `'/adminpanel'` está
+escrito no layout. Cabeçalho vem da requisição, e quem pedisse `/adminpanel`
 anunciando `/painel` seria avaliado pela regra mais fraca.
 
 **Telas de sessão:** `/entrar`, `/recuperar`, `/definir-senha`,
@@ -277,17 +277,39 @@ porque o RLS nega a escrita a quem ainda não é membro, e ativa só o vínculo 
 
 **Estado:** 🟡 PARCIAL · **Trello:** `ADMIN`
 
-`/admin` lista os clientes da plataforma e `/admin/clientes/novo` cria um. A
-lista é lida com a sessão, **passando pelo RLS** — não com a chave de serviço:
-a política já libera tudo para `is_super_admin()`, e usar a chave secreta ali
-contornaria a verificação em vez de exercitá-la. Se a política quebrar, a tela
-fica vazia, que é o sintoma que se quer.
+**Desde 26/09/2026 o admin é acesso separado** — [[16-DECISIONS/ADR-005-admin-como-acesso-separado]].
+Mora em `/adminpanel`, em route group próprio (`app/(admin)/`), com casca
+própria (`components/admin/admin-shell.tsx`): navegação em abas no topo, marca
+da plataforma, e-mail de quem está logado e botão Sair. **Sem sidebar de
+tenant, sem seletor de empresa, sem sino.** O grupo "Administração" saiu da
+navegação do cliente — não escondido, ausente do catálogo.
 
-O grupo de administração **não aparece** no menu de quem não é Super Admin.
-Ausente, não acinzentado: um item com cadeado conta ao cliente que existe um
-painel acima do dele e convida a tentar o endereço.
+Continua **um app só**: a direção de dependência não muda e o Core segue único.
 
-`requireAccess('/admin')` é chamado de novo **dentro** da Server Action. O
+As abas hoje:
+
+| Aba           | Estado                                                            |
+| ------------- | ----------------------------------------------------------------- |
+| Clientes      | 🟡 a lista e o detalhe que já existiam, movidos sem perder lógica |
+| Usuários      | 🟡 vínculos por empresa + "Gerar link de acesso" por pessoa       |
+| Ramos         | 🟡 leitura dos blueprints; criar nicho ainda é commit e deploy    |
+| Domínios      | 🔴 BLOCKED — EXTERNAL: domínio e DNS curinga não existem          |
+| Anúncios      | 🔴 não construído — declarado sem link, com o motivo escrito      |
+| Configurações | 🔴 não construído — não há configuração de plataforma no banco    |
+
+`/adminpanel` lista os clientes da plataforma e `/adminpanel/clientes/novo` cria
+um. A lista é lida com a sessão, **passando pelo RLS** — não com a chave de
+serviço: a política já libera tudo para `is_super_admin()`, e usar a chave
+secreta ali contornaria a verificação em vez de exercitá-la. Se a política
+quebrar, a tela fica vazia, que é o sintoma que se quer.
+
+`/adminpanel/usuarios` resolve um bloqueio operacional real: antes, o link de
+acesso de quem foi convidado só existia na tela efêmera de sucesso da criação e
+sumia para sempre na primeira navegação, enquanto o envio por e-mail continua
+dependendo de SMTP próprio (dependência externa pendente). Agora o link pode ser
+gerado de novo, por pessoa. **Nenhum e-mail é enviado, e a tela diz isso.**
+
+`requireAccess('/adminpanel')` é chamado de novo **dentro** da Server Action. O
 layout guardar a página não basta — Server Action é endpoint, e quem descobrir
 o identificador dela pode chamá-la sem nunca abrir a tela.
 
@@ -479,6 +501,38 @@ real, não.
   entrada/saída/contagem, razão. Ver [[05-ERP/INVENTORY#Tela: `/erp/estoque`]].
 - Tela `/erp/financeiro`: 🟡 — resumo, fluxo de caixa em SVG próprio, a receber e a
   pagar com baixa, desfazer e cancelar. Ver [[05-ERP/FINANCE#Tela: `/erp/financeiro`]].
+
+## 2.1 O SaaS está no ar — 26/09/2026
+
+**https://tivexy-web.vercel.app**
+
+Projeto `tivexy-web` no escopo `tivexy` da Vercel, Root Directory `apps/web`,
+produção saindo da `main`. A landing continua em projeto separado, e o
+preview do PR provou que ela constrói a partir da estrutura nova antes de o
+merge acontecer.
+
+### O que foi verificado em produção
+
+Entrar com senha, `/painel` com números lidos do banco, `/adminpanel` listando o
+cliente, `/crm/oportunidades` desenhando o funil do nicho — o título lê
+"Tratamentos" — e `/erp/produtos`. Leitura e sessão funcionam contra o banco
+real, pela internet.
+
+**O que não foi exercitado em produção:** as escritas das telas novas —
+cadastrar produto, registrar venda, lançar no financeiro. Elas passam nos
+testes e foram abertas, não usadas ponta a ponta. Continuam 🟡 até alguém
+gravar por elas.
+
+### Duas armadilhas encontradas ao publicar
+
+**O importador da Vercel serve uma árvore em cache.** Minutos depois do
+merge, o seletor de Root Directory ainda oferecia `public`, `scripts` e
+`src` — a estrutura antiga — e o campo ficava desabilitado. Recarregar não
+resolve. O projeto foi criado pela API, com `rootDirectory` explícito.
+
+**O Supabase não tinha Redirect URL nenhuma.** Localhost funcionava porque o
+Supabase o libera por padrão; produção não funcionaria. Agora Site URL é o
+endereço da Vercel, e a lista tem ele e `localhost:4390`.
 
 ## 3. O que está quebrado
 
@@ -774,19 +828,23 @@ movido nesta sessão.
 
 Ordenadas por urgência:
 
-| #   | Tarefa                                          | Bloqueia                              | Urgência    |
-| --- | ----------------------------------------------- | ------------------------------------- | ----------- |
-| 1   | **Abrir o PR** da branch `monorepo-tivexy-core` | Primeira execução do CI               | 🔴 Imediata |
-| 2   | **SMTP próprio no Supabase**                    | Convite, recuperação, troca de e-mail | 🔴 Imediata |
-| 3   | Conferir o destino do formulário de contato     | Leads da landing                      | 🟠 Alta     |
-| 4   | **Trocar a conta do conector Vercel**           | Qualquer coisa na Vercel              | 🟠 Alta     |
-| 5   | Projeto Vercel do `apps/web` + variáveis        | Deploy do SaaS                        | 🔴 Agora    |
-| 6   | Domínio `tivexy.com.br` + DNS                   | SEO, e-mail                           | 🟠 Média    |
-| 7   | E-mail corporativo + SPF/DKIM/DMARC             | Convites do SaaS                      | 🟠 Média    |
-| 8   | Credenciais OpenAI                              | AI Engine                             | 🟡 Depois   |
-| 9   | Meta Business + WhatsApp Business API           | Atendimento                           | 🟡 Depois   |
-| 10  | Provedor fiscal + certificado digital           | Fiscal                                | 🟡 Depois   |
-| 11  | CNPJ, contador, conta PJ, contratos             | Venda formal                          | 🟡 Paralelo |
+| #   | Tarefa                                            | Bloqueia                              | Urgência    |
+| --- | ------------------------------------------------- | ------------------------------------- | ----------- |
+| 1   | ~~Abrir o PR~~ — feito em 26/09, CI verde         | —                                     | ✅          |
+| 2   | **SMTP próprio no Supabase**                      | Convite, recuperação, troca de e-mail | 🔴 Imediata |
+| 3   | Conferir o destino do formulário de contato       | Leads da landing                      | 🟠 Alta     |
+| 4   | **Trocar a conta do conector Vercel**             | Qualquer coisa na Vercel              | 🟠 Alta     |
+| 5   | ~~Projeto Vercel do `apps/web`~~ — feito em 26/09 | —                                     | ✅          |
+| 6   | Domínio `tivexy.com.br` + DNS                     | SEO, e-mail                           | 🟠 Média    |
+| 7   | E-mail corporativo + SPF/DKIM/DMARC               | Convites do SaaS                      | 🟠 Média    |
+| 8   | Credenciais OpenAI                                | AI Engine                             | 🟡 Depois   |
+| 9   | Meta Business + WhatsApp Business API             | Atendimento                           | 🟡 Depois   |
+| 10  | Provedor fiscal + certificado digital             | Fiscal                                | 🟡 Depois   |
+| 11  | CNPJ, contador, conta PJ, contratos               | Venda formal                          | 🟡 Paralelo |
+
+> Com o SaaS no ar, o SMTP virou **o** bloqueio. Antes dele não havia onde
+> o convite chegar; agora há sistema em produção e o cliente não consegue
+> receber o acesso por e-mail. É o último passo entre demonstrar e vender.
 
 ### O SMTP é o que separa "conta criada" de "cliente atendido"
 
@@ -1002,7 +1060,7 @@ node scripts/super-admin.mjs seu@email.com "Seu Nome"
 ```
 
 Ele imprime um link de acesso. Depois de entrar, defina a senha em
-`/definir-senha` e `/admin` abre.
+`/definir-senha` e `/adminpanel` abre.
 
 ### Agora: escolher o primeiro módulo de negócio
 

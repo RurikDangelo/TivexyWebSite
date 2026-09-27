@@ -2,6 +2,7 @@
 
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { useEffect, useSyncExternalStore } from 'react';
+import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -51,8 +52,20 @@ function resolve(theme: Theme) {
     : 'light';
 }
 
-export function ThemeToggle() {
+export interface ThemeToggleProps {
+  /**
+   * `vertical` existe para o rodapé da sidebar colapsada: três pílulas de 28px
+   * lado a lado ocupam 90px, e o trilho de ícones tem 64px. Empilhar mantém as
+   * três opções visíveis — virar um botão que cicla entre elas custaria o
+   * `radiogroup`, que é o que anuncia qual tema está escolhido.
+   */
+  orientacao?: 'horizontal' | 'vertical';
+  className?: string;
+}
+
+export function ThemeToggle({ orientacao = 'horizontal', className }: ThemeToggleProps) {
   const theme = useSyncExternalStore(subscribe, readTheme, serverTheme);
+  const vertical = orientacao === 'vertical';
 
   /* Efeito só de DOM: aplica a classe e acompanha o sistema quando em "system". */
   useEffect(() => {
@@ -80,28 +93,38 @@ export function ThemeToggle() {
     <div
       role="radiogroup"
       aria-label="Tema da interface"
-      className="inline-flex items-center gap-0.5 rounded-full border border-line-subtle bg-surface-muted p-0.5"
+      aria-orientation={orientacao}
+      className={cn(
+        'inline-flex gap-0.5 rounded-pill border border-line-subtle bg-surface-muted p-0.5',
+        vertical ? 'flex-col items-center' : 'items-center',
+        className,
+      )}
     >
       {options.map(({ value, icon: Icon, label }) => {
         const active = theme === value;
         return (
-          <button
-            key={value}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            aria-label={label}
-            title={label}
-            onClick={() => choose(value)}
-            className={cn(
-              'grid size-7 place-items-center rounded-full transition-colors duration-150',
-              active
-                ? 'bg-surface-raised text-content-accent shadow-xs'
-                : 'text-content-subtle hover:text-content-default',
-            )}
-          >
-            <Icon className="size-3.5" aria-hidden />
-          </button>
+          /*
+           * `<Tooltip>` no lugar do `title=` nativo: o `title` só aparece no
+           * ponteiro, e estes três botões são só ícone — quem chega tabulando
+           * ficaria sem saber qual é qual. O `aria-label` continua sendo o nome.
+           */
+          <Tooltip key={value} conteudo={label} lado={vertical ? 'direita' : 'cima'}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={active}
+              aria-label={label}
+              onClick={() => choose(value)}
+              className={cn(
+                'grid size-7 place-items-center rounded-pill transition-colors transition-base',
+                active
+                  ? 'bg-surface-elevated text-content-accent shadow-card'
+                  : 'text-content-subtle hover:text-content-default',
+              )}
+            >
+              <Icon className="size-3.5" aria-hidden />
+            </button>
+          </Tooltip>
         );
       })}
     </div>

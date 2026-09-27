@@ -1,12 +1,13 @@
 import { can, grossMargin, isProductUnit, stockStatus } from '@tivexy/core';
-import { FolderTree, Package, SearchX } from 'lucide-react';
+import { FolderTree, Package } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { FormError } from '@/components/form/messages';
+import { FormWarning } from '@/components/form/messages';
 import { EmptyState } from '@/components/page/empty-state';
 import { PageHeader } from '@/components/page/header';
 import { NoTenant } from '@/components/page/no-tenant';
+import { Page } from '@/components/page/page';
 import { Pagination } from '@/components/page/pagination';
 import { buttonVariants } from '@/components/ui/button';
 import { sectionTitle } from '@/config/navigation';
@@ -21,7 +22,7 @@ import { termOf } from '@/lib/terms/vocabulary';
 import { ProductFilters } from './filters';
 import { NewProductForm } from './product-form';
 import { ProductRows, type ProdutoListado } from './product-rows';
-import { POR_PAGINA, situacaoPedida } from './state';
+import { ORDEM_PADRAO, POR_PAGINA, colunaDaOrdem, ordemPedida, situacaoPedida } from './state';
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: sectionTitle(await currentTerms(), '/erp/produtos') };
@@ -38,9 +39,9 @@ function nomeEmbutido(valor: unknown): string | null {
  *
  * A busca vai ao banco — nome, código interno e código de barras —, e os
  * filtros ficam no endereço: "o que está fora de venda em Bebidas" é um link
- * que se manda para quem vai conferir. O saldo aparece ao lado quando o
- * tenant tem estoque, com a situação escrita: cor sozinha não diz nada a
- * quem não a distingue.
+ * que se manda para quem vai conferir. A ordem também mora no endereço, pelo
+ * mesmo motivo. O saldo aparece ao lado quando o tenant tem estoque, com a
+ * situação escrita: cor sozinha não diz nada a quem não a distingue.
  */
 export default async function ProdutosPage({ searchParams }: PageProps<'/erp/produtos'>) {
   const { choice, viewer } = await requireAccess('/erp/produtos');
@@ -59,6 +60,7 @@ export default async function ProdutosPage({ searchParams }: PageProps<'/erp/pro
   const categoria =
     params.categoria === 'sem' || isUuid(params.categoria) ? String(params.categoria) : '';
   const situacao = situacaoPedida(params.situacao);
+  const ordem = ordemPedida(params.ordem);
   const pagina = paginaPedida(params.pagina);
   const de = (pagina - 1) * POR_PAGINA;
   const filtrando = termo !== null || categoria !== '' || situacao !== 'ativos';
@@ -80,9 +82,13 @@ export default async function ProdutosPage({ searchParams }: PageProps<'/erp/pro
   if (situacao === 'ativos') consulta = consulta.eq('active', true);
   else if (situacao === 'fora') consulta = consulta.eq('active', false);
 
+  const { coluna, ascendente } = colunaDaOrdem(ordem ?? ORDEM_PADRAO);
+
   const [lista, categoriasR] = await Promise.all([
     consulta
-      .order('name')
+      .order(coluna, { ascending: ascendente })
+      /* Desempate estável: sem ele, dois produtos de mesmo preço trocam de
+         página entre uma requisição e outra, e um deles some da paginação. */
       .order('id')
       .range(de, de + POR_PAGINA - 1),
     supabase
@@ -96,14 +102,24 @@ export default async function ProdutosPage({ searchParams }: PageProps<'/erp/pro
   const linhas = lista.data ?? [];
   const controlados = linhas.filter((l) => l.track_stock === true).map((l) => String(l.id));
   const saldos = new Map<string, number>();
+  /*
+   * Saldo que não foi lido não é saldo zero.
+   *
+   * O `?? 0` de antes transformava uma falha de leitura em "0 un · sem
+   * estoque" em cinquenta linhas de uma vez — a tela afirmando um número que
+   * o banco não devolveu. Falhando, a coluna inteira sai e a página diz por quê.
+   */
+  let saldosIndisponiveis = false;
   if (comEstoque && controlados.length > 0) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('inventory_stock_levels')
       .select('product_id, quantity')
       .eq('tenant_id', tenantId)
       .in('product_id', controlados);
-    for (const s of data ?? []) saldos.set(String(s.product_id), Number(s.quantity));
+    if (error !== null) saldosIndisponiveis = true;
+    else for (const s of data ?? []) saldos.set(String(s.product_id), Number(s.quantity));
   }
+  const mostraEstoque = comEstoque && !saldosIndisponiveis;
 
   const produtos: ProdutoListado[] = linhas.map((l) => {
     const id = String(l.id);
@@ -123,7 +139,7 @@ export default async function ProdutosPage({ searchParams }: PageProps<'/erp/pro
       margem: grossMargin(preco, custo),
       ativo: l.active === true,
       estoque:
-        comEstoque && controla
+        mostraEstoque && controla
           ? {
               saldo,
               situacao: stockStatus({ trackStock: true, quantity: saldo, minStock: minimo }),
@@ -137,51 +153,73 @@ export default async function ProdutosPage({ searchParams }: PageProps<'/erp/pro
     nome: String(c.name),
   }));
 
-  const descricao = !filtrando
-    ? `${contagem(total, rotulo.singular, rotulo.plural)} à venda.`
-    : `${contagem(total, 'resultado', 'resultados')}${q === '' ? '' : ` para “${q}”`}.`;
+  /* Sem leitura não há contagem: "0 produtos" numa falha é a tela inventando um total. */
+  const descricao =
+    lista.error !== null
+      ? undefined
+      : !filtrando
+        ? `${contagem(total, rotulo.singular, rotulo.plural)} à venda.`
+        : `${contagem(total, 'resultado', 'resultados')}${q === '' ? '' : ` para “${q}”`}.`;
+
+  /* Os mesmos parâmetros para o cabeçalho ordenável e para a paginação. */
+  const filtrosNoEndereco = {
+    q,
+    categoria,
+    situacao: situacao === 'ativos' ? '' : situacao,
+  };
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+    <Page variant="operacao">
       <PageHeader
         titulo={titulo}
         descricao={descricao}
         acoes={
-          <Link href="/erp/produtos/categorias" className={buttonVariants({ variant: 'outline' })}>
-            <FolderTree aria-hidden />
-            Categorias
-          </Link>
+          <>
+            <Link
+              href="/erp/produtos/categorias"
+              className={buttonVariants({ variant: 'outline' })}
+            >
+              <FolderTree aria-hidden />
+              Categorias
+            </Link>
+            {podeEditar && (
+              <NewProductForm
+                singular={rotulo.singular}
+                categorias={categorias}
+                comEstoque={comEstoque}
+              />
+            )}
+          </>
         }
       />
 
-      <div className="mb-6 flex flex-col gap-4">
-        <ProductFilters
-          q={q}
-          categoria={categoria}
-          situacao={situacao}
-          categorias={categorias}
-          plural={rotulo.plural}
-        />
+      <ProductFilters
+        className="mb-4"
+        q={q}
+        categoria={categoria}
+        situacao={situacao}
+        categorias={categorias}
+        plural={rotulo.plural}
+        ordem={ordem}
+      />
 
-        {podeEditar && (
-          <NewProductForm
-            singular={rotulo.singular}
-            categorias={categorias}
-            comEstoque={comEstoque}
-          />
-        )}
-      </div>
-
-      {lista.error !== null && (
-        <div className="mb-4">
-          <FormError>Não consegui ler a lista agora. Recarregue a página em instantes.</FormError>
-        </div>
+      {saldosIndisponiveis && (
+        <FormWarning className="mb-4">
+          Não consegui ler os saldos de estoque agora, então a coluna saiu da tabela. O resto do
+          cadastro está correto.
+        </FormWarning>
       )}
 
-      {produtos.length === 0 && lista.error === null ? (
+      {/* Três ausências diferentes, três respostas: falhou, nunca houve, o filtro não achou. */}
+      {lista.error !== null ? (
+        <EmptyState estado="erro" titulo="Não consegui carregar a lista">
+          A leitura do cadastro falhou agora — não dá para saber quantos {rotulo.plural} existem.
+          Recarregue a página em instantes; se continuar, avise quem administra o sistema.
+        </EmptyState>
+      ) : produtos.length === 0 ? (
         filtrando ? (
           <EmptyState
-            icone={SearchX}
+            estado="busca"
             titulo="Nada encontrado"
             acao={
               <Link href="/erp/produtos" className={buttonVariants({ variant: 'outline' })}>
@@ -190,26 +228,33 @@ export default async function ProdutosPage({ searchParams }: PageProps<'/erp/pro
             }
           >
             {q === ''
-              ? 'Nenhum cadastro com esses filtros.'
+              ? 'Nenhum cadastro passa por estes filtros. Afrouxe a categoria ou a situação para ver o que existe.'
               : `Nenhum cadastro tem “${q}” no nome, no código ou no código de barras.`}
           </EmptyState>
         ) : (
-          <EmptyState icone={Package} titulo={`Ainda não há ${rotulo.plural}`}>
+          <EmptyState estado="vazio" icone={Package} titulo={`Ainda não há ${rotulo.plural}`}>
             {podeEditar
-              ? 'Cadastre com o botão acima. Com nome, unidade e preço, já dá para vender.'
+              ? `Sem cadastro não há o que vender: a tela de venda busca daqui. Com nome, unidade e preço, o primeiro ${rotulo.singular} já serve.`
               : 'Quando alguém da equipe cadastrar, aparece aqui.'}
           </EmptyState>
         )
       ) : (
-        <ProductRows produtos={produtos} />
+        <ProductRows
+          produtos={produtos}
+          comEstoque={mostraEstoque}
+          plural={rotulo.plural}
+          ordenacao={{ atual: ordem ?? ORDEM_PADRAO, params: filtrosNoEndereco }}
+          /* Coreografia só na chegada limpa à rota: filtrar, ordenar ou paginar não reanima nada. */
+          animar={!filtrando && ordem === null && pagina === 1}
+        />
       )}
 
       <Pagination
         pagina={pagina}
         porPagina={POR_PAGINA}
         total={total}
-        params={{ q, categoria, situacao: situacao === 'ativos' ? '' : situacao }}
+        params={{ ...filtrosNoEndereco, ordem }}
       />
-    </div>
+    </Page>
   );
 }

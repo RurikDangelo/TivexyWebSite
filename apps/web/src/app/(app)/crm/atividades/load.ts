@@ -23,6 +23,17 @@ const SELECAO =
 
 const HISTORICO_DIAS = 7;
 
+/**
+ * Os tetos das duas consultas, exportados porque a TELA precisa dizê-los.
+ *
+ * Contagem que saiu de uma consulta com `.limit()` é piso, não total: exibir
+ * "500 pendências" quando existem 900 é apresentar como real um número que não
+ * é (CLAUDE.md). Quem lê a agenda recebe `truncado`/`truncada` junto do número
+ * e escreve a frase honesta.
+ */
+export const TETO_DE_PENDENTES = 500;
+export const TETO_DO_HISTORICO = 50;
+
 const TITULOS: Record<AgendaBucket | 'done', string> = {
   overdue: 'Com atraso',
   today: 'Hoje',
@@ -63,12 +74,31 @@ export interface FiltroDaAgenda {
   responsavelId?: string | null;
 }
 
+export interface Agenda {
+  secoes: SecaoDaAgenda[];
+  pendentes: number;
+  atrasadas: number;
+  hoje: number;
+  /**
+   * A leitura das pendências falhou.
+   *
+   * Sem este sinal a tela caía no ramo "está tudo vazio" e escrevia "Agenda em
+   * dia" — que é a afirmação mais perigosa que esta tela pode fazer, porque é
+   * indistinguível do caso verdadeiro.
+   */
+  erro: boolean;
+  /** A leitura do histórico falhou. A agenda continua de pé; o histórico, não. */
+  erroNoHistorico: boolean;
+  /** `pendentes` bateu em `TETO_DE_PENDENTES`: é piso, não total. */
+  truncado: boolean;
+}
+
 export async function loadAgenda(
   tenantId: string,
   fuso: string,
   membros: readonly Member[],
   filtro: FiltroDaAgenda = {},
-): Promise<{ secoes: SecaoDaAgenda[]; pendentes: number; atrasadas: number; hoje: number }> {
+): Promise<Agenda> {
   const agora = new Date();
   const desde = new Date(agora.getTime() - HISTORICO_DIAS * 86_400_000).toISOString();
   const supabase = await supabaseServer();
@@ -81,8 +111,11 @@ export async function loadAgenda(
   };
 
   const [pendentesR, feitasR] = await Promise.all([
-    base().is('done_at', null).order('due_at', { ascending: true, nullsFirst: false }).limit(500),
-    base().gte('done_at', desde).order('done_at', { ascending: false }).limit(50),
+    base()
+      .is('done_at', null)
+      .order('due_at', { ascending: true, nullsFirst: false })
+      .limit(TETO_DE_PENDENTES),
+    base().gte('done_at', desde).order('done_at', { ascending: false }).limit(TETO_DO_HISTORICO),
   ]);
 
   const paraItem = (linha: Linha, faixa: AgendaBucket | 'done'): ItemDaAgenda => {
@@ -121,15 +154,28 @@ export async function loadAgenda(
     'done',
   ];
 
+  const pendentes = pendentesR.data?.length ?? 0;
+  const historico = feitasR.data?.length ?? 0;
+
   return {
     secoes: ordem.map((chave) => ({
       chave,
       titulo: TITULOS[chave],
       itens: porFaixa.get(chave) ?? [],
       alerta: chave === 'overdue',
+      /*
+       * Só o histórico sabe dizer, por si, que está cortado: ele é UMA faixa e
+       * tem um teto próprio. As faixas de pendência dividem um teto comum, e o
+       * corte cai sempre na última faixa preenchida — quem avisa por elas é o
+       * `truncado` do conjunto, na frase do cabeçalho.
+       */
+      truncada: chave === 'done' && historico === TETO_DO_HISTORICO,
     })),
-    pendentes: pendentesR.data?.length ?? 0,
+    pendentes,
     atrasadas: porFaixa.get('overdue')?.length ?? 0,
     hoje: porFaixa.get('today')?.length ?? 0,
+    erro: pendentesR.error !== null,
+    erroNoHistorico: feitasR.error !== null,
+    truncado: pendentes === TETO_DE_PENDENTES,
   };
 }
