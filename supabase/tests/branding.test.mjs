@@ -89,7 +89,11 @@ beforeEach(async () => {
     delete from public.tenants;
     delete from auth.users;
   `);
-  fx.t = await createTenant(db, { slug: 'marca-teste', name: 'Marca Teste', planCode: 'essencial' });
+  fx.t = await createTenant(db, {
+    slug: 'marca-teste',
+    name: 'Marca Teste',
+    planCode: 'essencial',
+  });
   await db.query(
     `insert into public.tenant_modules (tenant_id, module_id, is_enabled)
      select $1, m.id, true from public.modules m where m.code = any($2::text[])
@@ -222,10 +226,9 @@ describe('o balde do logo', () => {
   it('quem não é Super Admin não grava arquivo no balde', async () => {
     await assert.rejects(
       asUser(db, fx.admin, () =>
-        db.query(
-          `insert into storage.objects (bucket_id, name) values ('tenant-branding', $1)`,
-          [`${fx.t}/logo.png`],
-        ),
+        db.query(`insert into storage.objects (bucket_id, name) values ('tenant-branding', $1)`, [
+          `${fx.t}/logo.png`,
+        ]),
       ),
       /row-level security/,
     );

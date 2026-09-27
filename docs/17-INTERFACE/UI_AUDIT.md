@@ -9,11 +9,12 @@ Este documento registra o estado **antes** do redesenho. A estratégia derivada 
 em [[DESIGN_SYSTEM]]; o que foi efetivamente mudado está em [[REDESIGN_CHANGELOG]].
 
 ## Sumário por gravidade
+
 | Gravidade | Achados |
-| --- | --- |
-| alto | 64 |
-| médio | 90 |
-| baixo | 42 |
+| --------- | ------- |
+| alto      | 64      |
+| médio     | 90      |
+| baixo     | 42      |
 
 ---
 
@@ -157,7 +158,6 @@ O `ThemeToggle` é um radiogroup de três botões de 28px (claro / sistema / esc
 
 > **Correção:** Mover o seletor de tema para dentro do menu de conta (ou para o rodapé da sidebar, junto com o botão de colapso), unificando com o tratamento que já existe em mobile. O header ganha o espaço para a busca global.
 
-
 ---
 
 ## Telas de Plataforma — automacoes, integracoes, equipe, configuracoes, conta, avisos, empresas
@@ -267,7 +267,6 @@ O badge 'Em construção' é string fixa no shell (:94-96), sem flag, env ou con
 Existem só três keyframes no app (`tvx-enter`:234, `tvx-grow`:255, `tvx-fill`:267) e as telas de plataforma usam apenas `animate-enter`, em 5 lugares (automacoes/runs.tsx:47, integracoes/integration-card.tsx:28, equipe/team-forms.tsx:34 e :109, avisos/notification-list.tsx:31). `Card` (components/ui/card.tsx:7) não tem `transition` nem estado de hover, então nas 7 telas nada responde ao ponteiro além de botões e links de menu. Não existe skeleton nem primitivo de loading. É a parte concreta do 'as animações... é FEIO': não são ruins, são ausentes.
 
 > **Correção:** Adicionar hover/elevação ao Card e um `animate-skeleton` para os estados de carregamento — as durações e o `--ease-out` já existem, e o bloco `prefers-reduced-motion` (:279-288) já cobre tudo automaticamente.
-
 
 ---
 
@@ -384,7 +383,6 @@ O tutorial — a tela que ensina o produto de ponta a ponta e que o painel linka
 O erro do login é renderizado acima dos campos (linha 31) e os inputs recebem `aria-invalid={estado.erro !== null}` (linhas 43 e 63), mas nenhum `aria-describedby` liga os campos à mensagem. Para quem usa leitor de tela, o campo anuncia "inválido" sem dizer por quê — e o `role="alert"` só resolve se o foco não tiver saído dali. Falta também aviso de Caps Lock, que é a causa mais comum de "minha senha está certa e não entra" numa tela cujo texto de erro, por decisão deliberada de não permitir enumeração (`actions.ts:15-17`), nunca pode dizer qual dos dois campos está errado.
 
 > **Correção:** Dar um `id` ao `Erro` e apontar `aria-describedby` dos dois inputs para ele quando houver erro. Acrescentar um aviso de Caps Lock no campo de senha com `onKeyUp`/`getModifierState('CapsLock')` — é a única pista que se pode dar sem revelar qual campo falhou.
-
 
 ---
 
@@ -512,7 +510,6 @@ O esqueleto não tem a forma do painel, apesar do comentário na linha 5 afirmar
 `comparacaoSemanal(vendas.dias)` é chamada duas vezes na mesma frase — linha 263 para `.atual` e linha 265 para `.variacao`. A função varre a série duas vezes com dois `reduce` cada (lib/painel/dashboard.ts:43-45). Custo desprezível com 14 dias, mas vira problema quando o seletor de período trouxer 90.
 
 > **Correção:** Extrair uma vez: `const semana = comparacaoSemanal(vendas.dias);` antes do JSX e usar `semana.atual` / `semana.variacao`.
-
 
 ---
 
@@ -674,7 +671,6 @@ A tela de leads não oferece nenhum filtro nem busca: as seções são fixas "Em
 
 > **Correção:** Barra de filtros por searchParams em cada lista (status, origem, responsável, período) e cabeçalho ordenável na tabela, reutilizando `paginaPedida`/`ilikeTerm` de lib/search para manter tudo no endereço.
 
-
 ---
 
 ## Painel administrativo (Super Admin) — src/app/(app)/admin/ e src/server/provisioning/
@@ -818,7 +814,6 @@ O admin não tem `loading.tsx` próprio e cai no esqueleto compartilhado de `(ap
 O histórico de provisionamento usa `<details>/<summary>` cru (linhas 91-104): sem chevron, sem indicação visual de que abre, e sem transição — o único sinal de afordância é `cursor-pointer`. Não há primitivo de accordion em components/ui, então cada tela que precisar disso vai reinventar.
 
 > **Correção:** Manter `<details>` como base (é o certo por acessibilidade e por funcionar sem JS) e envolvê-lo num primitivo `disclosure` em components/ui com chevron rotacionando via `[&[open]>summary_svg]:rotate-90` e `interpolate-size`/`grid-template-rows` para a abertura suave.
-
 
 ---
 
@@ -966,7 +961,6 @@ Quinta variante de padding: `mx-auto max-w-2xl px-4 py-10 sm:px-6` — py-10 em 
 Em 375px o header não tem folga. Somando: px-4 (32) + botão hambúrguer (38) + gap-3 (12) + logo (símbolo ~28px + gap 10 + wordmark ~117px = 155) + sino (38) + menu de conta (avatar 24 + gap 8 + chevron 14 + px-2 = ~70) = ~345 de 375px. Sobram 30px. O Badge 'Em construção' e o ThemeToggle já estão escondidos em sm justamente por isso. Não quebra hoje, mas qualquer elemento novo no header — a busca global que o mockup pede, por exemplo — estoura.
 
 > **Correção:** No mobile, reduzir a logo ao símbolo (BrandSymbol) e esconder o wordmark; isso libera ~127px, que é exatamente o espaço para o botão de busca.
-
 
 ---
 
@@ -1125,7 +1119,6 @@ Cada linha do financeiro é um componente cliente com três `useActionState` pr�
 
 > **Correção:** Mover as ações para um menu por linha (um `DropdownMenu` — que não existe ainda em components/ui) ou revelá-las no hover/foco da linha, e içar os `useActionState` para o componente da lista, passando o id do lançamento no FormData, em vez de instanciar três por linha.
 
-
 ---
 
 ## Movimento, estados e acessibilidade (eixo transversal) — apps/web
@@ -1257,7 +1250,6 @@ O bloco `@media (prefers-reduced-motion: reduce)` aplica `animation-duration: 0.
 `Input`, `Select` e `Textarea` declaram `transition-colors duration-150` (linhas 10, 36 e 52) mas nenhuma cor muda por interação: não há `focus:border-*`, `hover:border-*` nem `focus:bg-*` em nenhum dos três. A transição não anima nada. Do lado do foco, os campos dependem só do outline global — que funciona, mas deixa a borda do campo idêntica em repouso e em foco, e num formulário denso como o balcão (sale-form.tsx) isso reduz a leitura de onde se está.
 
 > **Correção:** Ou remover a transição morta, ou (melhor) dar o estado que ela deveria animar: `focus:border-ring` e `hover:border-line-strong`, mantendo o outline global por cima. `aria-invalid:border-danger` já existe e passaria a transicionar de verdade.
-
 
 ---
 
@@ -1472,4 +1464,3 @@ A classe base do botão inclui `disabled:pointer-events-none`. Isso impede que o
 `Avatar` só oferece `sm` (size-6) e `md` (size-9), só o tom accent (linha 31, `bg-surface-accent-soft text-content-accent`) e não aceita imagem. Isso já forçou duas reimplementações (user-menu.tsx:63 precisava de fundo brand, board.tsx:392 é uma cópia do tamanho sm) e não cobre o avatar maior das páginas de detalhe de contato e empresa.
 
 > **Correção:** Adicionar `tamanho: 'xs' | 'sm' | 'md' | 'lg'`, `tom: 'accent' | 'brand' | 'neutral'` e suporte opcional a `src`. Depois converter os dois usos à mão.
-

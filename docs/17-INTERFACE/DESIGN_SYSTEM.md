@@ -41,14 +41,14 @@ O produto parece amador por cinco causas estruturais, não por falta de gosto.
 
 ### Medidas (tokens novos em `globals.css`)
 
-| Token | Valor | Onde |
-|---|---|---|
-| `--header-h` | `4rem` (64px) | header, `top-` da sidebar, `top-` de colunas sticky |
-| `--sidebar-w` | `16rem` (256px) | coluna expandida |
-| `--sidebar-w-collapsed` | `4rem` (64px) | modo ícone |
-| `--sidebar-w` em `2xl` | `18rem` (288px) | ≥1536px |
-| `--content-max` | `1680px` | teto do `<main>` |
-| `--z-sticky / header / drawer / overlay / popover / toast` | `20 / 30 / 40 / 50 / 60 / 70` | escala de camadas |
+| Token                                                      | Valor                         | Onde                                                |
+| ---------------------------------------------------------- | ----------------------------- | --------------------------------------------------- |
+| `--header-h`                                               | `4rem` (64px)                 | header, `top-` da sidebar, `top-` de colunas sticky |
+| `--sidebar-w`                                              | `16rem` (256px)               | coluna expandida                                    |
+| `--sidebar-w-collapsed`                                    | `4rem` (64px)                 | modo ícone                                          |
+| `--sidebar-w` em `2xl`                                     | `18rem` (288px)               | ≥1536px                                             |
+| `--content-max`                                            | `1680px`                      | teto do `<main>`                                    |
+| `--z-sticky / header / drawer / overlay / popover / toast` | `20 / 30 / 40 / 50 / 60 / 70` | escala de camadas                                   |
 
 Isso mata o número mágico `lg:top-20` de `erp/vendas/sale-form.tsx:463` e o `top-14`/`max-h-[calc(100dvh-3.5rem)]` de `app-shell.tsx:111`.
 
@@ -82,21 +82,27 @@ Um componente `apps/web/src/components/page/page.tsx`:
 
 ```tsx
 export type PageVariant = 'operacao' | 'quadro' | 'painel' | 'registro' | 'ajuste' | 'intersticial';
-export function Page({ variant, children, className }: {
-  variant: PageVariant; children: ReactNode; className?: string;
+export function Page({
+  variant,
+  children,
+  className,
+}: {
+  variant: PageVariant;
+  children: ReactNode;
+  className?: string;
 }): JSX.Element;
 ```
 
 O `<main>` já dá gutter e teto — `px-4 py-6 sm:px-6 lg:px-8 2xl:px-10`, `mx-auto w-full max-w-[--content-max]`. O `Page` só aplica o **teto interno** da variante:
 
-| Variante | Teto | Telas | Grade |
-|---|---|---|---|
-| `operacao` | nenhum | contatos, empresas, leads, produtos, vendas, estoque, financeiro, equipe, avisos, atividades, categorias, formas, admin/clientes, integrações | tabela densa; colunas extras entram em `xl` |
-| `quadro` | nenhum + sangria `-mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8` | crm/oportunidades | scroll horizontal (padrão já correto hoje) |
-| `painel` | nenhum | /painel, /admin | KPIs `grid-cols-2 md:grid-cols-3 xl:grid-cols-5`, depois `xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]` |
-| `registro` | `max-w-[1400px]` | 5 telas `[id]` | `xl:grid-cols-[18rem_minmax(0,1fr)_20rem]` |
-| `ajuste` | `max-w-3xl` | conta, configurações, admin/clientes/novo, funis, onboarding | coluna única |
-| `intersticial` | `max-w-lg` centrado vertical | acesso-negado, preparando, convite, error, not-found | — |
+| Variante       | Teto                                                            | Telas                                                                                                                                         | Grade                                                                                                 |
+| -------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `operacao`     | nenhum                                                          | contatos, empresas, leads, produtos, vendas, estoque, financeiro, equipe, avisos, atividades, categorias, formas, admin/clientes, integrações | tabela densa; colunas extras entram em `xl`                                                           |
+| `quadro`       | nenhum + sangria `-mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8` | crm/oportunidades                                                                                                                             | scroll horizontal (padrão já correto hoje)                                                            |
+| `painel`       | nenhum                                                          | /painel, /admin                                                                                                                               | KPIs `grid-cols-2 md:grid-cols-3 xl:grid-cols-5`, depois `xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]` |
+| `registro`     | `max-w-[1400px]`                                                | 5 telas `[id]`                                                                                                                                | `xl:grid-cols-[18rem_minmax(0,1fr)_20rem]`                                                            |
+| `ajuste`       | `max-w-3xl`                                                     | conta, configurações, admin/clientes/novo, funis, onboarding                                                                                  | coluna única                                                                                          |
+| `intersticial` | `max-w-lg` centrado vertical                                    | acesso-negado, preparando, convite, error, not-found                                                                                          | —                                                                                                     |
 
 **Verificação (executável, entra no CI):**
 
@@ -113,21 +119,21 @@ Medida de leitura longa (descrição de produto, motivo de cancelamento, notas) 
 
 Em `@theme inline`, sintaxe Tailwind v4 (`--text-X--line-height`, `--text-X--font-weight`, `--text-X--letter-spacing`):
 
-| Token | Tamanho | Peso | Altura | Tracking | Família | Onde |
-|---|---|---|---|---|---|---|
-| `--text-display` | 2.25rem / 36px | 700 | 1.1 | -0.025em | display | tela de login, interstícios |
-| `--text-h1` | 1.5rem / 24px | 700 | 1.2 | -0.02em | display | `PageHeader` h1 (fixo, sem `sm:text-3xl`) |
-| `--text-h2` | 1.125rem / 18px | 600 | 1.3 | -0.01em | sans | título de seção dentro da página |
-| `--text-h3` | 1rem / 16px | 600 | 1.4 | 0 | sans | `CardTitle`, `EmptyState` h2 |
-| `--text-metric` | 2rem / 32px | 700 | 1 | -0.02em | display | número de KPI (`tabular-nums`) |
-| `--text-metric-sm` | 1.375rem / 22px | 700 | 1.1 | -0.02em | display | KPI compacto, total de linha |
-| `--text-body` | 0.875rem / 14px | 400 | 1.5 | 0 | sans | corpo padrão, célula de tabela |
-| `--text-body-lg` | 1rem / 16px | 400 | 1.6 | 0 | sans | descrição do PageHeader, prosa |
-| `--text-label` | 0.875rem / 14px | 500 | 1.3 | 0 | sans | rótulo de campo, item de menu |
-| `--text-caption` | 0.8125rem / 13px | 400 | 1.4 | 0 | sans | subtítulo de linha, nota de KPI |
-| `--text-eyebrow` | 0.6875rem / 11px | 500 | 1.2 | 0.08em | mono | cabeçalho de grupo, versalete |
-| `--text-micro` | 0.625rem / 10px | 600 | 1 | 0.02em | sans | selo do sino, rótulo de eixo |
-| `--text-num` | 0.875rem / 14px | 500 | 1.4 | 0 | sans + `tabular-nums` | coluna numérica de tabela |
+| Token              | Tamanho          | Peso | Altura | Tracking | Família               | Onde                                      |
+| ------------------ | ---------------- | ---- | ------ | -------- | --------------------- | ----------------------------------------- |
+| `--text-display`   | 2.25rem / 36px   | 700  | 1.1    | -0.025em | display               | tela de login, interstícios               |
+| `--text-h1`        | 1.5rem / 24px    | 700  | 1.2    | -0.02em  | display               | `PageHeader` h1 (fixo, sem `sm:text-3xl`) |
+| `--text-h2`        | 1.125rem / 18px  | 600  | 1.3    | -0.01em  | sans                  | título de seção dentro da página          |
+| `--text-h3`        | 1rem / 16px      | 600  | 1.4    | 0        | sans                  | `CardTitle`, `EmptyState` h2              |
+| `--text-metric`    | 2rem / 32px      | 700  | 1      | -0.02em  | display               | número de KPI (`tabular-nums`)            |
+| `--text-metric-sm` | 1.375rem / 22px  | 700  | 1.1    | -0.02em  | display               | KPI compacto, total de linha              |
+| `--text-body`      | 0.875rem / 14px  | 400  | 1.5    | 0        | sans                  | corpo padrão, célula de tabela            |
+| `--text-body-lg`   | 1rem / 16px      | 400  | 1.6    | 0        | sans                  | descrição do PageHeader, prosa            |
+| `--text-label`     | 0.875rem / 14px  | 500  | 1.3    | 0        | sans                  | rótulo de campo, item de menu             |
+| `--text-caption`   | 0.8125rem / 13px | 400  | 1.4    | 0        | sans                  | subtítulo de linha, nota de KPI           |
+| `--text-eyebrow`   | 0.6875rem / 11px | 500  | 1.2    | 0.08em   | mono                  | cabeçalho de grupo, versalete             |
+| `--text-micro`     | 0.625rem / 10px  | 600  | 1      | 0.02em   | sans                  | selo do sino, rótulo de eixo              |
+| `--text-num`       | 0.875rem / 14px  | 500  | 1.4    | 0        | sans + `tabular-nums` | coluna numérica de tabela                 |
 
 Sobe `text-xs` (12px) para 13px como `caption` — 12px é o tamanho que faz o produto parecer denso-por-acidente em vez de denso-por-desenho.
 
@@ -141,17 +147,18 @@ Sobe `text-xs` (12px) para 13px como `caption` — 12px é o tamanho que faz o p
 
 ### Espaçamento — passo de 4px, cinco níveis com regra
 
-| Nível | Valor | Uso exclusivo |
-|---|---|---|
-| `gap-1` / 4px | 4px | ícone ↔ rótulo dentro de um selo |
-| `gap-2` / 8px | 8px | elementos de um mesmo controle (botões de um grupo) |
-| `gap-3` / 12px | 12px | tiles dentro de uma faixa, campos de um formulário |
-| `gap-4` / 16px | 16px | **entre blocos dentro de uma seção** (substitui os 28 `gap-6` e 27 `mb-6`) |
-| `gap-6` / 24px | 24px | **só entre regiões de página** (faixa de KPIs ↔ grade principal) |
+| Nível          | Valor | Uso exclusivo                                                              |
+| -------------- | ----- | -------------------------------------------------------------------------- |
+| `gap-1` / 4px  | 4px   | ícone ↔ rótulo dentro de um selo                                           |
+| `gap-2` / 8px  | 8px   | elementos de um mesmo controle (botões de um grupo)                        |
+| `gap-3` / 12px | 12px  | tiles dentro de uma faixa, campos de um formulário                         |
+| `gap-4` / 16px | 16px  | **entre blocos dentro de uma seção** (substitui os 28 `gap-6` e 27 `mb-6`) |
+| `gap-6` / 24px | 24px  | **só entre regiões de página** (faixa de KPIs ↔ grade principal)           |
 
 Mudanças concretas: `Card` header/content `p-5` → `p-4` (e `densidade="compacta"` → `p-3`); página `py-8` → `py-6`; `PageHeader` `mb-6` → `mb-5`. Devolve ~70px de altura por tela — duas linhas de tabela.
 
 **Densidade de linha, duas e só duas:**
+
 - `linha-densa`: `py-2` (36px), ícone 16px — razões, históricos, movimentações, itens do recibo.
 - `linha-larga`: `py-2.5` (44px), ícone 20-24px — listas navegáveis. Alvo: **15-18 registros visíveis em 1080p**, contra os 8 de hoje.
 
@@ -162,24 +169,24 @@ Hoje `rounded-xl` (1.5rem) === `rounded-3xl` (1.5rem) e `rounded-2xl` (2rem) > `
 1. Sobrescrever `--radius-3xl: 2.5rem` e `--radius-4xl: 3rem` para restaurar a monotonicidade (segurança, não uso).
 2. Tokens por papel, que é o que os componentes passam a usar:
 
-| Token | Valor | Uso |
-|---|---|---|
-| `--radius-control` | 0.5rem | botão, campo, select, pílula quadrada |
-| `--radius-card` | 0.75rem | Card, linha de lista, tile de KPI |
-| `--radius-panel` | 1rem | dropdown, popover, dialog, gaveta |
-| `--radius-pill` | 9999px | badge, chip, avatar |
+| Token              | Valor   | Uso                                   |
+| ------------------ | ------- | ------------------------------------- |
+| `--radius-control` | 0.5rem  | botão, campo, select, pílula quadrada |
+| `--radius-card`    | 0.75rem | Card, linha de lista, tile de KPI     |
+| `--radius-panel`   | 1rem    | dropdown, popover, dialog, gaveta     |
+| `--radius-pill`    | 9999px  | badge, chip, avatar                   |
 
 Eliminar os 12 `rounded` sem sufixo (0.25rem, quinto valor fora da escala).
 
 ### Elevação — quatro papéis, e a regra de que **no escuro a elevação é superfície, não sombra**
 
-| Token | Claro | Escuro | Uso |
-|---|---|---|---|
-| `--shadow-flat` | `none` | `none` | dentro de card, tabela, linha de lista |
-| `--shadow-card` | `0 1px 2px rgb(11 20 36/.05), 0 1px 3px rgb(11 20 36/.06)` | `none` (usa `--surface-panel` + `--line-subtle`) | Card, tile de KPI |
-| `--shadow-raised` | `0 2px 4px rgb(11 20 36/.04), 0 8px 16px -4px rgb(11 20 36/.08)` | `0 0 0 1px rgb(255 255 255/.06)` | card em hover, painel destacado |
-| `--shadow-overlay` | `0 4px 8px rgb(11 20 36/.04), 0 16px 32px -8px rgb(19 38 88/.14)` | `0 16px 32px -8px rgb(0 0 0/.5), 0 0 0 1px rgb(255 255 255/.08)` | dropdown, popover, tooltip, toast |
-| `--shadow-modal` | `0 8px 16px rgb(11 20 36/.06), 0 32px 64px -16px rgb(19 38 88/.22)` | `0 32px 64px -16px rgb(0 0 0/.6), 0 0 0 1px rgb(255 255 255/.1)` | dialog, gaveta |
+| Token              | Claro                                                               | Escuro                                                           | Uso                                    |
+| ------------------ | ------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------- |
+| `--shadow-flat`    | `none`                                                              | `none`                                                           | dentro de card, tabela, linha de lista |
+| `--shadow-card`    | `0 1px 2px rgb(11 20 36/.05), 0 1px 3px rgb(11 20 36/.06)`          | `none` (usa `--surface-panel` + `--line-subtle`)                 | Card, tile de KPI                      |
+| `--shadow-raised`  | `0 2px 4px rgb(11 20 36/.04), 0 8px 16px -4px rgb(11 20 36/.08)`    | `0 0 0 1px rgb(255 255 255/.06)`                                 | card em hover, painel destacado        |
+| `--shadow-overlay` | `0 4px 8px rgb(11 20 36/.04), 0 16px 32px -8px rgb(19 38 88/.14)`   | `0 16px 32px -8px rgb(0 0 0/.5), 0 0 0 1px rgb(255 255 255/.08)` | dropdown, popover, tooltip, toast      |
+| `--shadow-modal`   | `0 8px 16px rgb(11 20 36/.06), 0 32px 64px -16px rgb(19 38 88/.22)` | `0 32px 64px -16px rgb(0 0 0/.6), 0 0 0 1px rgb(255 255 255/.1)` | dialog, gaveta                         |
 
 Sobrescrever também `--shadow-2xs`, `--shadow-xl`, `--shadow-2xl` com tinta azulada — hoje herdam preto puro do Tailwind, contradizendo o comentário de `globals.css:172`.
 
@@ -204,10 +211,10 @@ O azul da marca **não muda**: `--tvx-blue-600: #1648a6` continua sendo `--surfa
 
 ### Outros tokens semânticos a criar
 
-| Token | Claro | Escuro | Motivo |
-|---|---|---|---|
-| `--surface-brand-hover` | blue-700 `#103b8a` | `#3670dc` | hoje o botão primário **escurece** no tema escuro (`button.tsx:10` fixa blue-700) |
-| `--surface-brand-active` | blue-800 `#0c2e6e` | `#1d55bd` | não existe estado `active:` no sistema |
+| Token                    | Claro              | Escuro    | Motivo                                                                            |
+| ------------------------ | ------------------ | --------- | --------------------------------------------------------------------------------- |
+| `--surface-brand-hover`  | blue-700 `#103b8a` | `#3670dc` | hoje o botão primário **escurece** no tema escuro (`button.tsx:10` fixa blue-700) |
+| `--surface-brand-active` | blue-800 `#0c2e6e` | `#1d55bd` | não existe estado `active:` no sistema                                            |
 
 > **Correção de 26/09/2026, medida e não estimada.** Esta tabela trazia blue-300 e
 > blue-200 para o escuro. Com `--content-on-brand` branco por cima, isso dá
@@ -215,10 +222,10 @@ O azul da marca **não muda**: `--tvx-blue-600: #1648a6` continua sendo `--surfa
 > acima dão 4,66:1 e 6,80:1. No escuro o hover clareia e o pressionado escurece:
 > continuar clareando destruiria o contraste, e afundar é o gesto que a mão espera
 > de um botão apertado.
-| `--content-on-danger` | `#ffffff` | ink-900 `#0b1424` | `bg-danger text-white` no escuro dá 2,2:1 (`button.tsx:14`, `notification-bell.tsx:31`) |
-| `--content-on-success` / `--content-on-warning` | `#ffffff` | ink-900 | mesma classe de defeito |
-| `--content-subtle` | **`#67748c`** (≈4,6:1 sobre branco) | `#7c8cad` (já passa) | hoje `#8e9bb0` = 2,81:1, reprova AA e carrega nota de KPI, placeholder e eixo de gráfico |
-| `--surface-accent-strong` | blue-50 → blue-100 | `rgb(35 96 212/.28)` | estado ativo de item de menu com contraste real |
+> | `--content-on-danger` | `#ffffff` | ink-900 `#0b1424` | `bg-danger text-white` no escuro dá 2,2:1 (`button.tsx:14`, `notification-bell.tsx:31`) |
+> | `--content-on-success` / `--content-on-warning` | `#ffffff` | ink-900 | mesma classe de defeito |
+> | `--content-subtle` | **`#67748c`** (≈4,6:1 sobre branco) | `#7c8cad` (já passa) | hoje `#8e9bb0` = 2,81:1, reprova AA e carrega nota de KPI, placeholder e eixo de gráfico |
+> | `--surface-accent-strong` | blue-50 → blue-100 | `rgb(35 96 212/.28)` | estado ativo de item de menu com contraste real |
 
 Proibir `bg-danger/10` e afins: opacidade sobre token de estado produz duas cores para o mesmo erro (`form-parts.tsx:19` vs `messages.tsx:13`). Só `*-soft`.
 
@@ -229,20 +236,25 @@ Proibir `bg-danger/10` e afins: opacidade sobre token de estado produz duas core
 Ordem por desbloqueio: cada item lista o que ele **apaga**.
 
 **P1 — `components/page/page.tsx`**
+
 ```tsx
 <Page variant={PageVariant} className?>
 ```
+
 Apaga 35 literais `mx-auto max-w-*` em 34 arquivos + o desalinhamento do `loading.tsx`.
 
 **P2 — `components/ui/table.tsx`**
+
 ```tsx
-<Table densidade?: 'densa'|'larga'> <THead sticky?> <TR ativo? href?> 
+<Table densidade?: 'densa'|'larga'> <THead sticky?> <TR ativo? href?>
 <TH escopo?: 'col'|'row' ordem?: {chave, atual, href} alinhamento?: 'inicio'|'fim'>
 <TD numerico? truncar?> <TableEmpty icone titulo children acao?>
 ```
+
 Ordenação por `<Link>` (`?ordem=`), mantendo o contrato GET. Apaga: 11 contêineres `<ul className="overflow-hidden rounded-lg border …">` copiados literalmente (`product-rows`, `sale-rows`, `entry-rows`, `levels`, `contact-rows`, `company-rows`, `leads/page`, `agenda`, `equipe/page`, `sale-form`) e resolve o recorte do anel de foco por `overflow-hidden` num lugar só.
 
 **P3 — `components/ui/stat.tsx`**
+
 ```tsx
 <Stat rotulo valor formato?: 'moeda'|'numero'|'percentual' Icone?
       variacao?: { valor: number|null; rotulo: string }   // null → "sem base para comparar", nunca 0%
@@ -251,56 +263,71 @@ Ordenação por `<Link>` (`?ordem=`), mantendo o contrato GET. Apaga: 11 contêi
 <StatGrid colunas?: 3|4|5>   // grid-cols-2 md:grid-cols-3 xl:grid-cols-{n}
 <Sparkline serie largura=64 altura=20 />
 ```
+
 Usa `CountUp` por dentro e `alturasDasBarras()` de `lib/painel/dashboard.ts:59`. Apaga as **cinco** implementações: `Indicador` (painel/dashboard.tsx:57), `Cartao` (erp/estoque/levels.tsx:37), `Cartao` (erp/financeiro/summary.tsx:35), `SalesSummary` (erp/vendas/sale-rows.tsx:30), `Resumo` (crm/oportunidades/board.tsx:257).
 
 **P4 — `components/ui/dialog.tsx`** (sobre `<dialog>` nativo)
+
 ```tsx
 <Dialog aberto aoFechar titulo descricao? tamanho?: 'sm'|'md'|'lg'>
 <AlertDialog severidade: 'danger'|'warning' confirmarRotulo confirmarAction
              exigirTexto?: string />   // digitar o nome para o irreversível
 ```
+
 Apaga os **10** `window.confirm()`: `admin/clientes/[id]/forms.tsx:114` e `:216`, `automacoes/rules.tsx:173`, `configuracoes/forms.tsx:205`, `crm/oportunidades/funis/editor.tsx:66`, `equipe/team-forms.tsx:293`, `erp/financeiro/entry-rows.tsx:106`, `erp/produtos/categorias/categories.tsx:86`, `erp/produtos/[id]/status-actions.tsx:59`, `erp/vendas/[id]/cancel-form.tsx:28`. Também dá base para a gaveta mobile e para o "Desfazer" do admin (`failed-runs.tsx:103`), hoje sem confirmação nenhuma.
 
 **P5 — `components/ui/dropdown-menu.tsx`** (popover + padrão ARIA completo: setas, Home/End, Esc devolvendo foco, clique fora que ignora o gatilho)
+
 ```tsx
 <DropdownMenu gatilho={ReactNode} alinhamento?: 'inicio'|'fim'>
 <DropdownItem href?|onSelect? Icone? destrutivo?>  <DropdownSeparator/>  <DropdownLabel/>
 ```
+
 Apaga: o `role="menu"` sem teclado de `user-menu.tsx:74`, o `<details>` "Mover para…" que empurra layout (`board.tsx:403`) e os 100 botões inline de `entry-rows.tsx:81-119`.
 
 **P6 — `components/ui/skeleton.tsx`** + esqueletos de forma
+
 ```tsx
 <Skeleton largura? altura? raio?: 'control'|'card'|'pill'/>
 <SkeletonStat/> <SkeletonRow colunas/> <SkeletonChart/> <SkeletonForm campos/>
 ```
+
 Apaga o `animate-pulse` à mão e viabiliza `loading.tsx` por rota + `<Suspense>` por seção.
 
 **P7 — `components/ui/tabs.tsx` + `components/ui/segmented.tsx`**
+
 ```tsx
 <Tabs itens: {chave, rotulo, href}[] ativa />           // sublinhado, overflow-x-auto sempre
 <Segmented itens como={'link'|'botao'} ativa aoTrocar?> // pílulas; é o seletor 7/30/90
 ```
+
 Apaga: `StockTabs` (`erp/estoque/filters.tsx:12`), `FinanceTabs` (`erp/financeiro/summary.tsx:201`) e as três pílulas divergentes (`board.tsx:140`, `atividades/page.tsx:101`, `oportunidades/page.tsx:216`) — três alturas e duas semânticas (`aria-pressed` vs `aria-current`) para a mesma ideia.
 
 **P8 — `components/ui/tooltip.tsx`** (hover **e** focus-visible, `role="tooltip"` + `aria-describedby`, Esc fecha)
+
 ```tsx
 <Tooltip conteudo lado?: 'cima'|'baixo'|'esquerda'|'direita'>{gatilho}</Tooltip>
 ```
+
 Apaga os 10 `title=` nativos, inclusive nos botões só-ícone de `levels.tsx:182`/`:190` e no item de menu bloqueado (`sidebar-nav.tsx:22`), hoje inalcançável por teclado.
 
 **P9 — `components/ui/combobox.tsx`** (ARIA 1.2: `role="combobox"`, `aria-expanded`, `aria-controls`, `aria-activedescendant`, listbox, setas/Enter/Esc)
+
 ```tsx
 <Combobox valor aoEscolher buscar: (t:string)=>Promise<Opcao[]>|Opcao[]
           placeholder vazioRotulo? renderOpcao? />
 ```
+
 Apaga o buscador à mão de `sale-form.tsx:314-348` (que hoje **empurra o carrinho 330px para baixo** por não ser overlay) e substitui os `<select>` de 500 opções em contatos/oportunidades/atividades.
 
 **P10 — `components/shell/command-menu.tsx`** (sobre P4 + P9) — Ctrl/Cmd+K e `/`, escopo navegação, seção de busca de registro rotulada como não implementada.
 
 **P11 — `components/page/filter-bar.tsx`**
+
 ```tsx
 <FilterBar acao? busca?: {nome, placeholder, valor} filtros?: ReactNode acoes?: ReactNode/>
 ```
+
 Um layout só (busca flexível, selects de largura fixa, botão à direita, um breakpoint de empilhamento). Apaga as quatro grades divergentes de `produtos/filters.tsx:27`, `estoque/filters.tsx:49`, `sale-rows.tsx:91`, `financeiro/page.tsx:284`, e leva a lupa do `SearchBox` para o ERP.
 
 **P12 — `components/ui/chart/`** — `useLarguraMedida()` (ResizeObserver → viewBox em pixels reais, fator 1,0 sempre), `<ChartFrame altura>` com eixos/rótulos em **HTML sobreposto**, `<ChartTooltip>` com `<rect>` de captura por coluna + `tabIndex`, crosshair, e série anterior tracejada. É o que impede que alargar a página **piore** os gráficos (`sales-chart.tsx:73` viewBox 640×200 com `h-auto w-full`; `cashflow-chart.tsx:94` 640×240, que a 1600px renderizaria texto de 27px).
@@ -310,6 +337,7 @@ Um layout só (busca flexível, selects de largura fixa, botão à direita, um b
 **P14 — `components/ui/progress.tsx`** — `valor`/`maximo`/`tom` com ARIA embutida. Apaga as duas barras à mão (`tutorial/page.tsx:153` e `FunnelBars` em `painel/dashboard.tsx:130`, esta sem semântica).
 
 **P15 — extensões dos primitivos existentes** (mesmos arquivos, sem novos):
+
 - `button.tsx`: size `xs` (h-7), `focus-visible:outline-*` próprio, `active:` por variante, prop `carregando` com `Loader2` + `aria-busy`, `hover:bg-surface-brand-hover`, `text-content-on-danger`, `disabled:cursor-not-allowed` no lugar de `disabled:pointer-events-none`. **Regra nova: uma ação `brand` por tela** — hoje são 7 `brand` contra 71 `ghost`/`outline`.
 - `input.tsx`: `size: 'sm'|'md'|'lg'` compartilhado entre Input/Select/Textarea com **o mesmo padding horizontal** (hoje `px-3` vs `px-2.5`), `focus:border-ring`, `hover:border-line-strong`.
 - `card.tsx`: `p-4`, `densidade`, `<CardAction>` no header.
@@ -339,20 +367,20 @@ Hoje `--ease-out` tem **zero** usos fora dos próprios keyframes e `--ease-stand
 
 ### Catálogo
 
-| Nome | Duração / curva | Gatilho | Onde |
-|---|---|---|---|
-| `tvx-enter` *(existe)* | 240ms / out | montagem de item | linha de lista, **primeiro carregamento apenas** |
-| `tvx-fade` | 150ms / standard | abre/fecha | overlay da gaveta e do dialog |
-| `tvx-slide-in-left` | 240ms / out, saída 150ms / in | gaveta abre | `<dialog>` mobile |
-| `tvx-pop` | 120ms / out, `transform-origin` no gatilho | abre | dropdown, popover, tooltip, command menu |
-| `tvx-sheet-up` | 240ms / out | abre | dialog desktop (scale .98→1 + translateY 8px) |
-| `tvx-grow` *(existe)* | 520ms → **360ms** / out | primeira pintura | barras de gráfico |
-| `tvx-fill` *(existe)* | 700ms → **560ms** / out | primeira pintura | progresso, barras de funil |
-| `tvx-shimmer` | 1600ms linear infinito | montagem | skeleton (substitui `animate-pulse`) |
-| `tvx-highlight` | 700ms / out | ação confirmada | cartão que mudou de coluna, linha que recebeu baixa |
-| `tvx-toast-in` | 240ms / out, saída 150ms | toast entra | região aria-live |
-| hover de elevação | 150ms / standard | ponteiro | card clicável: `hover:shadow-raised hover:-translate-y-px` |
-| foco | instantâneo | `:focus-visible` | outline nunca anima |
+| Nome                   | Duração / curva                            | Gatilho          | Onde                                                       |
+| ---------------------- | ------------------------------------------ | ---------------- | ---------------------------------------------------------- |
+| `tvx-enter` _(existe)_ | 240ms / out                                | montagem de item | linha de lista, **primeiro carregamento apenas**           |
+| `tvx-fade`             | 150ms / standard                           | abre/fecha       | overlay da gaveta e do dialog                              |
+| `tvx-slide-in-left`    | 240ms / out, saída 150ms / in              | gaveta abre      | `<dialog>` mobile                                          |
+| `tvx-pop`              | 120ms / out, `transform-origin` no gatilho | abre             | dropdown, popover, tooltip, command menu                   |
+| `tvx-sheet-up`         | 240ms / out                                | abre             | dialog desktop (scale .98→1 + translateY 8px)              |
+| `tvx-grow` _(existe)_  | 520ms → **360ms** / out                    | primeira pintura | barras de gráfico                                          |
+| `tvx-fill` _(existe)_  | 700ms → **560ms** / out                    | primeira pintura | progresso, barras de funil                                 |
+| `tvx-shimmer`          | 1600ms linear infinito                     | montagem         | skeleton (substitui `animate-pulse`)                       |
+| `tvx-highlight`        | 700ms / out                                | ação confirmada  | cartão que mudou de coluna, linha que recebeu baixa        |
+| `tvx-toast-in`         | 240ms / out, saída 150ms                   | toast entra      | região aria-live                                           |
+| hover de elevação      | 150ms / standard                           | ponteiro         | card clicável: `hover:shadow-raised hover:-translate-y-px` |
+| foco                   | instantâneo                                | `:focus-visible` | outline nunca anima                                        |
 
 ### Regras de orquestração (resolvem a queixa literal do dono)
 
@@ -452,22 +480,22 @@ Mais um `loading.tsx` por rota, escrito pelo mesmo agente da rota — sem confli
 
 ## 10. RISCOS
 
-**R1 — Mover o container para o `<main>` quebra o `sticky` de colunas laterais.** `sale-form.tsx:463` (`lg:top-20`), `receipt.tsx:105`, `produtos/[id]/page.tsx:231` assumem o header de 56px. *Mitigação*: `--header-h` na Onda 0 e varredura `grep -rn "top-14\|top-20\|100dvh-3.5rem"` na Onda 2, antes de qualquer página migrar.
+**R1 — Mover o container para o `<main>` quebra o `sticky` de colunas laterais.** `sale-form.tsx:463` (`lg:top-20`), `receipt.tsx:105`, `produtos/[id]/page.tsx:231` assumem o header de 56px. _Mitigação_: `--header-h` na Onda 0 e varredura `grep -rn "top-14\|top-20\|100dvh-3.5rem"` na Onda 2, antes de qualquer página migrar.
 
-**R2 — Redefinir `--surface` (body → `--surface-page`) muda o fundo de todo componente que usa `bg-surface`** — Input, Select, Button outline, header. *Mitigação*: **adicionar** `--surface-page` e repontar só o `body` e o `<aside>`; não mexer em `--surface`. Inspeção visual das duas telas mais densas (venda nova e financeiro) nos dois temas antes de propagar.
+**R2 — Redefinir `--surface` (body → `--surface-page`) muda o fundo de todo componente que usa `bg-surface`** — Input, Select, Button outline, header. _Mitigação_: **adicionar** `--surface-page` e repontar só o `body` e o `<aside>`; não mexer em `--surface`. Inspeção visual das duas telas mais densas (venda nova e financeiro) nos dois temas antes de propagar.
 
-**R3 — `tailwind-merge` não conhece os tokens novos.** `cn('text-metric', 'text-sm')` deixará as duas classes, e o override por `className` em qualquer primitivo passa a falhar em silêncio. *Mitigação*: `extendTailwindMerge` em `lib/utils.ts` na Onda 0, com um teste unitário que afirme `cn('text-metric','text-h1') === 'text-h1'`.
+**R3 — `tailwind-merge` não conhece os tokens novos.** `cn('text-metric', 'text-sm')` deixará as duas classes, e o override por `className` em qualquer primitivo passa a falhar em silêncio. _Mitigação_: `extendTailwindMerge` em `lib/utils.ts` na Onda 0, com um teste unitário que afirme `cn('text-metric','text-h1') === 'text-h1'`.
 
-**R4 — A derivação de acesso do menu é o ativo mais valioso do shell.** `visibleNavigation()` (`navigation.ts:234-245`) deriva a visibilidade das mesmas `routeRules` que a página aplica, e `labelOf()`/`sectionTitle()` fazem menu e título lerem o mesmo vocabulário com `throw` no href inválido. *Mitigação*: a Onda 2 reescreve **desenho**, não decisão. `config/navigation.test.ts` roda antes e depois; nenhum agente de shell pode tocar em `decideAccess`/`matchRule`.
+**R4 — A derivação de acesso do menu é o ativo mais valioso do shell.** `visibleNavigation()` (`navigation.ts:234-245`) deriva a visibilidade das mesmas `routeRules` que a página aplica, e `labelOf()`/`sectionTitle()` fazem menu e título lerem o mesmo vocabulário com `throw` no href inválido. _Mitigação_: a Onda 2 reescreve **desenho**, não decisão. `config/navigation.test.ts` roda antes e depois; nenhum agente de shell pode tocar em `decideAccess`/`matchRule`.
 
-**R5 — Server/Client boundary.** `Table` com hover, `Card` com elevação e `Tooltip` tendem a virar `'use client'` e arrastar páginas inteiras para o cliente. *Mitigação*: hover e elevação são **CSS puro** (nenhum `'use client'`); ordenação de tabela é `<Link>` com `?ordem=`, não estado; só `Tooltip`, `Dialog`, `DropdownMenu`, `Combobox`, `Toast` e `CommandMenu` são clientes, e sempre como folha.
+**R5 — Server/Client boundary.** `Table` com hover, `Card` com elevação e `Tooltip` tendem a virar `'use client'` e arrastar páginas inteiras para o cliente. _Mitigação_: hover e elevação são **CSS puro** (nenhum `'use client'`); ordenação de tabela é `<Link>` com `?ordem=`, não estado; só `Tooltip`, `Dialog`, `DropdownMenu`, `Combobox`, `Toast` e `CommandMenu` são clientes, e sempre como folha.
 
-**R6 — Formulário: `Submit` delegando a `Button carregando` pode perder o `useFormStatus`.** É o que impede registrar a mesma venda duas vezes no balcão. *Mitigação*: `Submit` continua sendo o componente que chama `useFormStatus`; `Button` só recebe `carregando` como prop. Teste manual do duplo clique em `/erp/vendas/nova` antes de fechar a Onda 1.
+**R6 — Formulário: `Submit` delegando a `Button carregando` pode perder o `useFormStatus`.** É o que impede registrar a mesma venda duas vezes no balcão. _Mitigação_: `Submit` continua sendo o componente que chama `useFormStatus`; `Button` só recebe `carregando` como prop. Teste manual do duplo clique em `/erp/vendas/nova` antes de fechar a Onda 1.
 
 **R7 — Regra inegociável do repositório.** Três pontos de risco real: (a) a busca Ctrl+K **não pode** devolver resultado de registro enquanto não houver backend — só navegação, com a seção de dados rotulada; (b) a faixa de KPIs nova não pode herdar as somas parciais de `.limit()` do painel, do funil e das páginas de empresa — `<Stat variacao={null}>` significa "sem base para comparar", nunca 0%, e soma truncada vira `null` com o aviso que o painel já sabe exibir; (c) `{slug}.tivexy.com.br` continua sendo endereço que não resolve em três telas do admin — sai de `PENDENTE — DNS` só quando o DNS existir. Qualquer agente que gere dado para preencher uma tela nova está violando o CLAUDE.md.
 
-**R8 — Acessibilidade conquistada que a reforma pode desfazer**: `role="img"` + `<title>`/`<desc>` + tabela equivalente nos dois gráficos; `aria-live` alimentado **depois** da confirmação do servidor (board, agenda, sale-form); `CountUp` entregando o valor final no HTML do servidor; cor nunca sozinha (ícone + palavra em estoque, movimentações e cancelamentos); Sair e trocar empresa como POST com Server Action; script antiflash de tema; skip link para `#conteudo`. *Mitigação*: lista de verificação anexa a cada tarefa das Ondas 4 e 5, e `grep -rn 'role="img"\|aria-live\|<caption'` comparado antes/depois.
+**R8 — Acessibilidade conquistada que a reforma pode desfazer**: `role="img"` + `<title>`/`<desc>` + tabela equivalente nos dois gráficos; `aria-live` alimentado **depois** da confirmação do servidor (board, agenda, sale-form); `CountUp` entregando o valor final no HTML do servidor; cor nunca sozinha (ícone + palavra em estoque, movimentações e cancelamentos); Sair e trocar empresa como POST com Server Action; script antiflash de tema; skip link para `#conteudo`. _Mitigação_: lista de verificação anexa a cada tarefa das Ondas 4 e 5, e `grep -rn 'role="img"\|aria-live\|<caption'` comparado antes/depois.
 
-**R9 — Escurecer `--content-subtle` para 4,6:1 muda 150+ elementos de uma vez**, inclusive o placeholder de todo campo. *Mitigação*: é a mudança certa, mas faça-a sozinha em um commit isolado na Onda 0, para que a revisão visual saiba o que olhar.
+**R9 — Escurecer `--content-subtle` para 4,6:1 muda 150+ elementos de uma vez**, inclusive o placeholder de todo campo. _Mitigação_: é a mudança certa, mas faça-a sozinha em um commit isolado na Onda 0, para que a revisão visual saiba o que olhar.
 
-**R10 — 34 arquivos migrando de largura em paralelo é o maior risco de merge.** *Mitigação*: a partição da Onda 3 é por **diretório**, não por arquivo; nenhum agente edita `components/`; e a verificação de aceite é o `grep` da seção 3 retornando vazio.
+**R10 — 34 arquivos migrando de largura em paralelo é o maior risco de merge.** _Mitigação_: a partição da Onda 3 é por **diretório**, não por arquivo; nenhum agente edita `components/`; e a verificação de aceite é o `grep` da seção 3 retornando vazio.
